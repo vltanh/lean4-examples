@@ -187,7 +187,7 @@ example : ¬ @RegularSpace ℝ (KTopologicalSpace K) := by
     ∃ ε > 0, Ioo (x - ε) (x + ε) \ K ⊆ U := by
     -- Let U be in the neighborhood of x.
     -- Then, there exists an open set U' ⊆ U in the K-topology such that x ∈ U'.
-    rw [@mem_nhds_iff ℝ x U (KTopologicalSpace K)] at hUx
+    rw [@mem_nhds_iff ℝ (KTopologicalSpace K)] at hUx
     rcases hUx with ⟨U', hU'U, hU', hxU'⟩
     -- Since U' is open in the K-topology,
     -- there exists an open set U'' in the standard topology
@@ -219,7 +219,7 @@ example : ¬ @RegularSpace ℝ (KTopologicalSpace K) := by
         -- On the other hand, y < x + ε ≤ x + (u - x) = u.
         have hyu := calc
           y < x + min (x - l) (u - x) := hyright
-          _ ≤ x + (u - x) := add_le_add_left (min_le_right (x - l) (u - x)) x
+          _ ≤ x + (u - x) := add_le_add_right (min_le_right (x - l) (u - x)) x
           _ = u := add_sub_cancel x u
         -- Thus, y ∈ (l, u) ⊆ U''.
         exact hIluU' ⟨hly, hyu⟩
