@@ -6,7 +6,7 @@ import Mathlib.Analysis.SpecialFunctions.Pow.Real
 
 open BigOperators
 
-variable {d : Type} [Fintype d] [DecidableEq d]
+variable {d : Type}
 
 -- =================================================================
 -- 1. Setup & Definitions
@@ -37,7 +37,7 @@ variable (m_hat : ℕ → d → ℝ)    -- 1st moment estimate (bias corrected)
 -- =================================================================
 
 /-- Lemma 10.2: Convexity Lower Bound -/
-lemma lemma_10_2
+lemma lemma_10_2 [Fintype d]
   (f : ℕ → (d → ℝ) → ℝ)
   (h_gradient : ∀ t x y, f t y ≥ f t x + ∑ i, (g t i) * (y i - x i)) :
   ∀ t, f t (θ t) - f t θ_star ≤ ∑ i, g t i * (θ t i - θ_star i) := by
@@ -55,11 +55,10 @@ lemma lemma_10_2
 -- Assumption needed: |g t i| ≥ 1 when g t i ≠ 0
 -- This is a strong assumption and is not generally true.
 -/
-axiom h_g_ge_one (g : ℕ → ℕ → ℝ) (i t : ℕ) : g t i ≠ 0 → 1 ≤ |g t i|
+axiom h_g_ge_one (i : d) (t : ℕ) : g t i ≠ 0 → 1 ≤ |g t i|
 
 lemma lemma_10_3
-  (g : ℕ → ℕ → ℝ) (G_inf : ℝ)
-  (h_bounded_grad : ∀ t i, |g t i| ≤ G_inf) :
+  (G_inf : ℝ) (h_bounded_grad : ∀ t i, |g t i| ≤ G_inf) :
   ∀ i T, ∑ t ∈ Finset.range T, Real.sqrt ((g t i)^2 / (t + 1)) ≤
        2 * G_inf * Real.sqrt (∑ t ∈ Finset.range T, (g t i)^2) :=
 by
@@ -208,6 +207,7 @@ lemma lemma_10_4
 -- =================================================================
 
 theorem adam_convergence_original_proof
+  [Fintype d]
   -- Problem Setup
   (f : ℕ → (d → ℝ) → ℝ)
   (h_convex : ∀ t, ConvexOn ℝ Set.univ (f t))
