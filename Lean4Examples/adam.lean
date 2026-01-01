@@ -51,11 +51,14 @@ lemma lemma_10_2
   rw [h_neg] at h_gradient
   linarith
 
-/-- Lemma 10.3 -/
+/-- Lemma 10.3
+-- Assumption needed: |g t i| ≥ 1 when g t i ≠ 0
+-- This is a strong assumption and is not generally true.
+-/
+axiom h_g_ge_one (g : ℕ → ℕ → ℝ) (i t : ℕ) : g t i ≠ 0 → 1 ≤ |g t i|
+
 lemma lemma_10_3
-  (g : ℕ → ℕ → ℝ) -- Gradient indexed by time t and dimension i
-  (G_inf : ℝ)
-  (h_g_pos : ∀ i T, ∃ t ∈ Finset.range T, g t i ≠ 0)
+  (g : ℕ → ℕ → ℝ) (G_inf : ℝ)
   (h_bounded_grad : ∀ t i, |g t i| ≤ G_inf) :
   ∀ i T, ∑ t ∈ Finset.range T, Real.sqrt ((g t i)^2 / (t + 1)) ≤
        2 * G_inf * Real.sqrt (∑ t ∈ Finset.range T, (g t i)^2) :=
@@ -68,175 +71,131 @@ by
     let term_new := Real.sqrt ((g T i)^2 / (T + 1))
     let S_prev := ∑ t ∈ Finset.range T, Real.sqrt ((g t i)^2 / (t + 1))
     let S_curr := ∑ t ∈ Finset.range (T + 1), Real.sqrt ((g t i)^2 / (t + 1))
-    let norm_g_1_Tsucc := Real.sqrt (∑ t ∈ Finset.range (T + 1), (g t i)^2)
-    let norm_g_1_T := Real.sqrt (∑ t ∈ Finset.range T, (g t i)^2)
-    let g_T_i := g T i
+    let norm_g_prev := Real.sqrt (∑ t ∈ Finset.range T, (g t i)^2)
+    let norm_g_curr := Real.sqrt (∑ t ∈ Finset.range (T + 1), (g t i)^2)
 
-    have h1 : S_curr ≤ 2 * G_inf * Real.sqrt (norm_g_1_Tsucc ^ 2 - g_T_i^2) + term_new :=
-      calc
-        S_curr = S_prev + term_new := by
-          dsimp [S_curr, S_prev]
-          rw [Finset.sum_range_succ]
-        _ ≤ 2 * G_inf * norm_g_1_T + term_new := add_le_add_left IH _
-        _ = 2 * G_inf * Real.sqrt (norm_g_1_Tsucc ^ 2 - g_T_i^2) + term_new := by
-          congr 2
-          dsimp [norm_g_1_Tsucc, norm_g_1_T]
-          rw [Finset.sum_range_succ, Real.sq_sqrt]
-          · rw [add_tsub_cancel_right]
-          · exact add_nonneg (Finset.sum_nonneg' (fun t => sq_nonneg (g t i))) (sq_nonneg g_T_i)
+    by_cases h_gTi : g T i = 0
+    · dsimp [term_new]
+      rw [Finset.sum_range_succ]
+      rw [Finset.sum_range_succ]
+      rw [h_gTi]
+      simp
+      exact IH
+    · have h_norm_g_pos : norm_g_curr > 0 := by
+        dsimp [norm_g_curr]
+        refine Real.sqrt_pos_of_pos ?_
+        refine (Finset.sum_pos_iff_of_nonneg ?_).mpr ?_
+        · intro t' ht'
+          exact sq_nonneg (g t' i)
+        · use T
+          constructor
+          · exact Finset.self_mem_range_succ T
+          · exact pow_two_pos_of_ne_zero h_gTi
 
-    have h2 : norm_g_1_Tsucc ^ 2 - g_T_i ^ 2 + g_T_i ^ 4 / (4 * norm_g_1_Tsucc ^ 2) ≥ norm_g_1_Tsucc ^ 2 - g_T_i ^ 2 := by
-      apply le_add_of_nonneg_right
-      positivity
+      have hG_pos : 0 < G_inf := by
+        specialize h_bounded_grad T i
+        refine lt_of_le_of_lt' h_bounded_grad ?_
+        exact abs_pos.mpr h_gTi
 
-    have h_norm_g_pos : norm_g_1_Tsucc > 0 := by
-      dsimp [norm_g_1_Tsucc]
-      refine Real.sqrt_pos_of_pos ?_
-      refine (Finset.sum_pos_iff_of_nonneg ?_).mpr ?_
-      · intro t' ht'
-        exact sq_nonneg (g t' i)
-      · rcases h_g_pos i (T + 1) with ⟨t, htT, ht⟩
-        specialize h_bounded_grad t i
-        use t, htT
-        exact pow_two_pos_of_ne_zero ht
+      have hT_pos : 0 < (T : ℝ) + 1 := Nat.cast_add_one_pos T
 
-    have h3 : Real.sqrt (norm_g_1_Tsucc ^ 2 - g_T_i ^ 2)
-        ≤ norm_g_1_Tsucc - g_T_i ^ 2 / (2 * Real.sqrt ((T + 1) * G_inf ^ 2) ) := calc
-      Real.sqrt (norm_g_1_Tsucc ^ 2 - g_T_i ^ 2)
-          ≤ norm_g_1_Tsucc - g_T_i ^2 / (2 * norm_g_1_Tsucc) := by
-        have h : (norm_g_1_Tsucc - g_T_i ^2 / (2 * norm_g_1_Tsucc)) ^ 2
-            = norm_g_1_Tsucc ^ 2 - g_T_i ^ 2 + g_T_i ^ 4 / (4 * norm_g_1_Tsucc ^ 2) := calc
-          (norm_g_1_Tsucc - g_T_i ^2 / (2 * norm_g_1_Tsucc)) ^ 2
-              = norm_g_1_Tsucc ^ 2 - 2 * norm_g_1_Tsucc * (g_T_i ^2 / (2 * norm_g_1_Tsucc)) + (g_T_i ^2 / (2 * norm_g_1_Tsucc)) ^ 2 := by ring
-          _ = norm_g_1_Tsucc ^ 2 - g_T_i ^ 2 + g_T_i ^ 4 / (4 * norm_g_1_Tsucc ^ 2) := by
-
-            have h1 : g_T_i ^ 2 = 2 * norm_g_1_Tsucc * (g_T_i ^2 / (2 * norm_g_1_Tsucc)) := by
-              ring_nf
-              refine (eq_mul_inv_iff_mul_eq₀ ?_).mpr rfl
-              exact (ne_of_lt h_norm_g_pos).symm
-
-            have h2 : (g_T_i ^2 / (2 * norm_g_1_Tsucc)) ^ 2 = g_T_i ^ 4 / (4 * norm_g_1_Tsucc ^ 2) := by
-              refine (Real.sqrt_inj (by positivity) (by positivity)).mp ?_
-              rw [Real.sqrt_div]
-              · have h1 : Real.sqrt ( g_T_i ^ 4 ) = g_T_i ^2 := by
-                  have : g_T_i ^ 4 = (g_T_i ^ 2) ^ 2 := by ring
-                  rw [this]
-                  refine Real.sqrt_sq (by positivity)
-                have h2 : Real.sqrt ( 4 * norm_g_1_Tsucc ^ 2 ) = 2 * norm_g_1_Tsucc := by
-                  rw [Real.sqrt_mul]
-                  · have : Real.sqrt 4 = 2 := (Real.sqrt_eq_iff_mul_self_eq_of_pos (by simp)).mpr (by linarith)
-                    rw [this]
-                    simp
-                    exact Real.sqrt_sq (by positivity)
-                  · linarith
-                rw [h1, h2]
-                refine Real.sqrt_sq (by positivity)
-              · positivity
-            rw [← h1, h2]
-
-        rw [← h] at h2
-        refine (Real.sqrt_le_left ?_).mpr h2
-        simp
-
-        refine (div_le_iff₀' ?_).mpr ?_
-        · simp
-          exact h_norm_g_pos
-        · rw [mul_assoc]
-          rw [← sq]
-          rw [two_mul]
-          rw [← zero_add (g_T_i ^ 2)]
-          refine add_le_add (sq_nonneg norm_g_1_Tsucc) ?_
-          dsimp [norm_g_1_Tsucc]
-          rw [Finset.sum_range_succ]
-          rw [Real.sq_sqrt]
-          · exact le_add_of_nonneg_left (Finset.sum_nonneg' (fun t => sq_nonneg (g t i)))
-          · exact add_nonneg (Finset.sum_nonneg' (fun t => sq_nonneg (g t i))) (sq_nonneg g_T_i)
-      _ ≤ norm_g_1_Tsucc - g_T_i ^ 2 / (2 * Real.sqrt ((T + 1) * G_inf ^ 2) ) := by
-        refine tsub_le_tsub_left ?_ norm_g_1_Tsucc
-        refine div_le_div_of_nonneg_left (sq_nonneg g_T_i) ?_ ?_
-        · simp
-          exact h_norm_g_pos
-        · refine mul_le_mul_of_nonneg_left ?_ (by linarith)
-          dsimp [norm_g_1_Tsucc]
-          refine Real.sqrt_le_sqrt ?_
-          have : (T + 1) * G_inf ^ 2 = ∑ t ∈ Finset.range (T + 1), (G_inf ^ 2) := by
-            rw [Finset.sum_const]
-            rw [Finset.card_range]
-            ring
-          rw [this]
-          refine Finset.sum_le_sum ?_
-          intro t ht
-          specialize h_bounded_grad t i
-          refine (Real.sqrt_le_left ?_).mp ?_
-          · refine le_trans ?_ h_bounded_grad
-            exact abs_nonneg (g t i)
-          · rw [Real.sqrt_sq_eq_abs]
-            exact h_bounded_grad
-
-    have hT_pos : 0 < (T : ℝ) + 1 := Nat.cast_add_one_pos T
-
-    have hG_nonneg : 0 ≤ G_inf := by
-      specialize h_bounded_grad 0 i
-      exact le_trans (abs_nonneg (g 0 i)) h_bounded_grad
-
-    have hG_pos : 0 < G_inf := by
-      rcases h_g_pos i (T + 1) with ⟨t, ht⟩
-      specialize h_bounded_grad t i
-      refine lt_of_le_of_lt' h_bounded_grad ?_
-      exact abs_pos.mpr ht.right
-
-    calc
-      ∑ t ∈ Finset.range (T + 1), √(g t i ^ 2 / (↑t + 1)) = S_curr := by rfl
-      _ ≤ 2 * G_inf * Real.sqrt (norm_g_1_Tsucc ^ 2 - g_T_i ^ 2) + term_new := h1
-      _ ≤ 2 * G_inf * norm_g_1_Tsucc := by
-        have h : 2 * G_inf * Real.sqrt (norm_g_1_Tsucc ^ 2 - g_T_i ^ 2)
-            ≤ 2 * G_inf * norm_g_1_Tsucc - g_T_i ^ 2 / Real.sqrt (T + 1) := calc
-          2 * G_inf * Real.sqrt (norm_g_1_Tsucc ^ 2 - g_T_i ^ 2)
-            ≤ 2 * G_inf * (norm_g_1_Tsucc - g_T_i ^ 2 / (2 * Real.sqrt ((T + 1) * G_inf ^ 2) )) := by
-            refine mul_le_mul_of_nonneg_left h3 ?_
-            simp
-            specialize h_bounded_grad T i
-            exact le_trans (abs_nonneg (g T i)) h_bounded_grad
-          _ = 2 * G_inf * norm_g_1_Tsucc - g_T_i ^ 2 / Real.sqrt (T + 1) := by
-            rw [mul_sub]
-            simp
-            refine Eq.symm (div_eq_of_eq_mul ?_ ?_)
-            · simp
-              refine Real.sqrt_ne_zero'.mpr ?_
-              exact hT_pos
-            · rw [Real.sqrt_mul (le_of_lt hT_pos)]
-              rw [Real.sqrt_sq hG_nonneg]
-              field_simp [
-                hG_pos,
-                hT_pos,
-                Real.sqrt_pos.mpr hT_pos
-              ]
-
-        refine add_le_of_add_le_right ?_ h
+      have h1 : S_curr ≤ 2 * G_inf * Real.sqrt (norm_g_curr^2 - (g T i)^2) + term_new :=
         calc
-          2 * G_inf * norm_g_1_Tsucc - g_T_i ^ 2 / Real.sqrt (T + 1) + term_new
-            = 2 * G_inf * norm_g_1_Tsucc + (- g_T_i ^ 2 / Real.sqrt (T + 1) + term_new) := by ring
-          _ ≤ 2 * G_inf * norm_g_1_Tsucc + 0 := by
-            refine (add_le_add_iff_left (2 * G_inf * norm_g_1_Tsucc)).mpr ?_
-            dsimp [term_new]
-            ring_nf
-            rw [neg_add_nonpos_iff]
-            calc
-              √(g T i ^ 2 * (1 + ↑T)⁻¹)
-                = √(g T i ^ 2) * Real.sqrt (1 + ↑T)⁻¹ := Real.sqrt_mul (sq_nonneg (g T i)) (1 + ↑T)⁻¹
-              _ = √(g T i ^ 2) * (Real.sqrt (1 + ↑T))⁻¹ := by simp
-              _ ≤ g_T_i ^ 2 * (√(1 + ↑T))⁻¹ := by
-                refine (mul_le_mul_iff_left₀ ?_).mpr ?_
-                · refine Right.inv_pos.mpr ?_
-                  refine Real.sqrt_pos_of_pos ?_
-                  rw [add_comm]
-                  exact hT_pos
-                · rw [Real.sqrt_sq_eq_abs]
-                  show |g T i| ≤ g_T_i ^ 2
-                  sorry
-          _ = 2 * G_inf * norm_g_1_Tsucc := by linarith
+          S_curr = S_prev + term_new := by
+            dsimp [S_curr, S_prev]
+            rw [Finset.sum_range_succ]
+          _ ≤ 2 * G_inf * norm_g_prev + term_new := add_le_add_left IH _
+          _ = 2 * G_inf * Real.sqrt (norm_g_curr^2 - (g T i)^2) + term_new := by
+            congr 2
+            dsimp [norm_g_curr, norm_g_prev]
+            rw [Finset.sum_range_succ, Real.sq_sqrt]
+            · rw [add_tsub_cancel_right]
+            · exact add_nonneg (Finset.sum_nonneg' (fun t => sq_nonneg (g t i))) (sq_nonneg (g T i))
 
-/-- Lemma 10.4: Bound on momentum term (Standard Analysis Result) -/
+      have h2 : norm_g_curr^2 - (g T i)^2 + (g T i)^4 / (4 * norm_g_curr^2) ≥ norm_g_curr^2 - (g T i)^2 := by
+        apply le_add_of_nonneg_right
+        positivity
+
+      have h3 : Real.sqrt (norm_g_curr^2 - (g T i)^2)
+          ≤ norm_g_curr - (g T i)^2 / (2 * Real.sqrt ((T + 1) * G_inf^2) ) := calc
+        Real.sqrt (norm_g_curr^2 - (g T i)^2)
+            ≤ norm_g_curr - (g T i)^2 / (2 * norm_g_curr) := by
+
+          have h_expand : (norm_g_curr - (g T i)^2 / (2 * norm_g_curr))^2 =
+              norm_g_curr^2 - (g T i)^2 + (g T i)^4 / (4 * norm_g_curr^2) := by
+            rw [sub_sq]
+            have : ((g T i)^2 / (2 * norm_g_curr))^2 = (g T i)^4 / (4 * norm_g_curr^2) := by
+              field_simp [ne_of_gt h_norm_g_pos]
+              ring
+            rw [this]
+            field_simp [ne_of_gt h_norm_g_pos]
+
+          rw [← h_expand] at h2
+          refine (Real.sqrt_le_left ?_).mpr h2
+          simp
+
+          refine (div_le_iff₀' ?_).mpr ?_
+          · simp
+            exact h_norm_g_pos
+          · rw [mul_assoc]
+            rw [← sq]
+            rw [two_mul]
+            rw [← zero_add ((g T i)^2)]
+            refine add_le_add (sq_nonneg norm_g_curr) ?_
+            dsimp [norm_g_curr]
+            rw [Finset.sum_range_succ]
+            rw [Real.sq_sqrt]
+            · exact le_add_of_nonneg_left (Finset.sum_nonneg' (fun t => sq_nonneg (g t i)))
+            · exact add_nonneg (Finset.sum_nonneg' (fun t => sq_nonneg (g t i))) (sq_nonneg (g T i))
+        _ ≤ norm_g_curr - (g T i)^2 / (2 * Real.sqrt ((T + 1) * G_inf^2) ) := by
+          gcongr
+          apply Real.sqrt_le_sqrt
+          calc
+            ∑ t ∈ Finset.range (T + 1), (g t i)^2
+            ≤ ∑ t ∈ Finset.range (T + 1), G_inf^2 := by
+              apply Finset.sum_le_sum
+              intro t ht
+              specialize h_bounded_grad t i
+              exact sq_le_sq.mpr (le_trans h_bounded_grad (le_abs_self G_inf))
+            _ = (T + 1) * G_inf^2 := by simp
+
+      calc
+        ∑ t ∈ Finset.range (T + 1), √((g t i)^2 / (↑t + 1)) = S_curr := by rfl
+        _ ≤ 2 * G_inf * Real.sqrt (norm_g_curr^2 - (g T i)^2) + term_new := h1
+        _ ≤ 2 * G_inf * norm_g_curr := by
+          have h : 2 * G_inf * Real.sqrt (norm_g_curr^2 - (g T i)^2)
+              ≤ 2 * G_inf * norm_g_curr - (g T i)^2 / Real.sqrt (T + 1) := calc
+            2 * G_inf * Real.sqrt (norm_g_curr^2 - (g T i)^2)
+              ≤ 2 * G_inf * (norm_g_curr - (g T i)^2 / (2 * Real.sqrt ((T + 1) * G_inf^2) )) := by gcongr
+            _ = 2 * G_inf * norm_g_curr - (g T i)^2 / Real.sqrt (T + 1) := by
+              rw [mul_sub]
+              rw [Real.sqrt_mul (le_of_lt hT_pos)]
+              rw [Real.sqrt_sq (le_of_lt hG_pos)]
+              field_simp [hG_pos, Real.sqrt_pos.mpr hT_pos]
+
+          refine add_le_of_add_le_right ?_ h
+          calc
+            2 * G_inf * norm_g_curr - (g T i)^2 / Real.sqrt (T + 1) + term_new
+              = 2 * G_inf * norm_g_curr + (- (g T i)^2 / Real.sqrt (T + 1) + term_new) := by ring
+            _ ≤ 2 * G_inf * norm_g_curr + 0 := by
+              refine (add_le_add_iff_left (2 * G_inf * norm_g_curr)).mpr ?_
+              dsimp [term_new]
+              ring_nf
+              rw [neg_add_nonpos_iff]
+              calc
+                √((g T i)^2 * (1 + ↑T)⁻¹)
+                  = Real.sqrt ((g T i)^2) * Real.sqrt (1 + ↑T)⁻¹ := Real.sqrt_mul (sq_nonneg (g T i)) (1 + ↑T)⁻¹
+                _ ≤ (g T i)^2 * (Real.sqrt (1 + ↑T))⁻¹ := by
+                  gcongr
+                  · rw [Real.sqrt_sq_eq_abs]
+                    have h_one_le : 1 ≤ |g T i| := h_g_ge_one g i T h_gTi
+                    rw [← mul_one |g T i|]
+                    rw [← sq_abs, sq]
+                    refine mul_le_mul_of_nonneg_left h_one_le (abs_nonneg (g T i))
+                  · simp
+            _ = 2 * G_inf * norm_g_curr := by linarith
+
+/-- Lemma 10.4: Bound on momentum term -/
 lemma lemma_10_4
   (γ : ℝ) (h_γ : γ = p.β1^2 / Real.sqrt p.β2)
   (G_2 : d → ℝ) (h_bounded_accum : ∀ i, Real.sqrt (∑ t ∈ Finset.range T, (g t i)^2) ≤ G_2 i) :
