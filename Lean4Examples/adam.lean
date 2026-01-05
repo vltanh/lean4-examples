@@ -418,7 +418,7 @@ lemma lemma_10_4
           apply mul_nonneg
           · apply mul_nonneg
             · positivity
-            · rw [@pow_mul']
+            · rw [pow_mul']
               positivity
           · positivity
         · apply Real.sqrt_pos.mpr
@@ -512,6 +512,29 @@ lemma lemma_10_4
     -- 5. Right Inverse
     · rintro ⟨k, t⟩ _; rfl
 
+  have sum_filter_shift (T k : ℕ) (f : ℕ → ℝ) (hkT : k ≤ T) :
+      ∑ t ∈ (Finset.range T).filter (k ≤ ·), f (t - k) = ∑ j ∈ Finset.range (T - k), f j := by
+    refine Finset.sum_bij (fun t _ ↦ t - k) ?_ ?_ ?_ ?_
+    -- 1. Map lands in codomain
+    · intro t ht
+      simp only [Finset.mem_range, Finset.mem_filter] at ht ⊢
+      apply Nat.sub_lt_right_of_lt_add ht.2
+      rw [Nat.sub_add_cancel hkT]
+      exact ht.left
+    -- 2. Values match
+    · intro t ht a ha h
+      simp at ht ha h ⊢
+      rw [← Nat.sub_add_cancel ht.right]
+      rw [← Nat.sub_add_cancel ha.right]
+      rw [h]
+    -- 3. Surjectivity (Inverse map exists)
+    · intro j hj
+      simp only [Finset.mem_range, Finset.mem_filter] at hj ⊢
+      refine ⟨j + k, ⟨Nat.add_lt_of_lt_sub hj, Nat.le_add_left k j⟩, Nat.add_sub_cancel j k⟩
+    -- 4. Injectivity
+    · intro t ht; simp only [Finset.mem_range, Finset.mem_filter] at ht
+      simp
+
   calc
     ∑ t ∈ Finset.range T, (m_hat p g t i)^2 / Real.sqrt ((t+1) * v_hat p g t i)
       ≤ ∑ t ∈ Finset.range T, (1 / Real.sqrt (1 - p.β2)) * ∑ k ∈ Finset.range (t+1), Real.sqrt (t+1) * γ^(t-k) * |g k i| := by
@@ -526,21 +549,24 @@ lemma lemma_10_4
     _ = (1 / Real.sqrt (1 - p.β2)) * ∑ k ∈ Finset.range T, |g k i| * ∑ t ∈ (Finset.range T).filter (k ≤ ·), Real.sqrt (t+1) * γ^(t-k) := by
       congr; ext k
       rw [Finset.mul_sum]
-    _ ≤ (1 / Real.sqrt (1 - p.β2)) * ∑ k ∈ Finset.range T, |g k i| * ∑ t ∈ Finset.range T, Real.sqrt (t+1) * γ^(t-k) := by
-      apply mul_le_mul_of_nonneg_left
-      · apply Finset.sum_le_sum
-        intro k hk
-        apply mul_le_mul_of_nonneg_left
-        · apply Finset.sum_le_sum
-          intro t ht
-          apply le_refl
-        · positivity
-      · positivity
-
+    _ ≤ (1 / Real.sqrt (1 - p.β2)) * ∑ k ∈ Finset.range T, |g k i| * ∑ t ∈ Finset.range (T - k), Real.sqrt (t + k + 1) * γ^t := by
+      -- 3. Reindex t -> t - k (using helper lemma)
+      apply mul_le_mul_of_nonneg_left _ (one_div_nonneg.mpr (Real.sqrt_nonneg _))
+      apply Finset.sum_le_sum
+      intro k hk
+      apply mul_le_mul_of_nonneg_left _ (abs_nonneg _)
+      -- Apply equality via `le_of_eq` and the shift lemma
+      apply le_of_eq
+      -- We match the form f(t-k) by observing:
+      -- Real.sqrt (t + 1) * γ^(t-k) = Real.sqrt ((t-k) + k + 1) * γ^(t-k)
+      convert sum_filter_shift T k (fun x ↦ Real.sqrt (x + k + 1) * γ^x) (Finset.mem_range_le hk) using 2
+      congr
+      expose_names
+      have hkx : k ≤ x := by
+        simp at h
+        exact h.right
+      rw [← Nat.cast_add, Nat.sub_add_cancel hkx]
     _ = sorry := sorry
-    -- _ ≤ (2 * G_inf) / ((1 - γ)^2 * Real.sqrt (1 - p.β2)) * Real.sqrt (∑ t ∈ Finset.range T, (g t i)^2) := by
-      -- sorry
-
 
 -- =================================================================
 -- 3. Main Theorem (Theorem 10.5)
