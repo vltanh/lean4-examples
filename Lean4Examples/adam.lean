@@ -567,6 +567,8 @@ lemma lemma_10_4
         exact h.right
       rw [← Nat.cast_add, Nat.sub_add_cancel hkx]
     _ = sorry := sorry
+    _ ≤ (2 * G_inf) / ((1 - γ)^2 * Real.sqrt (1 - p.β2)) * Real.sqrt (∑ t ∈ Finset.range T, (g t i)^2) := by
+      sorry
 
 -- =================================================================
 -- 3. Main Theorem (Theorem 10.5)
@@ -600,15 +602,15 @@ theorem adam_convergence_original_proof
     ∑ t ∈ Finset.range T, ∑ i, g t i * (θ t i - θ_star i) := by
       apply Finset.sum_le_sum
       intro t _
-      exact lemma_10_2 f h_gradient t
+      exact lemma_10_2 g f h_gradient t
 
   -- 2. Algebraic Rearrangement of Update Rule
   -- We expand ||θ_{t+1} - θ*||^2 to isolate g_t * (θ_t - θ*)
   -- Corresponds to Appendix 10.1, Equation 1123-1124 in Kingma & Ba
   have h_update_expansion : ∀ t i,
     g t i * (θ t i - θ_star i) ≤
-    (1 / (2 * α_t t * (1 - p.β1))) * (Real.sqrt (v_hat t i)) * ((θ t i - θ_star i)^2 - (θ (t + 1) i - θ_star i)^2) +
-    (Real.sqrt (v_hat t i)) * (D_inf^2 / (2 * α_t t)) -- Placeholder for error terms
+    (1 / (2 * α_t t * (1 - p.β1))) * (Real.sqrt (v_hat p g t i)) * ((θ t i - θ_star i)^2 - (θ (t + 1) i - θ_star i)^2) +
+    (Real.sqrt (v_hat p g t i)) * (D_inf^2 / (2 * α_t t)) -- Placeholder for error terms
     := by
       intro t i
       -- Detailed algebra omitted for brevity, but relies on:
@@ -617,7 +619,7 @@ theorem adam_convergence_original_proof
       sorry
 
   -- 3. Define the critical potential coefficient Γ_t
-  let Γ (t : ℕ) (i : d) := Real.sqrt (v_hat t i) / (2 * α_t t * (1 - p.β1))
+  let Γ (t : ℕ) (i : d) := Real.sqrt (v_hat p g t i) / (2 * α_t t * (1 - p.β1))
 
   -- 4. THE FAULTY ASSUMPTION
   -- "We assume Γ_{t+1} ≥ Γ_t" (inverse learning rate is monotonic)
