@@ -20,17 +20,28 @@ structure AdamParams where
   ε : ℝ         -- Epsilon
   h_α_pos : 0 < α
   h_β1_valid : 0 ≤ β1 ∧ β1 < 1
-  h_β2_valid : 0 ≤ β2 ∧ β2 < 1
+  h_β2_valid : 0 < β2 ∧ β2 < 1
   h_lmbda_valid : 0 < lmbda ∧ lmbda < 1
   h_gamma_valid : β1^2 / Real.sqrt β2 < 1
 
+variable {T : ℕ}
 variable (p : AdamParams)
-variable (T : ℕ)
 variable (g : ℕ → d → ℝ)        -- Gradients
-variable (θ_star : d → ℝ)       -- Optimal parameter
-variable (θ : ℕ → d → ℝ)        -- Parameter sequence
-variable (v_hat : ℕ → d → ℝ)    -- 2nd moment estimate (bias corrected)
-variable (m_hat : ℕ → d → ℝ)    -- 1st moment estimate (bias corrected)
+variable {θ_star : d → ℝ}       -- Optimal parameter
+variable {θ : ℕ → d → ℝ}        -- Parameter sequence
+
+-- Definitions needed for the proof expansion
+def m (t : ℕ) (i : d) : ℝ :=
+  (1 - p.β1) * ∑ k ∈ Finset.range (t + 1), p.β1 ^ (t - k) * g k i
+
+def v (t : ℕ) (i : d) : ℝ :=
+  (1 - p.β2) * ∑ k ∈ Finset.range (t + 1), p.β2 ^ (t - k) * (g k i) ^ 2
+
+noncomputable def m_hat (t : ℕ) (i : d) : ℝ :=
+  m p g t i / (1 - p.β1 ^ (t + 1))
+
+noncomputable def v_hat (t : ℕ) (i : d) : ℝ :=
+  v p g t i / (1 - p.β2 ^ (t + 1))
 
 -- =================================================================
 -- 2. Helper Lemmas (Lemmas 10.2 - 10.4 from Kingma & Ba)
@@ -194,13 +205,342 @@ by
                   · simp
             _ = 2 * G_inf * norm_g_curr := by linarith
 
+lemma arithmetic_geometric_sum_bound
+  (n : ℕ) (r : ℝ) (h_nonneg : 0 ≤ r) (h_lt_one : r < 1) :
+  ∑ t ∈ Finset.range n, (t + 1) * r ^ (t + 1) ≤ 1 / (1 - r) ^ 2 := by
+  -- 1. Define the unshifted sum
+  let S_base := ∑ t ∈ Finset.range n, ((t : ℝ) + 1) * r ^ t
+  -- 2. Prove the bound for the unshifted sum
+  have h_base_bound : S_base ≤ 1 / (1 - r) ^ 2 := by
+    cases n with
+    | zero =>
+      simp [S_base]
+      positivity
+    | succ n' =>
+      -- Multiply S_base by (1-r)
+      have h_mul : (1 - r) * S_base =
+        (∑ t ∈ Finset.range (n' + 1), r ^ t) - (n' + 1) * r ^ (n' + 1) := by
+        -- (1-r)S = S - rS
+        -- S  = 1 + 2r + ... + nr^(n-1)
+        -- rS =     1r + ... + (n-1)r^(n-1) + nr^n
+        -- S - rS = 1 + r + ... + r^(n-1) - nr^n
+        -- Formal proof using sum manipulation:
+        rw [sub_mul, one_mul]
+        let N := n' + 1
+        have h_shift : r * S_base = ∑ t ∈ Finset.range N, (t+1)*r^(t+1) := by
+          dsimp [S_base]; rw [Finset.mul_sum]; congr; ext; ring
+
+        -- We want to show: S_base - r*S_base = (sum r^t) - N*r^N
+        rw [h_shift]
+
+        -- Helper: sum_{0}^{N-1} (t+1)r^(t+1) = sum_{0}^{N-1} t*r^t + N*r^N
+        have h_idx_shift : ∑ t ∈ Finset.range N, (t+1)*r^(t+1) =
+          (∑ t ∈ Finset.range N, t*r^t) + N*r^N := by
+          dsimp only [N]
+          rw [Finset.sum_range_succ]
+          rw [Finset.sum_range_succ']
+          simp
+
+        rw [h_idx_shift]
+        rw [sub_add_eq_sub_sub]
+        congr 1
+        -- S_base - sum t*r^t = sum (t+1-t)r^t = sum r^t
+        dsimp [S_base]
+        rw [← Finset.sum_sub_distrib]
+        congr; ext; ring
+
+        congr
+        dsimp [N]
+        exact Nat.cast_add_one n'
+
+      -- Apply geometric sum formula to bound (1-r)S_base
+      have h_bound_mul : (1 - r) * S_base ≤ 1 / (1 - r) := by
+        rw [h_mul]
+        -- Explicit calculation to avoid unification errors with le_trans
+        calc
+          (∑ t ∈ Finset.range (n' + 1), r ^ t) - (↑n' + 1) * r ^ (n' + 1)
+          ≤ ∑ t ∈ Finset.range (n' + 1), r ^ t := by
+            apply sub_le_self
+            apply mul_nonneg (add_nonneg (Nat.cast_nonneg _) zero_le_one) (pow_nonneg h_nonneg _)
+          _ = (r ^ (n' + 1) - 1) / (r - 1) := geom_sum_eq h_lt_one.ne (n' + 1)
+          _ = (1 - r ^ (n' + 1)) / (1 - r) := by
+            rw [← neg_sub (r ^ (n' + 1)), ← neg_sub r, neg_div_neg_eq]
+          _ ≤ 1 / (1 - r) := by
+            apply div_le_div_of_nonneg_right
+            · rw [sub_le_self_iff]; apply pow_nonneg h_nonneg
+            · exact le_of_lt (sub_pos.mpr h_lt_one)
+
+      -- Divide by (1-r)
+      -- simp [S_base]
+      rwa [
+        le_div_iff₀ ( sub_pos.mpr h_lt_one ),
+        mul_comm, ← mul_assoc, ← pow_two, mul_comm,
+        ← le_div_iff₀ (sq_pos_of_pos (sub_pos.mpr h_lt_one))
+      ] at h_bound_mul
+
+  -- 3. Connect S_base to the target sum
+  calc
+    ∑ t ∈ Finset.range n, ((t : ℝ) + 1) * r ^ (t + 1)
+      = ∑ t ∈ Finset.range n, r * (((t : ℝ) + 1) * r ^ t) := by
+        congr; ext; ring
+    _ = r * S_base := by
+        rw [Finset.mul_sum]
+    _ ≤ 1 * S_base := by
+        apply mul_le_mul_of_nonneg_right (le_of_lt h_lt_one)
+        apply Finset.sum_nonneg
+        intro t _
+        apply mul_nonneg (add_nonneg (Nat.cast_nonneg t) zero_le_one) (pow_nonneg h_nonneg t)
+    _ ≤ 1 / (1 - r) ^ 2 := by
+        rwa [one_mul]
+
 /-- Lemma 10.4: Bound on momentum term -/
 lemma lemma_10_4
-  (γ : ℝ) (h_γ : γ = p.β1^2 / Real.sqrt p.β2)
-  (G_2 : d → ℝ) (h_bounded_accum : ∀ i, Real.sqrt (∑ t ∈ Finset.range T, (g t i)^2) ≤ G_2 i) :
-  ∀ i, (∑ t ∈ Finset.range T, (m_hat t i)^2 / Real.sqrt ((t+1) * v_hat t i)) ≤
-       (2 / (1 - γ)) * (1 / Real.sqrt (1 - p.β2)) * G_2 i := by
-  sorry
+  (G_inf : ℝ) (h_bounded_grad : ∀ t i, |g t i| ≤ G_inf) :
+  let γ := p.β1^2 / Real.sqrt p.β2
+  ∀ i, (∑ t ∈ Finset.range T, (m_hat p g t i)^2 / Real.sqrt ((t+1) * v_hat p g t i)) ≤
+    (2 * G_inf) / ((1 - γ)^2 * Real.sqrt (1 - p.β2)) * Real.sqrt (∑ t ∈ Finset.range T, (g t i)^2) := by
+  intro γ i
+
+  have h_bias_correction : ∀ t,
+    Real.sqrt (1 - p.β2^(t+1)) / (1 - p.β1^(t+1))^2 ≤ 1 / (1 - p.β1)^2 := by
+    intro t
+    gcongr
+    · refine sq_pos_of_pos ?_
+      simp
+      exact p.h_β1_valid.right
+    · refine Real.sqrt_le_one.mpr ?_
+      simp
+      refine pow_succ_nonneg ?_ t
+      exact le_of_lt p.h_β2_valid.left
+    · simp
+      exact le_of_lt p.h_β1_valid.right
+    · apply pow_le_of_le_one (p.h_β1_valid.left) (le_of_lt p.h_β1_valid.right)
+      exact (Nat.zero_ne_add_one t).symm
+
+  have h_term_bound : ∀ t ∈ Finset.range T,
+    (m_hat p g t i)^2 / Real.sqrt ((t+1) * v_hat p g t i) ≤
+    (1 / Real.sqrt (1 - p.β2)) * ∑ k ∈ Finset.range (t+1), Real.sqrt (t+1) * γ^(t-k) * |g k i| := by
+    intro t ht
+    let term := (m_hat p g t i)^2 / Real.sqrt ((t+1) * v_hat p g t i)
+
+    -- 1. Bias correction
+    have step1 : term ≤ (m p g t i)^2 / Real.sqrt ((t+1) * v p g t i) * (1 / (1 - p.β1)^2) := by
+      dsimp [term, m_hat, v_hat]
+
+      have h_denom : Real.sqrt ((t+1) * (v p g t i / (1 - p.β2^(t+1)))) =
+                     Real.sqrt ((t+1) * v p g t i) / Real.sqrt (1 - p.β2^(t+1)) := by
+        rw [← mul_div_assoc, Real.sqrt_div]
+        apply mul_nonneg
+        · positivity
+        · dsimp [v]
+          apply mul_nonneg (sub_nonneg.mpr (le_of_lt p.h_β2_valid.right))
+          apply Finset.sum_nonneg
+          intro k _
+          apply mul_nonneg (pow_nonneg (le_of_lt p.h_β2_valid.left) _) (sq_nonneg _)
+
+      rw [div_pow, h_denom]
+
+      trans (m p g t i ^ 2 / Real.sqrt ((↑t + 1) * v p g t i)) * (Real.sqrt (1 - p.β2 ^ (t + 1)) / (1 - p.β1 ^ (t + 1)) ^ 2)
+      · simp only [div_eq_mul_inv, mul_inv, inv_inv]
+        rw [mul_assoc, mul_assoc]
+        refine mul_le_mul_of_nonneg_left ?_ (by positivity)
+        rw [mul_comm, mul_assoc]
+      · apply mul_le_mul_of_nonneg_left
+        · apply h_bias_correction
+        · apply div_nonneg (sq_nonneg _) (Real.sqrt_nonneg _)
+
+    have step2 : (m p g t i)^2 ≤ (1 - p.β1)^2 * (t+1) * ∑ k ∈ Finset.range (t+1), (p.β1^(t-k))^2 * (g k i)^2 := by
+      dsimp [m]
+      rw [mul_pow]
+      -- Re-associate to ensure gcongr peels the correct constant factor
+      rw [mul_assoc ((1 - p.β1) ^ 2)]
+      gcongr
+
+      -- Apply Cauchy-Schwarz: (∑ x)^2 ≤ (∑ 1^2) (∑ x^2)
+      let f := fun k => p.β1^(t-k) * g k i
+      have h_cs := Finset.sum_mul_sq_le_sq_mul_sq (Finset.range (t+1)) (fun _ => 1) f
+      simp only [one_pow, one_mul] at h_cs
+
+      -- Evaluate sum of 1s
+      have h_sum_ones : ∑ _k ∈ Finset.range (t+1), (1:ℝ) = t + 1 := by simp
+      rw [h_sum_ones] at h_cs
+
+      -- Apply h_cs and match terms
+      refine le_trans h_cs ?_
+      gcongr with k hk
+      dsimp [f]
+      rw [mul_pow]
+
+    -- Combine 1 & 2
+    have step3 : term ≤ ((t+1) * ∑ k ∈ Finset.range (t+1), p.β1^(2*(t-k)) * (g k i)^2) / Real.sqrt ((t+1) * v p g t i) := by
+      calc term
+        ≤ (m p g t i)^2 / Real.sqrt ((t+1) * v p g t i) * (1 / (1 - p.β1)^2) := step1
+        _ ≤ ((1 - p.β1)^2 * (t+1) * ∑ k ∈ Finset.range (t+1), (p.β1^(t-k))^2 * (g k i)^2) /
+            Real.sqrt ((t+1) * v p g t i) * (1 / (1 - p.β1)^2) := by gcongr
+        _ = ((t+1) * ∑ k ∈ Finset.range (t+1), p.β1^(2*(t-k)) * (g k i)^2) / Real.sqrt ((t+1) * v p g t i) := by
+            -- 1. Cancel the (1 - β1)^2 terms
+            have h_ne : 1 - p.β1 ≠ 0 := sub_ne_zero.mpr (ne_of_gt p.h_β1_valid.right)
+            field_simp [sq_eq_zero_iff, h_ne]
+
+            -- 2. Align the exponents in the summation: (β^(t-k))^2 = β^(2*(t-k))
+            congr 1
+            congr 1
+            ext k
+            simp
+            left
+            rw [pow_mul']
+
+    -- 3. Lower bound v_t and split sum (sum A / sqrt sum B <= sum (A / sqrt B))
+    have step4 : term ≤ ∑ k ∈ Finset.range (t+1),
+        ((t+1) * p.β1^(2*(t-k)) * (g k i)^2) / Real.sqrt ((t+1) * (1 - p.β2) * p.β2^(t-k) * (g k i)^2) := by
+      refine le_trans step3 ?_
+      dsimp [v]
+
+      -- Move the constant factor (t+1) inside the numerator sum
+      rw [Finset.mul_sum]
+      -- Move the division inside the sum (distributive property)
+      rw [Finset.sum_div]
+
+      -- Compare the sums term-by-term
+      apply Finset.sum_le_sum
+      intro k hk
+
+      rw [← mul_assoc ((t:ℝ)+1)]
+
+      -- We need to show: Num / sqrt(Total) ≤ Num / sqrt(Single)
+      -- This holds if 0 ≤ Num and 0 < sqrt(Single) ≤ sqrt(Total)
+      -- Handle the case where gradient is zero (0 ≤ 0)
+      by_cases hg : g k i = 0
+      · simp [hg]
+      · -- Case g ≠ 0
+        apply div_le_div_of_nonneg_left
+        · -- Numerator is non-negative
+          apply mul_nonneg
+          · apply mul_nonneg
+            · positivity
+            · rw [@pow_mul']
+              positivity
+          · positivity
+        · apply Real.sqrt_pos.mpr
+          apply mul_pos
+          · apply mul_pos
+            · apply mul_pos
+              · positivity
+              · exact sub_pos_of_lt p.h_β2_valid.right
+            · refine pow_pos p.h_β2_valid.left (t - k)
+          · exact pow_two_pos_of_ne_zero hg
+
+        · -- sqrt(Single) ≤ sqrt(Total)
+          apply Real.sqrt_le_sqrt
+          rw [← mul_assoc, mul_assoc]
+          gcongr
+          · apply mul_nonneg
+            · positivity
+            · refine sub_nonneg.mpr ?_
+              exact le_of_lt p.h_β2_valid.right
+          · let f := fun (j : ℕ) => p.β2 ^ (t - j) * (g j i) ^ 2
+            change f k ≤ ∑ j ∈ Finset.range (t + 1), f j
+            apply Finset.single_le_sum
+            · -- Show f j ≥ 0 for all j
+              intro j _
+              dsimp [f]
+              apply mul_nonneg
+              · refine pow_nonneg ?_ (t - j)
+                exact le_of_lt p.h_β2_valid.left
+              · positivity
+            · exact hk
+
+    -- 4. Simplify to gamma form
+    refine le_trans step4 ?_
+    rw [Finset.mul_sum]
+    apply Finset.sum_le_sum
+    intro k hk
+    rw [
+      Real.sqrt_mul (mul_nonneg (mul_nonneg (by positivity) (sub_nonneg.mpr (le_of_lt p.h_β2_valid.right))) (pow_nonneg (le_of_lt p.h_β2_valid.left) (t - k))),
+      Real.sqrt_mul (mul_nonneg (by positivity) (sub_nonneg.mpr (le_of_lt p.h_β2_valid.right))),
+      Real.sqrt_mul (by positivity)
+    ]
+    rw [Real.sqrt_sq_eq_abs]
+
+    have h_gamma_eq : p.β1^(2*(t-k)) / Real.sqrt (p.β2^(t-k)) = γ^(t-k) := by
+      dsimp [γ]
+      rw [div_pow, ← pow_mul]
+      congr
+      rw [Real.sqrt_eq_cases]
+      left
+      constructor
+      · rw [← mul_pow, Real.mul_self_sqrt (le_of_lt p.h_β2_valid.left)]
+      · positivity
+
+    by_cases h_case : g k i = 0
+    · simp [h_case]
+    · rw [← h_gamma_eq]
+      field_simp [p.h_β2_valid.left, p.h_β2_valid.right, Real.sqrt_pos.mpr]
+      apply le_of_eq
+      rw [← mul_comm (√(t + 1) ^ 2), mul_assoc, mul_assoc]
+      simp
+      left
+      rw [sq]
+      rw [Real.mul_self_sqrt]
+      positivity
+
+  have sum_range_le_swap (n : ℕ) (f : ℕ → ℕ → ℝ) :
+    ∑ t ∈ Finset.range n, ∑ k ∈ Finset.range (t + 1), f t k =
+    ∑ k ∈ Finset.range n, ∑ t ∈ (Finset.range n).filter (k ≤ ·), f t k := by
+    rw [Finset.sum_sigma', Finset.sum_sigma']
+    refine Finset.sum_bij'
+      (fun x _ ↦ ⟨x.2, x.1⟩) -- Forward map: (t, k) -> (k, t)
+      (fun x _ ↦ ⟨x.2, x.1⟩) -- Backward map: (k, t) -> (t, k)
+      ?_ ?_ ?_ ?_ ?_
+    -- 1. Forward map lands in codomain
+    · rintro ⟨t, k⟩ hx
+      simp only [Finset.mem_sigma, Finset.mem_range, Finset.mem_filter] at hx ⊢
+      obtain ⟨ht, hk⟩ := hx
+      refine ⟨lt_of_le_of_lt (Nat.le_of_lt_succ hk) ht, ht, Nat.le_of_lt_succ hk⟩
+    -- 2. Value equality (f t k = f t k)
+    · rintro ⟨t, k⟩ ha
+      simp at ha ⊢
+      constructor
+      · exact ha.right.left
+      · rw [Order.lt_add_one_iff]
+        exact ha.right.right
+    -- 3. Backward map lands in domain
+    · rintro ⟨k, t⟩ hy
+      simp only [Finset.mem_sigma, Finset.mem_range] at hy ⊢
+    -- 4. Left Inverse
+    · rintro ⟨t, k⟩ _; rfl
+    -- 5. Right Inverse
+    · rintro ⟨k, t⟩ _; rfl
+
+  calc
+    ∑ t ∈ Finset.range T, (m_hat p g t i)^2 / Real.sqrt ((t+1) * v_hat p g t i)
+      ≤ ∑ t ∈ Finset.range T, (1 / Real.sqrt (1 - p.β2)) * ∑ k ∈ Finset.range (t+1), Real.sqrt (t+1) * γ^(t-k) * |g k i| := by
+      apply Finset.sum_le_sum
+      intro t ht
+      apply h_term_bound t ht
+    _ = (1 / Real.sqrt (1 - p.β2)) * ∑ t ∈ Finset.range T, ∑ k ∈ Finset.range (t+1), (|g k i| * (Real.sqrt (t+1) * γ^(t-k))) := by
+      rw [Finset.mul_sum]; congr; ext t; congr; ext k; ring
+    _ = (1 / Real.sqrt (1 - p.β2)) * ∑ k ∈ Finset.range T, ∑ t ∈ (Finset.range T).filter (k ≤ ·), (|g k i| * (Real.sqrt (t+1) * γ^(t-k))) := by
+      congr 1
+      rw [sum_range_le_swap T (fun t k ↦ |g k i| * (Real.sqrt (t + 1) * γ ^ (t - k)))]
+    _ = (1 / Real.sqrt (1 - p.β2)) * ∑ k ∈ Finset.range T, |g k i| * ∑ t ∈ (Finset.range T).filter (k ≤ ·), Real.sqrt (t+1) * γ^(t-k) := by
+      congr; ext k
+      rw [Finset.mul_sum]
+    _ ≤ (1 / Real.sqrt (1 - p.β2)) * ∑ k ∈ Finset.range T, |g k i| * ∑ t ∈ Finset.range T, Real.sqrt (t+1) * γ^(t-k) := by
+      apply mul_le_mul_of_nonneg_left
+      · apply Finset.sum_le_sum
+        intro k hk
+        apply mul_le_mul_of_nonneg_left
+        · apply Finset.sum_le_sum
+          intro t ht
+          apply le_refl
+        · positivity
+      · positivity
+
+    _ = sorry := sorry
+    -- _ ≤ (2 * G_inf) / ((1 - γ)^2 * Real.sqrt (1 - p.β2)) * Real.sqrt (∑ t ∈ Finset.range T, (g t i)^2) := by
+      -- sorry
+
 
 -- =================================================================
 -- 3. Main Theorem (Theorem 10.5)
@@ -221,7 +561,7 @@ theorem adam_convergence_original_proof
 
   -- The Update Rule (Hypothesis on θ)
   -- θ_{t+1} = θ_t - α_t * m_hat / sqrt(v_hat)
-  (h_update : ∀ t i, θ (t + 1) i = θ t i - α_t t * m_hat t i / Real.sqrt (v_hat t i))
+  (h_update : ∀ t i, θ (t + 1) i = θ t i - α_t t * m_hat p g t i / Real.sqrt (v_hat p g t i))
 
   -- Constants for the bound (simplified)
   (C_reg : ℝ)
@@ -234,7 +574,7 @@ theorem adam_convergence_original_proof
     ∑ t ∈ Finset.range T, ∑ i, g t i * (θ t i - θ_star i) := by
       apply Finset.sum_le_sum
       intro t _
-      exact lemma_10_2 g θ_star θ f h_gradient t
+      exact lemma_10_2 f h_gradient t
 
   -- 2. Algebraic Rearrangement of Update Rule
   -- We expand ||θ_{t+1} - θ*||^2 to isolate g_t * (θ_t - θ*)
