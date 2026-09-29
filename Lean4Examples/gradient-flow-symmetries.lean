@@ -1998,7 +1998,7 @@ theorem proposition24 {L : S → E → ℝ} (hL : RegularLossOn Ω L)
   corollary7 hL ψ
 
 /-- Proposition 9, existence plus invariance. -/
-theorem proposition9 [HasMaximalSmoothLocalFlows]
+theorem proposition9
     {L : S → E → ℝ} (hL : RegularLossOn Ω L)
     {v : Field E} (hv : ContDiffOn ℝ ∞ v Ω)
     (hvorth : ∀ p ∈ Ω, v p ∈ symmetryDistribution L p) :
@@ -2008,7 +2008,7 @@ theorem proposition9 [HasMaximalSmoothLocalFlows]
 
 /-- Proposition 25 packages the partial-symmetry extensions of Propositions
 24 and 9 exactly as in Appendix E.6. -/
-theorem proposition25 [HasMaximalSmoothLocalFlows]
+theorem proposition25
     {L : S → E → ℝ} (hL : RegularLossOn Ω L) :
     (∀ {v : Field E} (ψ : LocalFlow Ω v),
       IsLossSymmetry L ψ →
@@ -3010,7 +3010,7 @@ theorem proposition8_forward {L : S → E → ℝ}
 
 /-- Corollary 10: a smooth conserved potential generates a unique maximal
 partial symmetry. Arbitrary restrictions of that flow are not claimed unique. -/
-theorem corollary10_forward [HasMaximalSmoothLocalFlows]
+theorem corollary10_forward
     {L : S → E → ℝ}
     (hL : RegularLossOn Ω L) {h : E → ℝ}
     (hh : ContDiffOn ℝ ∞ h Ω)
@@ -3048,7 +3048,7 @@ theorem corollary10_reverse
   exact (corollary7 hL ψ).mp hsym q (hsub hq)
 
 /-- Proposition 8, local reverse direction, directly from a closed field. -/
-theorem proposition8_local [HasMaximalSmoothLocalFlows]
+theorem proposition8_local
     {L : S → E → ℝ}
     (hL : RegularLossOn Ω L) {v : Field E}
     (hv : ContDiffOn ℝ ∞ v Ω) (hclosed : IsClosedFieldOn Ω v)
