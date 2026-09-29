@@ -932,8 +932,71 @@ lemma firstIntegral_lieCompletion {D : Distribution E} {h : E → ℝ}
     (hΩ : IsOpen Ω) (hh : ContDiffOn ℝ ∞ h Ω)
     (hD : ∀ p ∈ Ω, gradient h p ∈ (D p)ᗮ) :
     ∀ p ∈ Ω, gradient h p ∈ (lieCompletion Ω D p)ᗮ := by
-  exact LieClosure.gradient_mem_orthogonal_lieCompletion
-    hΩ hh hD
+  have word_smooth :
+      ∀ {U : Set E} {v : Field E}, LieWordOn U D v →
+        ContDiffOn ℝ ∞ v U := by
+    intro U v hv
+    induction hv with
+    | basic v hv => exact hv.1
+    | add hv hw ihv ihw => exact ihv.add ihw
+    | smul a ha hv ih => exact ha.smul ih
+    | bracket hv hw ihv ihw =>
+        simpa [lieBracket] using
+          ihv.lieBracket_vectorField ihw (by simp)
+  have word_annihilates :
+      ∀ {U : Set E}, IsOpen U → U ⊆ Ω →
+      ∀ {v : Field E}, LieWordOn U D v →
+        ∀ q ∈ U, ⟪gradient h q, v q⟫_ℝ = 0 := by
+    intro U hU hUΩ v hv
+    induction hv with
+    | basic v hv =>
+        intro q hq
+        exact (Submodule.mem_orthogonal' _ _).mp
+          (hD q (hUΩ hq)) (v q) (hv.2 q hq)
+    | add hv hw ihv ihw =>
+        intro q hq
+        simp [inner_add_right, ihv q hq, ihw q hq]
+    | smul a ha hv ih =>
+        intro q hq
+        simp [inner_smul_right, ih q hq]
+    | bracket hv hw ihv ihw =>
+        intro q hq
+        have hsv := word_smooth hv
+        have hsw := word_smooth hw
+        have hhq : ContDiffAt ℝ ∞ h q :=
+          (hh q (hUΩ hq)).contDiffAt (hΩ.mem_nhds (hUΩ hq))
+        have hvq : DifferentiableAt ℝ _ q :=
+          (hsv q hq).contDiffAt (hU.mem_nhds hq) |>.differentiableAt (by simp)
+        have hwq : DifferentiableAt ℝ _ q :=
+          (hsw q hq).contDiffAt (hU.mem_nhds hq) |>.differentiableAt (by simp)
+        have hzv :
+            (fun x => fderiv ℝ h x (v x)) =ᶠ[𝓝 q] (fun _ => 0) := by
+          filter_upwards [hU.mem_nhds hq] with x hx
+          rw [← inner_gradient_left]
+          exact ihv x hx
+        have hzw :
+            (fun x => fderiv ℝ h x (w x)) =ᶠ[𝓝 q] (fun _ => 0) := by
+          filter_upwards [hU.mem_nhds hq] with x hx
+          rw [← inner_gradient_left]
+          exact ihw x hx
+        have hbr := fderiv_apply_lieBracket
+          (f := h) hhq (by simp) hvq hwq
+        rw [hzv.fderiv_eq, hzw.fderiv_eq] at hbr
+        simp at hbr
+        rw [← inner_gradient_left]
+        simpa [lieBracket] using hbr
+  intro p hp
+  rw [Submodule.mem_orthogonal']
+  intro z hz
+  induction hz using Submodule.span_induction with
+  | mem z hz =>
+      obtain ⟨U, v, hU, hpU, hUΩ, hv, rfl⟩ := hz
+      exact word_annihilates hU hUΩ hv p hpU
+  | zero => simp
+  | add x y hx hy ihx ihy =>
+      simp [inner_add_right, ihx, ihy]
+  | smul a x hx ih =>
+      simp [inner_smul_right, ih]
 
 /-- Local Frobenius theorem in exactly the form used in Appendix E.8. -/
 theorem theorem21_frobenius {D : Distribution E} {r : ℕ}
