@@ -2731,15 +2731,6 @@ class HasFrobeniusBackground
     ∀ {Ω : Set E} {D : Distribution E},
       HasLocalSmoothFrame Ω (lieCompletion Ω D) →
       InvolutiveOn Ω (lieCompletion Ω D)
-  orthogonalFrame :
-    ∀ {Ω : Set E} {D : Distribution E} {r : ℕ},
-      IsOpen Ω → HasLocalSmoothFrame Ω D →
-      ConstantRankOn Ω D r → ∀ {p : E}, p ∈ Ω →
-        ∃ (U : Set E) (v : Fin (Module.finrank ℝ E - r) → Field E),
-          IsOpen U ∧ p ∈ U ∧ U ⊆ Ω ∧
-          (∀ i, ContDiffOn ℝ ∞ (v i) U) ∧
-          (∀ q ∈ U, LinearIndependent ℝ (fun i => v i q) ∧
-            Submodule.span ℝ (Set.range (fun i => v i q)) = (D q)ᗮ)
 
 /-- Complete integrability implies involutivity directly: local first
 integrals annihilate the distribution, so the Lie bracket of two local
@@ -3096,7 +3087,12 @@ def CompleteSymmetriesOn {ι : Type*} (Ω : Set E) (L : S → E → ℝ)
     Submodule.span ℝ (Set.range (fun i => (ψ i).generator p)) =
       symmetryDistribution L p
 
-lemma orthogonal_local_frame [HasFrobeniusBackground E]
+/-- A constant-rank smooth distribution has a smooth local frame for
+its orthogonal complement. Starting with a local frame for the distribution,
+extend its value at the base point by a basis of the orthogonal complement,
+shrink to where the combined family stays independent, and apply pointwise
+Gram--Schmidt. -/
+lemma orthogonal_local_frame
     {D : Distribution E} {r : ℕ}
     (hΩ : IsOpen Ω) (hframe : HasLocalSmoothFrame Ω D)
     (hrank : ConstantRankOn Ω D r) {p : E} (hp : p ∈ Ω) :
@@ -3104,8 +3100,126 @@ lemma orthogonal_local_frame [HasFrobeniusBackground E]
       IsOpen U ∧ p ∈ U ∧ U ⊆ Ω ∧
       (∀ i, ContDiffOn ℝ ∞ (v i) U) ∧
       (∀ q ∈ U, LinearIndependent ℝ (fun i => v i q) ∧
-        Submodule.span ℝ (Set.range (fun i => v i q)) = (D q)ᗮ) :=
-  HasFrobeniusBackground.orthogonalFrame hΩ hframe hrank hp
+        Submodule.span ℝ (Set.range (fun i => v i q)) = (D q)ᗮ) := by
+  obtain ⟨W, hW, hpW, hWΩ, n, u, hu, huframe⟩ := hframe p hp
+  let k := Module.finrank ℝ E - r
+  have hcomp : Module.finrank ℝ (D p)ᗮ = k := by
+    have hdim := (D p).finrank_add_finrank_orthogonal
+    have hrp := hrank p hp
+    dsimp [k]
+    omega
+  let b : Basis (Fin k) ℝ (D p)ᗮ :=
+    (Module.finBasis ℝ (D p)ᗮ).reindex (finCongr hcomp.symm)
+  have hb :
+      LinearIndependent ℝ (fun j : Fin k => ((b j : (D p)ᗮ) : E)) := by
+    exact b.linearIndependent.map' ((D p)ᗮ).subtype
+      (LinearMap.ker_eq_bot.mpr Subtype.coe_injective)
+  have hright :
+      Submodule.span ℝ
+          (Set.range (fun j : Fin k => ((b j : (D p)ᗮ) : E)) ≤ (D p)ᗮ := by
+    apply Submodule.span_le.mpr
+    rintro z ⟨j, rfl⟩
+    exact (b j).property
+  have hdisj :
+      Disjoint
+        (Submodule.span ℝ (Set.range (fun i : Fin n => u i p)))
+        (Submodule.span ℝ
+          (Set.range (fun j : Fin k => ((b j : (D p)ᗮ) : E))) := by
+    rw [← (huframe p hpW).2]
+    exact (D p).orthogonal_disjoint.mono le_rfl hright
+  have hsum :
+      LinearIndependent ℝ
+        (Sum.elim (fun i : Fin n => u i p)
+          (fun j : Fin k => ((b j : (D p)ᗮ) : E)) : Fin n ⊕ Fin k → E) :=
+    (huframe p hpW).1.sum_type hb hdisj
+  let combined : Fin (n + k) → Field E :=
+    fun i q =>
+      (finSumFinEquiv.symm i).elim
+        (fun a => u a q)
+        (fun j => ((b j : (D p)ᗮ) : E))
+  have hcombined_p :
+      LinearIndependent ℝ (fun i : Fin (n + k) => combined i p) := by
+    simpa [combined, Function.comp_def] using
+      hsum.comp finSumFinEquiv.symm finSumFinEquiv.symm.injective
+  have hcombined_cont :
+      ContinuousAt (fun q => fun i : Fin (n + k) => combined i q) p := by
+    rw [continuousAt_pi]
+    intro i
+    rcases hidx : finSumFinEquiv.symm i with a | j
+    · simpa [combined, hidx] using
+        ((hu a p hpW).contDiffAt (hW.mem_nhds hpW)).continuousAt
+    · simpa [combined, hidx] using (continuousAt_const : ContinuousAt (fun _ : E =>
+        ((b j : (D p)ᗮ) : E)) p)
+  have hind_eventually :
+      ∀ᶠ q in 𝓝 p,
+        LinearIndependent ℝ (fun i : Fin (n + k) => combined i q) :=
+    hcombined_cont (LinearIndependent.eventually hcombined_p)
+  have hgood :
+      W ∩ {q | LinearIndependent ℝ (fun i : Fin (n + k) => combined i q)} ∈ 𝓝 p :=
+    inter_mem (hW.mem_nhds hpW) hind_eventually
+  obtain ⟨U, hUsub, hU, hpU⟩ := mem_nhds_iff.mp hgood
+  have hUW : U ⊆ W := fun q hq => (hUsub hq).1
+  have hUΩ : U ⊆ Ω := hUW.trans hWΩ
+  have hcombined_ind :
+      ∀ q ∈ U, LinearIndependent ℝ (fun i : Fin (n + k) => combined i q) :=
+    fun q hq => (hUsub hq).2
+  have hcombined_smooth :
+      ∀ i, ContDiffOn ℝ ∞ (combined i) U := by
+    intro i
+    rcases hidx : finSumFinEquiv.symm i with a | j
+    · simpa [combined, hidx] using (hu a).mono hUW
+    · simpa [combined, hidx] using
+        (contDiff_const : ContDiff ℝ ∞ (fun _ : E => ((b j : (D p)ᗮ) : E))).contDiffOn
+  let v : Fin k → Field E :=
+    fun j => pointwiseGramSchmidt combined (Fin.natAdd n j)
+  have hv_smooth : ∀ j, ContDiffOn ℝ ∞ (v j) U := by
+    intro j
+    exact pointwiseGramSchmidt_smooth combined hcombined_smooth hcombined_ind
+      (Fin.natAdd n j)
+  have hv_ind :
+      ∀ q ∈ U, LinearIndependent ℝ (fun j : Fin k => v j q) := by
+    intro q hq
+    have hall :=
+      InnerProductSpace.gramSchmidt_linearIndependent (hcombined_ind q hq)
+    simpa [v, pointwiseGramSchmidt] using
+      hall.comp (Fin.natAdd n) (Fin.natAdd_injective k n)
+  have hv_orth :
+      ∀ q ∈ U, ∀ j : Fin k, v j q ∈ (D q)ᗮ := by
+    intro q hq j
+    rw [Submodule.mem_orthogonal']
+    intro z hz
+    rw [(huframe q (hUW hq)).2] at hz
+    induction hz using Submodule.span_induction with
+    | mem z hz =>
+        obtain ⟨a, rfl⟩ := hz
+        have hlt : Fin.castAdd k a < Fin.natAdd n j := by
+          omega
+        have hortho :=
+          InnerProductSpace.gramSchmidt_inv_triangular ℝ
+            (fun i : Fin (n + k) => combined i q) hlt
+        simpa [v, pointwiseGramSchmidt, combined] using hortho
+    | zero => simp
+    | add x y hx hy ihx ihy =>
+        simp [inner_add_right, ihx, ihy]
+    | smul a x hx ih =>
+        simp [inner_smul_right, ih]
+  have hv_span :
+      ∀ q ∈ U,
+        Submodule.span ℝ (Set.range (fun j : Fin k => v j q)) = (D q)ᗮ := by
+    intro q hq
+    have hle :
+        Submodule.span ℝ (Set.range (fun j : Fin k => v j q)) ≤ (D q)ᗮ := by
+      apply Submodule.span_le.mpr
+      rintro z ⟨j, rfl⟩
+      exact hv_orth q hq j
+    apply Submodule.eq_of_le_of_finrank_eq hle
+    rw [finrank_span_eq_card (hv_ind q hq), Fintype.card_fin]
+    have hdim := (D q).finrank_add_finrank_orthogonal
+    have hrq := hrank q (hUΩ hq)
+    dsimp [k]
+    omega
+  exact ⟨U, v, hU, hpU, hUΩ, hv_smooth,
+    fun q hq => ⟨hv_ind q hq, hv_span q hq⟩⟩
 
 /-- Theorem 12(i)--(ii). `rLie` is the paper's barred r, distinct from r. -/
 theorem theorem12 [HasFrobeniusBackground E]
