@@ -730,6 +730,59 @@ lemma bundleFunctions_fderiv_surjective {k : ℕ}
     exact hrangeOrth
   exact LinearMap.range_eq_top.mp hrange
 
+lemma gradient_mem_span_of_locallyFactors {k : ℕ} {r : ℕ∞ω}
+    (hr : 1 ≤ r) {Ω : Set E} (hΩ : IsOpen Ω)
+    (H : Fin k → E → ℝ) (h : E → ℝ)
+    (hH : ∀ i, ContDiffOn ℝ r (H i) Ω)
+    (hh : ContDiffOn ℝ r h Ω)
+    (hfac : LocallyFactorsOn r Ω h (bundleFunctions H)) :
+    ∀ p ∈ Ω, gradient h p ∈
+      Submodule.span ℝ (Set.range (fun i => gradient (H i) p)) := by
+  intro p hp
+  obtain ⟨V, U, f, hV, hpV, hVΩ, hU, hHpU, hmap, hf, heq⟩ :=
+    hfac p hp
+  have hHat : ∀ i, DifferentiableAt ℝ (H i) p :=
+    fun i => ((hH i).of_le hr).differentiableOn (by norm_num)
+      |>.differentiableAt (hΩ.mem_nhds hp)
+  have hBat : DifferentiableAt ℝ (bundleFunctions H) p := by
+    unfold bundleFunctions
+    fun_prop
+  have hfat : DifferentiableAt ℝ f (bundleFunctions H p) :=
+    (hf.of_le hr).differentiableOn (by norm_num)
+      |>.differentiableAt (hU.mem_nhds hHpU)
+  have hhat : DifferentiableAt ℝ h p :=
+    (hh.of_le hr).differentiableOn (by norm_num)
+      |>.differentiableAt (hΩ.mem_nhds hp)
+  have hevent : h =ᶠ[𝓝 p] (f ∘ bundleFunctions H) := by
+    filter_upwards [hV.mem_nhds hpV] with q hq
+    exact heq hq
+  have hder :
+      fderiv ℝ h p =
+        (fderiv ℝ f (bundleFunctions H p)).comp
+          (fderiv ℝ (bundleFunctions H) p) := by
+    rw [hevent.fderiv_eq]
+    exact (hfat.hasFDerivAt.comp p hBat.hasFDerivAt).fderiv
+  let coeff : Fin k → ℝ := fun i => gradient f (bundleFunctions H p) i
+  have hgrad :
+      gradient h p = ∑ i, coeff i • gradient (H i) p := by
+    apply ext_inner_left ℝ
+    intro u
+    rw [← inner_gradient_left, hder]
+    simp only [ContinuousLinearMap.comp_apply]
+    rw [← inner_gradient_left]
+    rw [EuclideanSpace.inner_eq_sum]
+    apply Finset.sum_congr rfl
+    intro i _
+    rw [fderiv_bundleFunctions_apply H hHat i]
+    simp [coeff, real_inner_comm, mul_comm]
+  rw [hgrad]
+  exact (Submodule.span ℝ
+    (Set.range (fun i => gradient (H i) p))).sum_mem
+      (fun i _ =>
+        (Submodule.span ℝ
+          (Set.range (fun i => gradient (H i) p))).smul_mem _
+          (Submodule.subset_span ⟨i, rfl⟩))
+
 /-- Standard finite-dimensional constant-rank/submersion factorization
 principle used in Proposition 4.  Nguyen--Montúfar treat this as differential
 geometry background rather than proving it. Stage 2 will instantiate this
