@@ -39,9 +39,9 @@
       "obligations": [
         "frobenius_iff",
         "lieClosure_involutive",
-        "firstIntegrals",
         "orthogonalFrame"
-      ]
+      ],
+      "note": "The exact-rank first-integral family is now derived internally from frobenius_iff and finite-dimensional orthogonal-complement rank arithmetic."
     },
     {
       "lean_class": "GradientFlowPaper.HasMarcotteMatrixFactorizationCompleteness",
