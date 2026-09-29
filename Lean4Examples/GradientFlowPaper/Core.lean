@@ -39,6 +39,22 @@ variable {P X Y Z S : Type*}
 def FunctionalEquiv (G : P → X → Z) (p q : P) : Prop :=
   ∀ x, G p x = G q x
 
+@[refl] theorem FunctionalEquiv.refl (G : P → X → Z) (p : P) :
+    FunctionalEquiv G p p := by
+  intro x
+  rfl
+
+@[symm] theorem FunctionalEquiv.symm {G : P → X → Z} {p q : P}
+    (h : FunctionalEquiv G p q) : FunctionalEquiv G q p := by
+  intro x
+  exact (h x).symm
+
+@[trans] theorem FunctionalEquiv.trans {G : P → X → Z} {p q r : P}
+    (hpq : FunctionalEquiv G p q) (hqr : FunctionalEquiv G q r) :
+    FunctionalEquiv G p r := by
+  intro x
+  exact (hpq x).trans (hqr x)
+
 /-- Assumption 13. This is separation of *values*, not spanning of gradients. -/
 def SeparatesPredictions (ell : Z → Y → ℝ) : Prop :=
   ∀ z z', (∀ y, ell z y = ell z' y) → z = z'
