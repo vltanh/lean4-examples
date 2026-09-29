@@ -3142,6 +3142,127 @@ def LocallyCompletelyIntegrableOn
       LinearIndependent ℝ (fun i => gradient (h i) q) ∧
       Submodule.span ℝ (Set.range (fun i => gradient (h i) q)) = (D q)ᗮ)
 
+
+/-- A local submersion whose fibres are exactly the leaves of a distribution.
+This is the coordinate form of the hard direction of Frobenius. -/
+structure FrobeniusSubmersionAt
+    (Ω : Set E) (D : Distribution E) (r : ℕ) (p : E) where
+  k : ℕ
+  dim_eq : r + k = Module.finrank ℝ E
+  U : Set E
+  H : E → Vec (Fin k)
+  isOpen_U : IsOpen U
+  mem_U : p ∈ U
+  subset_U : U ⊆ Ω
+  smooth_H : ContDiffOn ℝ ∞ H U
+  surjective_fderiv :
+    ∀ q ∈ U, Function.Surjective (fderiv ℝ H q)
+  ker_fderiv :
+    ∀ q ∈ U, (fderiv ℝ H q).ker = D q
+
+/-- Scalar coordinate functions of a Frobenius submersion. -/
+def FrobeniusSubmersionAt.integral
+    {D : Distribution E} {r : ℕ} {p : E}
+    (F : FrobeniusSubmersionAt Ω D r p) (i : Fin F.k) : E → ℝ :=
+  fun q => F.H q i
+
+lemma FrobeniusSubmersionAt.integral_smooth
+    {D : Distribution E} {r : ℕ} {p : E}
+    (F : FrobeniusSubmersionAt Ω D r p) (i : Fin F.k) :
+    ContDiffOn ℝ ∞ (F.integral i) F.U := by
+  exact (contDiff_apply ℝ i).comp_contDiffOn F.smooth_H
+
+lemma FrobeniusSubmersionAt.fderiv_integral
+    {D : Distribution E} {r : ℕ} {p q x : E}
+    (F : FrobeniusSubmersionAt Ω D r p)
+    (hq : q ∈ F.U) (i : Fin F.k) :
+    fderiv ℝ (F.integral i) q x = (fderiv ℝ F.H q x) i := by
+  have hH : DifferentiableAt ℝ F.H q :=
+    (F.smooth_H q hq).contDiffAt (F.isOpen_U.mem_nhds hq)
+      |>.differentiableAt (by simp)
+  simpa [FrobeniusSubmersionAt.integral] using
+    (ContinuousLinearMap.apply ℝ (Vec (Fin F.k)) i).comp_hasFDerivAt
+      q hH.hasFDerivAt
+
+/-- The coordinate gradients of a Frobenius submersion are independent. -/
+lemma FrobeniusSubmersionAt.gradients_independent
+    {D : Distribution E} {r : ℕ} {p q : E}
+    (F : FrobeniusSubmersionAt Ω D r p) (hq : q ∈ F.U) :
+    LinearIndependent ℝ (fun i : Fin F.k => gradient (F.integral i) q) := by
+  classical
+  rw [Fintype.linearIndependent_iff]
+  intro c hsum i
+  let eᵢ : Vec (Fin F.k) :=
+    WithLp.toLp 2 (fun j => if j = i then (1 : ℝ) else 0)
+  obtain ⟨x, hx⟩ := F.surjective_fderiv q hq eᵢ
+  have hinner := congrArg
+    (fun y : E => ⟪y, x⟫_ℝ) hsum
+  simp only [inner_sum_left, real_inner_smul_left, inner_zero_left] at hinner
+  have hcoord :
+      ∀ j : Fin F.k,
+        ⟪gradient (F.integral j) q, x⟫_ℝ =
+          if j = i then 1 else 0 := by
+    intro j
+    rw [inner_gradient_left]
+    rw [F.fderiv_integral hq]
+    rw [hx]
+    simp [eᵢ]
+  simp_rw [hcoord] at hinner
+  simpa using hinner
+
+/-- The gradients of the transverse coordinates span the orthogonal
+complement of the distribution. -/
+lemma FrobeniusSubmersionAt.gradient_span
+    {D : Distribution E} {r : ℕ} {p q : E}
+    (F : FrobeniusSubmersionAt Ω D r p)
+    (hrank : ConstantRankOn Ω D r) (hq : q ∈ F.U) :
+    Submodule.span ℝ
+        (Set.range (fun i : Fin F.k => gradient (F.integral i) q)) =
+      (D q)ᗮ := by
+  have hle :
+      Submodule.span ℝ
+          (Set.range (fun i : Fin F.k => gradient (F.integral i) q)) ≤
+        (D q)ᗮ := by
+    apply Submodule.span_le.mpr
+    rintro _ ⟨i, rfl⟩
+    rw [Submodule.mem_orthogonal']
+    intro x hx
+    rw [inner_gradient_left, F.fderiv_integral hq]
+    have hxker : x ∈ (fderiv ℝ F.H q).ker := by
+      rw [F.ker_fderiv q hq]
+      exact hx
+    rw [ContinuousLinearMap.mem_ker] at hxker
+    rw [hxker]
+    simp
+  apply Submodule.eq_of_le_of_finrank_eq hle
+  · rw [finrank_span_eq_card (F.gradients_independent hq), Fintype.card_fin]
+    have hdim := (D q).finrank_add_finrank_orthogonal
+    have hrq := hrank q (F.subset_U hq)
+    omega
+  · infer_instance
+
+/-- A Frobenius submersion immediately supplies the exact family of first
+integrals used by Theorem 21. -/
+theorem FrobeniusSubmersionAt.firstIntegrals
+    {D : Distribution E} {r : ℕ} {p : E}
+    (F : FrobeniusSubmersionAt Ω D r p)
+    (hrank : ConstantRankOn Ω D r) :
+    ∃ (U : Set E) (h : Fin (Module.finrank ℝ E - r) → E → ℝ),
+      IsOpen U ∧ p ∈ U ∧ U ⊆ Ω ∧
+      (∀ i, ContDiffOn ℝ ∞ (h i) U) ∧
+      FunctionallyIndependentOn U h ∧
+      (∀ q ∈ U,
+        Submodule.span ℝ (Set.range (fun i => gradient (h i) q)) = (D q)ᗮ) := by
+  have hk : F.k = Module.finrank ℝ E - r := by
+    omega
+  subst F.k
+  refine ⟨F.U, F.integral, F.isOpen_U, F.mem_U, F.subset_U,
+    F.integral_smooth, ?_, ?_⟩
+  · intro q hq
+    exact F.gradients_independent hq
+  · intro q hq
+    exact F.gradient_span hrank hq
+
 /-- Pointwise Gram--Schmidt for a family of smooth vector fields. -/
 def pointwiseGramSchmidt {n : ℕ} (f : Fin n → Field E) (i : Fin n) : Field E :=
   fun q => InnerProductSpace.gramSchmidt ℝ (fun j => f j q) i
