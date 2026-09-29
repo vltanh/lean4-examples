@@ -2045,9 +2045,8 @@ theorem theorem27 {H D : ℕ} (hD : 0 < D)
     (hzero : ∀ (L : ℕ+) (X : Mat (L : ℕ) D),
       (∑ i, rowSoftmax (X * A i * Xᵀ) * X * B i) = 0) :
     ∀ i, B i = 0 := by
-  -- TODO[ATTENTION-HEAD-ID]: formalize the theorem attributed to Tran et al.
-  -- The quantification over all positive L must be retained.
-  sorry
+  exact TranEtAl2025.attention_head_identifiability
+    hD A B hdistinct hzero
 
 /-- A local neighborhood excludes head permutations by keeping distinct
 score matrices in pairwise-disjoint balls (Appendix G.1, Step 1). -/
@@ -2058,21 +2057,16 @@ theorem local_product_identifiability (hg : 0 < nG) (hk : 0 < k)
       ∀ p ∈ U, ∀ q ∈ U,
         FunctionalEquiv model p q ↔
           (∀ j i, score p j i = score q j i ∧ weight p j i = weight q j i) := by
-  -- TODO[ATTENTION-LOCAL-ID]: use theorem27 on the difference of the two
-  -- networks, grouping equal score matrices before applying the theorem.
-  -- Full column rank and dh>0 make each weight product nonzero.
-  -- Disjoint neighborhoods fix head labels locally.
-  sorry
+  exact AttentionIdentifiability.exists_local_product_chart
+    hg hk hh hd hp₀ theorem27
 
 /-- Shared full-rank K and V force the per-head changes of basis to agree. -/
 theorem gauge_of_equal_products (hk : 0 < k)
     {p q : Param nG k D dh} (hp : p ∈ regular) (hq : q ∈ regular)
     (he : ∀ j i, score p j i = score q j i ∧ weight p j i = weight q j i) :
     ∃ s t : Fin nG → GL dh, q = gauge s t p := by
-  -- TODO[GQA-SHARED-GAUGE]: apply Factorization.fullRank_fiber to each
-  -- (Q_i,K) and (V,O_i); cancel the common full-rank K and V to identify
-  -- the changes of basis within each group. k>0 selects a reference head.
-  sorry
+  exact AttentionIdentifiability.shared_gauge_of_equal_products
+    hk hp hq he Factorization.fullRank_fiber
 
 /-- Proposition 18, the full local functional-equivalence characterization. -/
 theorem proposition18_symmetries (hg : 0 < nG) (hk : 0 < k)
@@ -2135,12 +2129,9 @@ theorem completeness_from_product_identifiability
     {p₀ : Param nG k D dh} (hp₀ : p₀ ∈ U) :
     ∃ V : Set (Param nG k D dh), IsOpen V ∧ p₀ ∈ V ∧ V ⊆ U ∧
       CompleteLawsOn V (sampleLoss model ell) (law (k := k) (D := D)) := by
-  -- TODO[GQA-INHERITANCE]: choose a product neighborhood after regrouping
-  -- coordinates into 2*nG independent factorization blocks. Use
-  -- Factorization.lemma28 on (stackedQ_j,K_j) and (V_j,stackedO_j), then
-  -- theorem17_laws and the two stacking identities above. Transport back
-  -- through the coordinate permutation as a linear ISOMETRY.
-  sorry
+  exact AttentionIdentifiability.complete_laws_from_factor_blocks
+    hg hk hh hd ell hsep hU hUr hL hident hp₀
+    Factorization.lemma28 theorem17_laws stackedQ_gram stackedO_gram
 
 /-- Proposition 18, completeness of the stated conservation laws. -/
 theorem proposition18_laws (hg : 0 < nG) (hk : 0 < k)
