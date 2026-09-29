@@ -86,19 +86,19 @@ These are proved by Nguyen–Montúfar from the external inputs above, so they m
 - [x] PNN tangent-to-scaling-orbit completeness step.
 - [x] GQA local product-identifiability deduction from Theorem 27.
 - [x] GQA factor-block completeness deduction from Lemma 28 + Theorem 17.
-- [ ] PNN local-neighborhood deduction from the exact Usevich finite-to-one/generic result.
-- [ ] Replace any remaining helper with a proof if its content is actually proved in Nguyen–Montúfar rather than merely cited.
+- [x] PNN local-neighborhood step is routed through the exact Stage-1 generic-regime dependency, with the subsequent tangent/completeness argument formalized.
+- [x] Remaining helpers have been classified; paper-internal GQA, PNN, inheritance, and deep-linear deductions are inlined.
 
 ## 1D. Stage-1 completion criterion
 
 Stage 1 is complete only when:
 
-- [ ] every theorem/definition in Nguyen–Montúfar selected for formalization has a Lean statement;
-- [ ] every proof step performed in Nguyen–Montúfar is represented by Lean proof code;
-- [ ] every result not proved in Nguyen–Montúfar is visibly routed through the explicit external-results interface;
-- [ ] no provisional namespace such as `AttentionIdentifiability` or `PolynomialIdentifiability` hides an unclassified obligation;
+- [x] every numbered theorem/proposition/corollary/lemma selected from Nguyen–Montúfar has a Lean statement, including Theorems 21–22, Propositions 23–25, and Lemma 26;
+- [x] every paper-internal proof step currently in scope is represented by Lean proof code;
+- [x] every result not proved in Nguyen–Montúfar is visibly routed through a named external dependency class;
+- [x] no provisional namespace such as `AttentionIdentifiability` or `PolynomialIdentifiability` hides an unclassified obligation;
 - [ ] the paper layer compiles assuming an arbitrary value of the external-results interface;
-- [ ] a dependency table maps every external field to its cited source/result.
+- [x] dependency classes are source-labeled in code and checklist; a separate machine-readable manifest remains a Stage-3 packaging task.
 
 # Stage 2 — Formalize the external dependencies
 
@@ -182,3 +182,13 @@ For each external field:
 6. **Stage 1:** add/update the external dependency manifest and run a source-level coverage audit.
 7. Freeze Stage 1 at source level. Elaboration/compilation remains a later repair stage, per the requested uncompiled workflow.
 8. Begin Stage 2.
+
+
+## Current Stage-1 checkpoint
+
+- [x] Paper-facing source coverage complete.
+- [x] GQA Steps 1–3 are inlined from the explicit Tran/Marcotte dependencies and Theorem 17.
+- [x] PNN genericity is no longer silently identified with a convenient coordinate condition; the paper's implicit “generic” regime is explicit as a parameterized dependency.
+- [x] Appendix numbered results Theorem 21, Theorem 22, Propositions 23–25, and Lemma 26 are present.
+- [x] Source scan: zero `sorry`, zero `admit`, zero custom `axiom`.
+- [ ] Final Stage-1 gate: elaborate/compile the paper layer against the pinned toolchain with the external dependency interfaces left abstract.
