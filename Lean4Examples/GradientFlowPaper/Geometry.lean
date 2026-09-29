@@ -3625,6 +3625,675 @@ lemma frobeniusSubmersionProperty_zero :
   exact exists_frobeniusSubmersionAt_rank_zero hΩ hrank hp
 
 
+
+/-- Successor step in the rank-induction proof of Frobenius.
+
+Straighten the first member of a rank-r+1 local frame. In the resulting
+coordinates the distribution contains the constant time direction. After
+subtracting that direction from the remaining frame members, their transverse
+parts form a smooth rank-r family. Involutivity implies that the time
+derivatives of this transverse family remain in its span; the smooth linear
+ODE lemma above therefore makes the span independent of time. The restriction
+to the zero-time slice is an involutive rank-r distribution, to which the
+induction hypothesis applies. -/
+lemma frobeniusSubmersionProperty_succ
+    {r : ℕ} (ih : FrobeniusSubmersionProperty r) :
+    FrobeniusSubmersionProperty (r + 1) := by
+  intro F _ _ _ _ ΩF DF hΩ hframe hrank hinv p hp
+
+  obtain ⟨V, v, hV, hpV, hVΩ, hv, hvframe⟩ :=
+    hframe.exists_rank_frame hrank hp
+  have hv0 : v 0 p ≠ 0 :=
+    (hvframe p hpV).1.ne_zero 0
+
+  obtain ⟨e, U₀, hU₀, h0U₀, hU₀src, he0, himgU₀, himgV,
+      he, hes, heinv, htime⟩ :=
+    exists_oneField_flowBox (Ω := V) hV (hv 0) hpV hv0
+
+  let H : Submodule ℝ F := (ℝ ∙ v 0 p)ᗮ
+
+  have hU₀nhds : U₀ ∈ 𝓝 ((0,0) : ℝ × H) :=
+    hU₀.mem_nhds h0U₀
+  obtain ⟨T, W₀, hT, hW₀, hTW⟩ :=
+    mem_nhds_prod_iff'.mp hU₀nhds
+  obtain ⟨ε, hε, hIsub⟩ := Metric.mem_nhds_iff.mp hT
+  obtain ⟨W, hWsub, hW, h0W⟩ := mem_nhds_iff.mp hW₀
+  let I : Set ℝ := Metric.ball 0 ε
+  let P : Set (ℝ × H) := I ×ˢ W
+  have hI : IsOpen I := Metric.isOpen_ball
+  have hIconv : Convex ℝ I := Metric.convex_ball _ _
+  have h0I : (0 : ℝ) ∈ I := Metric.mem_ball_self hε
+  have hP : IsOpen P := hI.prod hW
+  have h0P : ((0,0) : ℝ × H) ∈ P := ⟨h0I,h0W⟩
+  have hPU₀ : P ⊆ U₀ := by
+    intro z hz
+    apply hTW
+    constructor
+    · exact hIsub hz.1
+    · exact hWsub hz.2
+  have hPsrc : P ⊆ e.source := hPU₀.trans hU₀src
+  have himgP_V : e '' P ⊆ V := by
+    rintro _ ⟨z,hz,rfl⟩
+    exact himgV ⟨z,hPU₀ hz,rfl⟩
+  have heP : ContDiffOn ℝ ∞ e P := he.mono hPU₀
+  have hesP : ContDiffOn ℝ ∞ e.symm (e '' P) := by
+    apply hes.mono
+    rintro _ ⟨z,hz,rfl⟩
+    exact ⟨z,hPU₀ hz,rfl⟩
+
+  let DP : Distribution (ℝ × H) :=
+    chartPullbackDistribution e DF
+  let X : Fin (r + 1) → (ℝ × H) → (ℝ × H) :=
+    fun i => chartPullbackField e (v i)
+
+  have hXsmooth : ∀ i, ContDiffOn ℝ ∞ (X i) P := by
+    intro i
+    apply chartPullbackField_smooth e hP hPsrc heP hesP
+    exact (hv i).mono himgP_V
+
+  have hXpush :
+      ∀ i z, z ∈ P →
+        fderiv ℝ e z (X i z) = v i (e z) := by
+    intro i z hz
+    exact chartPullbackField_push e hP hPsrc heP hesP (v i) hz
+
+  have hXmem :
+      ∀ i z, z ∈ P → X i z ∈ DP z := by
+    intro i z hz
+    change fderiv ℝ e z (X i z) ∈ DF (e z)
+    rw [hXpush i z hz]
+    have hzV : e z ∈ V := himgP_V ⟨z,hz,rfl⟩
+    rw [(hvframe (e z) hzV).2]
+    exact Submodule.subset_span ⟨i,rfl⟩
+
+  have hXind :
+      ∀ z ∈ P, LinearIndependent ℝ (fun i => X i z) := by
+    intro z hz
+    classical
+    rw [Fintype.linearIndependent_iff]
+    intro c hc i
+    have hsum := congrArg (fun x : ℝ × H => fderiv ℝ e z x) hc
+    simp only [map_sum, map_smul, hXpush _ z hz, map_zero] at hsum
+    have hzV : e z ∈ V := himgP_V ⟨z,hz,rfl⟩
+    exact Fintype.linearIndependent_iff.mp
+      (hvframe (e z) hzV).1 c hsum i
+
+  have hXspan :
+      ∀ z ∈ P,
+        DP z = Submodule.span ℝ (Set.range (fun i => X i z)) := by
+    intro z hz
+    let K := Submodule.span ℝ (Set.range (fun i => X i z))
+    have hle : K ≤ DP z := by
+      apply Submodule.span_le.mpr
+      rintro _ ⟨i,rfl⟩
+      exact hXmem i z hz
+    apply le_antisymm
+    · intro x hx
+      have hdx : fderiv ℝ e z x ∈ DF (e z) := hx
+      have hzV : e z ∈ V := himgP_V ⟨z,hz,rfl⟩
+      rw [(hvframe (e z) hzV).2] at hdx
+      have hmap :
+          Submodule.map (fderiv ℝ e z).toLinearMap K =
+            DF (e z) := by
+        rw [(hvframe (e z) hzV).2]
+        rw [Submodule.map_span]
+        congr 1
+        ext y
+        constructor
+        · rintro ⟨_,⟨i,rfl⟩,rfl⟩
+          exact ⟨i,hXpush i z hz⟩
+        · rintro ⟨i,rfl⟩
+          exact ⟨X i z,⟨i,rfl⟩,hXpush i z hz⟩
+      rw [← hmap] at hdx
+      rcases hdx with ⟨y,hy,heqy⟩
+      have hinj := (heinv z (hPU₀ hz)).injective
+      exact (hinj heqy).symm ▸ hy
+    · exact hle
+
+  have hX0 :
+      ∀ z ∈ P, X 0 z = ((1,0) : ℝ × H) := by
+    intro z hz
+    apply (heinv z (hPU₀ hz)).injective
+    rw [hXpush 0 z hz]
+    exact htime z (hPU₀ hz)
+
+  let Y : ℝ × H → Fin r → H :=
+    fun z i => (X i.succ z).2
+  let Z : Fin (r + 1) → (ℝ × H) → (ℝ × H) :=
+    Fin.cases (fun _ => ((1,0) : ℝ × H))
+      (fun i z => (0, Y z i))
+
+  have hZsucc :
+      ∀ i z, z ∈ P,
+        Z i.succ z =
+          X i.succ z - (X i.succ z).1 • X 0 z := by
+    intro i z hz
+    rw [hX0 z hz]
+    ext <;> simp [Z,Y]
+
+  have hZspan :
+      ∀ z ∈ P,
+        DP z = Submodule.span ℝ (Set.range (fun i => Z i z)) := by
+    intro z hz
+    rw [hXspan z hz]
+    apply le_antisymm
+    · apply Submodule.span_le.mpr
+      rintro _ ⟨i,rfl⟩
+      refine Fin.cases ?_ (fun j => ?_) i
+      · rw [hX0 z hz]
+        exact Submodule.subset_span ⟨0,by simp [Z]⟩
+      · have hrewrite :
+            X j.succ z =
+              Z j.succ z + (X j.succ z).1 • Z 0 z := by
+          rw [hZsucc j z hz, hX0 z hz]
+          ext <;> simp [Z,Y]
+        rw [hrewrite]
+        exact Submodule.add_mem _
+          (Submodule.subset_span ⟨j.succ,rfl⟩)
+          (Submodule.smul_mem _ _
+            (Submodule.subset_span ⟨0,by simp [Z]⟩))
+    · apply Submodule.span_le.mpr
+      rintro _ ⟨i,rfl⟩
+      refine Fin.cases ?_ (fun j => ?_) i
+      · rw [show Z 0 z = X 0 z by simp [Z,hX0 z hz]]
+        exact Submodule.subset_span ⟨0,rfl⟩
+      · rw [hZsucc j z hz]
+        exact Submodule.sub_mem _
+          (Submodule.subset_span ⟨j.succ,rfl⟩)
+          (Submodule.smul_mem _ _
+            (Submodule.subset_span ⟨0,rfl⟩))
+
+  have hZind :
+      ∀ z ∈ P, LinearIndependent ℝ (fun i => Z i z) := by
+    intro z hz
+    rw [linearIndependent_iff_card_eq_finrank_span]
+    rw [Fintype.card_fin, ← hZspan z hz, hXspan z hz,
+      finrank_span_eq_card (hXind z hz), Fintype.card_fin]
+
+  have hYind :
+      ∀ z ∈ P, LinearIndependent ℝ (Y z) := by
+    intro z hz
+    classical
+    rw [Fintype.linearIndependent_iff]
+    intro c hc i
+    let d : Fin (r + 1) → ℝ := Fin.cases 0 c
+    have hsum :
+        ∑ j, d j • Z j z = 0 := by
+      ext
+      · simp [d,Z]
+      · simpa [d,Z,Y,Fin.sum_univ_succ] using hc
+    have hd := Fintype.linearIndependent_iff.mp (hZind z hz) d hsum i.succ
+    simpa [d] using hd
+
+  have hYsmooth :
+      ∀ i, ContDiffOn ℝ ∞ (fun z => Y z i) P := by
+    intro i
+    exact (hXsmooth i.succ).snd
+
+  have hDPinv : InvolutiveOn P DP := by
+    intro Q hQ hQP a b ha hb z hz
+    have hQsrc : Q ⊆ e.source := hQP.trans hPsrc
+    let R : Set F := e '' Q
+    have hR : IsOpen R :=
+      e.isOpen_image_of_subset_source hQ hQsrc
+    have hRV : R ⊆ V := by
+      rintro _ ⟨y,hy,rfl⟩
+      exact himgP_V ⟨y,hQP hy,rfl⟩
+    let push : ((ℝ × H) → (ℝ × H)) → Field F :=
+      fun a q => fderiv ℝ e (e.symm q) (a (e.symm q))
+    have hpush_smooth :
+        ∀ {a}, ContDiffOn ℝ ∞ a Q → ContDiffOn ℝ ∞ (push a) R := by
+      intro a has
+      have hde :
+          ContDiffOn ℝ ∞ (fderiv ℝ e) Q :=
+        ((contDiffOn_infty_iff_fderiv_of_isOpen hQ).mp
+          (heP.mono hQP)).2
+      fun_prop
+    have hpush_mem :
+        ∀ {a}, IsSectionOn Q DP a →
+          IsSectionOn R DF (push a) := by
+      intro a hsec
+      refine ⟨hpush_smooth hsec.1, ?_⟩
+      rintro q ⟨y,hy,rfl⟩
+      have hys : y ∈ e.source := hQsrc hy
+      have hleft : e.symm (e y) = y := e.left_inv hys
+      change fderiv ℝ e (e.symm (e y)) (a (e.symm (e y))) ∈ DF (e y)
+      simpa [hleft] using hsec.2 y hy
+    have hab :=
+      hinv R hR (hRV.trans hVΩ)
+        (push a) (push b) (hpush_mem ha) (hpush_mem hb)
+        (e z) ⟨z,hz,rfl⟩
+    have hpulla :
+        EqOn (chartPullbackField e (push a)) a Q := by
+      intro y hy
+      have hleft : e.symm (e y) = y := e.left_inv (hQsrc hy)
+      simp [chartPullbackField,push,hleft]
+      exact fderiv_symm_comp_fderiv e hQ hQsrc
+        (heP.mono hQP)
+        (by
+          apply hesP.mono
+          rintro _ ⟨x,hx,rfl⟩
+          exact ⟨x,hQP hx,rfl⟩) hy (a y)
+    have hpullb :
+        EqOn (chartPullbackField e (push b)) b Q := by
+      intro y hy
+      have hleft : e.symm (e y) = y := e.left_inv (hQsrc hy)
+      simp [chartPullbackField,push,hleft]
+      exact fderiv_symm_comp_fderiv e hQ hQsrc
+        (heP.mono hQP)
+        (by
+          apply hesP.mono
+          rintro _ ⟨x,hx,rfl⟩
+          exact ⟨x,hQP hx,rfl⟩) hy (b y)
+    have hpullmem :
+        chartPullbackField e (lieBracket (push a) (push b)) z ∈ DP z := by
+      change fderiv ℝ e z
+        (chartPullbackField e (lieBracket (push a) (push b)) z) ∈ DF (e z)
+      rw [chartPullbackField_push e hQ hQsrc
+        (heP.mono hQP)
+        (by
+          apply hesP.mono
+          rintro _ ⟨x,hx,rfl⟩
+          exact ⟨x,hQP hx,rfl⟩)]
+      exact hab
+    have hnat :=
+      chartPullbackField_lieBracket e hQ hQsrc
+        (heP.mono hQP)
+        (by
+          apply hesP.mono
+          rintro _ ⟨x,hx,rfl⟩
+          exact ⟨x,hQP hx,rfl⟩)
+        (hpush_mem ha).1 (hpush_mem hb).1 z hz
+    rw [hnat] at hpullmem
+    have haev : chartPullbackField e (push a) =ᶠ[𝓝 z] a :=
+      hpulla.eventuallyEq_of_mem (hQ.mem_nhds hz)
+    have hbev : chartPullbackField e (push b) =ᶠ[𝓝 z] b :=
+      hpullb.eventuallyEq_of_mem (hQ.mem_nhds hz)
+    simpa [lieBracket, haev.fderiv_eq, hbev.fderiv_eq,
+      hpulla z hz, hpullb z hz] using hpullmem
+
+  let G : ℝ × H → Fin r → H :=
+    fun z i => familyGramSchmidt (fun j z => Y z j) i z
+  have hGsmooth :
+      ∀ i, ContDiffOn ℝ ∞ (fun z => G z i) P := by
+    intro i
+    exact familyGramSchmidt_smooth
+      (fun j z => Y z j) hYsmooth hYind i
+  have hGind :
+      ∀ z ∈ P, LinearIndependent ℝ (G z) := by
+    intro z hz
+    exact InnerProductSpace.gramSchmidt_linearIndependent (hYind z hz)
+  have hGspan :
+      ∀ z,
+        Submodule.span ℝ (Set.range (G z)) =
+          Submodule.span ℝ (Set.range (Y z)) := by
+    intro z
+    exact InnerProductSpace.span_gramSchmidt ℝ (Y z)
+
+  let Afield : Fin r → (ℝ × H) → (ℝ × H) :=
+    fun i z => (0,G z i)
+  have hAfield_smooth :
+      ∀ i, ContDiffOn ℝ ∞ (Afield i) P := by
+    intro i
+    exact contDiffOn_const.prodMk (hGsmooth i)
+  have hAfield_mem :
+      ∀ i z, z ∈ P → Afield i z ∈ DP z := by
+    intro i z hz
+    rw [hZspan z hz]
+    have hg :
+        G z i ∈ Submodule.span ℝ (Set.range (Y z)) := by
+      rw [← hGspan z]
+      exact Submodule.subset_span ⟨i,rfl⟩
+    induction hg using Submodule.span_induction with
+    | mem y hy =>
+        obtain ⟨j,rfl⟩ := hy
+        exact Submodule.subset_span ⟨j.succ,by simp [Z,Afield,Y,G]⟩
+    | zero =>
+        simpa [Afield] using
+          (Submodule.span ℝ (Set.range (fun i => Z i z))).zero_mem
+    | add x y hx hy ihx ihy =>
+        simpa [Afield] using
+          (Submodule.span ℝ (Set.range (fun i => Z i z))).add_mem ihx ihy
+    | smul c x hx ih =>
+        simpa [Afield] using
+          (Submodule.span ℝ (Set.range (fun i => Z i z))).smul_mem c ih
+
+  let timeField : (ℝ × H) → (ℝ × H) := fun _ => (1,0)
+  have htime_mem :
+      ∀ z ∈ P, timeField z ∈ DP z := by
+    intro z hz
+    rw [hZspan z hz]
+    exact Submodule.subset_span ⟨0,by simp [Z,timeField]⟩
+
+  let dG : ℝ × H → Fin r → H :=
+    fun z i => fderiv ℝ (fun y => G y i) z (1,0)
+  have hdGsmooth :
+      ∀ i, ContDiffOn ℝ ∞ (fun z => dG z i) P := by
+    intro i
+    have hfder :
+        ContDiffOn ℝ ∞ (fderiv ℝ (fun z => G z i)) P :=
+      ((contDiffOn_infty_iff_fderiv_of_isOpen hP).mp (hGsmooth i)).2
+    exact hfder.clm_apply contDiffOn_const
+
+  have hdGspan :
+      ∀ z ∈ P, ∀ i,
+        dG z i ∈ Submodule.span ℝ (Set.range (G z)) := by
+    intro z hz i
+    have hbr :=
+      hDPinv P hP Set.Subset.rfl
+        timeField (Afield i)
+        ⟨contDiff_const.contDiffOn, htime_mem⟩
+        ⟨hAfield_smooth i, hAfield_mem i⟩ z hz
+    have hbr_formula :
+        lieBracket timeField (Afield i) z = (0,dG z i) := by
+      simp [lieBracket,timeField,Afield,dG]
+    rw [hbr_formula, hZspan z hz] at hbr
+    have hsecond :
+        dG z i ∈ Submodule.span ℝ (Set.range (Y z)) := by
+      induction hbr using Submodule.span_induction with
+      | mem x hx =>
+          obtain ⟨j,rfl⟩ := hx
+          refine Fin.cases ?_ (fun a => ?_) j
+          · simpa [Z] using
+              (Submodule.span ℝ (Set.range (Y z))).zero_mem
+          · exact Submodule.subset_span ⟨a,by simp [Z,Y]⟩
+      | zero =>
+          exact (Submodule.span ℝ (Set.range (Y z))).zero_mem
+      | add x y hx hy ihx ihy =>
+          exact Submodule.add_mem _ ihx ihy
+      | smul c x hx ih =>
+          exact Submodule.smul_mem _ c ih
+    rwa [hGspan z] at hsecond
+
+  let C : ℝ × H → Fin r → Fin r → ℝ :=
+    fun z i j =>
+      ⟪G z j,dG z i⟫_ℝ / ⟪G z j,G z j⟫_ℝ
+  have hCsmooth :
+      ∀ i j, ContDiffOn ℝ ∞ (fun z => C z i j) P := by
+    intro i j
+    have hden :
+        ∀ z ∈ P, ⟪G z j,G z j⟫_ℝ ≠ 0 := by
+      intro z hz
+      rw [real_inner_self_eq_norm_sq]
+      exact pow_ne_zero 2 (norm_ne_zero_iff.mpr <|
+        InnerProductSpace.gramSchmidt_ne_zero j (hYind z hz))
+    exact ((hGsmooth j).inner ℝ (hdGsmooth i)).div
+      ((hGsmooth j).inner ℝ (hGsmooth j)) hden
+
+  have hdGexpand :
+      ∀ z ∈ P, ∀ i,
+        dG z i = ∑ j, C z i j • G z j := by
+    intro z hz i
+    exact eq_sum_inner_div_self_smul_of_mem_span_orthogonal
+      (G z)
+      (fun {j k} hjk =>
+        InnerProductSpace.gramSchmidt_orthogonal ℝ (Y z) hjk)
+      (fun j =>
+        InnerProductSpace.gramSchmidt_ne_zero j (hYind z hz))
+      (hdGspan z hz i)
+
+  have hspan_time :
+      ∀ y ∈ W, ∀ t ∈ I,
+        Submodule.span ℝ (Set.range (Y (t,y))) =
+          Submodule.span ℝ (Set.range (Y (0,y))) := by
+    intro y hy t ht
+    have hGconst :=
+      span_eq_of_smooth_linear_system
+        hI hIconv h0I
+        (fun s i => G (s,y) i)
+        (fun i => (hGsmooth i).comp
+          (by fun_prop)
+          (fun s hs => ⟨hs,hy⟩))
+        (fun s hs => hGind (s,y) ⟨hs,hy⟩)
+        (fun s i j => C (s,y) i j)
+        (fun i j => (hCsmooth i j).comp
+          (by fun_prop)
+          (fun s hs => ⟨hs,hy⟩))
+        (by
+          intro s hs i
+          have hdiff :
+              DifferentiableAt ℝ (fun z => G z i) (s,y) :=
+            ((hGsmooth i) (s,y) ⟨hs,hy⟩).contDiffAt
+              (hP.mem_nhds ⟨hs,hy⟩)
+              |>.differentiableAt (by simp)
+          have hline :
+              HasDerivAt (fun τ => G (τ,y) i) (dG (s,y) i) s := by
+            simpa [dG] using
+              hdiff.hasFDerivAt.comp_hasDerivAt s
+                (by fun_prop :
+                  HasDerivAt (fun τ : ℝ => (τ,y))
+                    ((1,0) : ℝ × H) s)
+          rw [hdGexpand (s,y) ⟨hs,hy⟩ i] at hline
+          exact hline)
+        t ht
+    rw [← hGspan (t,y), ← hGspan (0,y)]
+    exact hGconst
+
+  let DH : Distribution H :=
+    fun y => Submodule.span ℝ (Set.range (Y (0,y)))
+
+  have hDHframe : HasLocalSmoothFrame W DH := by
+    intro y hy
+    refine ⟨W,hW,hy,Set.Subset.rfl,r,
+      (fun i y => Y (0,y) i), ?_, ?_⟩
+    · intro i
+      exact (hYsmooth i).comp (by fun_prop)
+        (fun z hz => ⟨h0I,hz⟩)
+    · intro q hq
+      refine ⟨hYind (0,q) ⟨h0I,hq⟩, ?_⟩
+      rfl
+
+  have hDHrank : ConstantRankOn W DH r := by
+    intro y hy
+    dsimp [DH]
+    simpa using finrank_span_eq_card (hYind (0,y) ⟨h0I,hy⟩)
+
+  have hDPmem_iff :
+      ∀ z ∈ P, ∀ x : ℝ × H,
+        x ∈ DP z ↔ x.2 ∈
+          Submodule.span ℝ (Set.range (Y z)) := by
+    intro z hz x
+    rw [hZspan z hz]
+    constructor
+    · intro hx
+      induction hx using Submodule.span_induction with
+      | mem u hu =>
+          obtain ⟨j,rfl⟩ := hu
+          refine Fin.cases ?_ (fun a => ?_) j
+          · simpa [Z] using
+              (Submodule.span ℝ (Set.range (Y z))).zero_mem
+          · exact Submodule.subset_span ⟨a,by simp [Z,Y]⟩
+      | zero =>
+          exact (Submodule.span ℝ (Set.range (Y z))).zero_mem
+      | add a b ha hb iha ihb =>
+          exact Submodule.add_mem _ iha ihb
+      | smul c a ha ih =>
+          exact Submodule.smul_mem _ c ih
+    · intro hx
+      have htrans :
+          (0,x.2) ∈ Submodule.span ℝ
+            (Set.range (fun i => Z i z)) := by
+        induction hx using Submodule.span_induction with
+        | mem u hu =>
+            obtain ⟨j,rfl⟩ := hu
+            exact Submodule.subset_span ⟨j.succ,by simp [Z,Y]⟩
+        | zero =>
+            exact (Submodule.span ℝ
+              (Set.range (fun i => Z i z))).zero_mem
+        | add a b ha hb iha ihb =>
+            exact Submodule.add_mem _ iha ihb
+        | smul c a ha ih =>
+            exact Submodule.smul_mem _ c ih
+      have htimepart :
+          (x.1,0) ∈ Submodule.span ℝ
+            (Set.range (fun i => Z i z)) := by
+        have h0mem :=
+          Submodule.subset_span
+            (s := Set.range (fun i => Z i z))
+            ⟨0,by simp [Z]⟩
+        simpa [Z] using
+          (Submodule.smul_mem _ x.1 h0mem)
+      have hadd := Submodule.add_mem _ htimepart htrans
+      simpa using hadd
+
+  have hDHinv : InvolutiveOn W DH := by
+    intro Q hQ hQW a b ha hb y hy
+    let QP : Set (ℝ × H) := I ×ˢ Q
+    have hQP : IsOpen QP := hI.prod hQ
+    have hQPP : QP ⊆ P := fun z hz => ⟨hz.1,hQW hz.2⟩
+    let alift : (ℝ × H) → (ℝ × H) := fun z => (0,a z.2)
+    let blift : (ℝ × H) → (ℝ × H) := fun z => (0,b z.2)
+    have halift : IsSectionOn QP DP alift := by
+      refine ⟨?_, ?_⟩
+      · exact contDiffOn_const.prodMk
+          (ha.1.comp (by fun_prop) (fun z hz => hz.2))
+      · intro z hz
+        rw [hDPmem_iff z (hQPP hz)]
+        rw [hspan_time z.2 (hQW hz.2) z.1 hz.1]
+        exact ha.2 z.2 hz.2
+    have hblift : IsSectionOn QP DP blift := by
+      refine ⟨?_, ?_⟩
+      · exact contDiffOn_const.prodMk
+          (hb.1.comp (by fun_prop) (fun z hz => hz.2))
+      · intro z hz
+        rw [hDPmem_iff z (hQPP hz)]
+        rw [hspan_time z.2 (hQW hz.2) z.1 hz.1]
+        exact hb.2 z.2 hz.2
+    have hbr :=
+      hDPinv QP hQP hQPP alift blift halift hblift
+        (0,y) ⟨h0I,hy⟩
+    rw [hDPmem_iff (0,y) ⟨h0I,hQW hy⟩] at hbr
+    have hformula :
+        (lieBracket alift blift (0,y)).2 = lieBracket a b y := by
+      simp [lieBracket,alift,blift]
+    rw [hformula] at hbr
+    simpa [DH] using hbr
+
+  have hFtrans :
+      FrobeniusSubmersionAt W DH r (0 : H) :=
+    ih hW hDHframe hDHrank hDHinv h0W
+  let Q : Set (ℝ × H) := I ×ˢ hFtrans.U
+  have hQ : IsOpen Q := hI.prod hFtrans.isOpen_U
+  have hQ0 : ((0,0) : ℝ × H) ∈ Q :=
+    ⟨h0I,hFtrans.mem_U⟩
+  have hQP : Q ⊆ P :=
+    fun z hz => ⟨hz.1,hFtrans.subset_U hz.2⟩
+  have hQsrc : Q ⊆ e.source := hQP.trans hPsrc
+
+  let Ufinal : Set F := e '' Q
+  let Hfinal : F → Vec (Fin hFtrans.k) :=
+    fun q => hFtrans.H (e.symm q).2
+  have hUfinal : IsOpen Ufinal :=
+    e.isOpen_image_of_subset_source hQ hQsrc
+  have hpUfinal : p ∈ Ufinal := by
+    refine ⟨(0,0),hQ0,?_⟩
+    simpa using he0
+  have hUfinalΩ : Ufinal ⊆ ΩF := by
+    rintro q ⟨z,hz,rfl⟩
+    exact hVΩ (himgP_V ⟨z,hQP hz,rfl⟩)
+  have hHfinal :
+      ContDiffOn ℝ ∞ Hfinal Ufinal := by
+    fun_prop
+  have hfinrankH :
+      Module.finrank ℝ F = 1 + Module.finrank ℝ H := by
+    have hdim :=
+      (lineOrthogonalEquiv (v 0 p) hv0).toLinearEquiv.finrank_eq
+    simpa using hdim.symm
+
+  refine
+    { k := hFtrans.k
+      dim_eq := by
+        have htransdim := hFtrans.dim_eq
+        omega
+      U := Ufinal
+      H := Hfinal
+      isOpen_U := hUfinal
+      mem_U := hpUfinal
+      subset_U := hUfinalΩ
+      smooth_H := hHfinal
+      surjective_fderiv := ?_
+      ker_fderiv := ?_ }
+
+  · intro q hq
+    rcases hq with ⟨z,hz,rfl⟩
+    have hleft : e.symm (e z) = z := e.left_inv (hQsrc hz)
+    intro ξ
+    obtain ⟨w,hw⟩ :=
+      hFtrans.surjective_fderiv z.2 hz.2 ξ
+    let x : F := fderiv ℝ e z (0,w)
+    refine ⟨x, ?_⟩
+    have hinv :=
+      fderiv_symm_comp_fderiv e hQ hQsrc
+        (heP.mono hQP)
+        (by
+          apply hesP.mono
+          rintro _ ⟨y,hy,rfl⟩
+          exact ⟨y,hQP hy,rfl⟩)
+        hz (0,w)
+    simpa [Hfinal,x,hleft,fderiv_comp,hinv] using hw
+
+  · intro q hq
+    rcases hq with ⟨z,hz,rfl⟩
+    have hleft : e.symm (e z) = z := e.left_inv (hQsrc hz)
+    ext x
+    constructor
+    · intro hx
+      have hzero :
+          fderiv ℝ hFtrans.H z.2
+            (fderiv ℝ e.symm (e z) x).2 = 0 := by
+        simpa [Hfinal,hleft,fderiv_comp] using hx
+      have htransmem :
+          (fderiv ℝ e.symm (e z) x).2 ∈ DH z.2 := by
+        rw [← hFtrans.ker_fderiv z.2 hz.2]
+        exact hzero
+      have hspant :
+          (fderiv ℝ e.symm (e z) x).2 ∈
+            Submodule.span ℝ (Set.range (Y z)) := by
+        rw [hspan_time z.2 (hFtrans.subset_U hz.2) z.1 hz.1]
+        exact htransmem
+      have hpull :
+          fderiv ℝ e.symm (e z) x ∈ DP z :=
+        (hDPmem_iff z (hQP hz)
+          (fderiv ℝ e.symm (e z) x)).2 hspant
+      change x ∈ DF (e z)
+      change fderiv ℝ e z
+        (fderiv ℝ e.symm (e z) x) ∈ DF (e z)
+      rw [fderiv_comp_fderiv_symm e hQ hQsrc
+        (heP.mono hQP)
+        (by
+          apply hesP.mono
+          rintro _ ⟨y,hy,rfl⟩
+          exact ⟨y,hQP hy,rfl⟩)
+        hz x]
+      exact hpull
+    · intro hx
+      have hpull :
+          fderiv ℝ e.symm (e z) x ∈ DP z := by
+        change fderiv ℝ e z
+          (fderiv ℝ e.symm (e z) x) ∈ DF (e z)
+        rw [fderiv_comp_fderiv_symm e hQ hQsrc
+          (heP.mono hQP)
+          (by
+            apply hesP.mono
+            rintro _ ⟨y,hy,rfl⟩
+            exact ⟨y,hQP hy,rfl⟩)
+          hz x]
+        exact hx
+      have hspant :=
+        (hDPmem_iff z (hQP hz)
+          (fderiv ℝ e.symm (e z) x)).1 hpull
+      have htransmem :
+          (fderiv ℝ e.symm (e z) x).2 ∈ DH z.2 := by
+        rw [← hspan_time z.2 (hFtrans.subset_U hz.2) z.1 hz.1]
+        exact hspant
+      have hzero :
+          fderiv ℝ hFtrans.H z.2
+            (fderiv ℝ e.symm (e z) x).2 = 0 := by
+        rw [← ContinuousLinearMap.mem_ker,
+          hFtrans.ker_fderiv z.2 hz.2]
+        exact htransmem
+      simpa [Hfinal,hleft,fderiv_comp] using hzero
+
 /-- A Frobenius submersion immediately supplies the exact family of first
 integrals used by Theorem 21. -/
 theorem FrobeniusSubmersionAt.firstIntegrals
