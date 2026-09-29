@@ -1225,6 +1225,117 @@ lemma smooth_ode_solution_unique_on_open_convex
   exact this
 
 
+
+structure SymmetricFlowPatch (Ω : Set E) (v : Field E) where
+  U : Set E
+  open_U : IsOpen U
+  center : E
+  center_mem : center ∈ U
+  source_subset : U ⊆ Ω
+  ε : ℝ
+  ε_pos : 0 < ε
+  toFun : E → ℝ → E
+  smooth : ContDiffOn ℝ ∞
+    (fun z : E × ℝ => toFun z.1 z.2) (U ×ˢ Set.Ioo (-ε) ε)
+  initial : ∀ x, toFun x 0 = x
+  target_mem : ∀ x ∈ U, ∀ t ∈ Set.Ioo (-ε) ε, toFun x t ∈ Ω
+  ode : ∀ x ∈ U, ∀ t ∈ Set.Ioo (-ε) ε,
+    HasDerivAt (toFun x) (v (toFun x t)) t
+  composition : ∀ x t u, toFun x (t + u) = toFun (toFun x t) u
+
+lemma exists_symmetricFlowPatch (hΩ : IsOpen Ω) {v : Field E}
+    (hv : ContDiffOn ℝ ∞ v Ω) {a : E} (ha : a ∈ Ω) :
+    ∃ P : SymmetricFlowPatch Ω v, P.center = a := by
+  have hv' : ContDiffOn ℝ (((⊤ : ℕ∞) : WithTop ℕ∞) + 1) v Ω := by
+    simpa using hv
+  obtain ⟨Φ, hΦsmooth, hΦ0, hΦadd, hΦode⟩ :=
+    ODE.exists_contDiffAt_localFlow (n := (⊤ : ℕ∞))
+      v hv' (hΩ.mem_nhds ha)
+  have hΦcont :
+      ContinuousAt (fun z : E × ℝ => Φ z.1 z.2) (a,0) :=
+    hΦsmooth.continuousAt
+  have htargetEv :
+      ∀ᶠ z : E × ℝ in 𝓝 (a,0), Φ z.1 z.2 ∈ Ω := by
+    have : Φ a 0 = a := hΦ0 a
+    exact hΦcont.eventually (this ▸ hΩ.mem_nhds ha)
+  obtain ⟨Ws, hWs, hWsmooth⟩ :=
+    hΦsmooth.contDiffOn (m := ∞) le_rfl (by simp)
+  have hN : Ws ∩ {z | HasDerivAt (Φ z.1) (v (Φ z.1 z.2)) z.2} ∩
+      {z | Φ z.1 z.2 ∈ Ω} ∈ 𝓝 (a,0) := by
+    exact Filter.inter_mem
+      (Filter.inter_mem hWs hΦode) htargetEv
+  obtain ⟨U₀, I₀, hU₀, hI₀, hprod⟩ :=
+    mem_nhds_prod_iff'.mp hN
+  obtain ⟨U, haU, hUopen, hUU₀⟩ := mem_nhds_iff.mp hU₀
+  have hUΩn : Ω ∈ 𝓝 a := hΩ.mem_nhds ha
+  let U' := U ∩ Ω
+  have hU'open : IsOpen U' := hUopen.inter hΩ
+  have haU' : a ∈ U' := ⟨haU,ha⟩
+  have hU'U₀ : U' ⊆ U₀ := fun x hx => hUU₀ hx.1
+  obtain ⟨ε, hε, hIε⟩ := Metric.mem_nhds_iff.mp hI₀
+  let J : Set ℝ := Set.Ioo (-ε) ε
+  have hJsub : J ⊆ I₀ := by
+    intro t ht
+    apply hIε
+    simpa [J, Real.dist_eq] using max_lt ht.2 (by linarith [ht.1])
+  have hprod' : U' ×ˢ J ⊆
+      Ws ∩ {z | HasDerivAt (Φ z.1) (v (Φ z.1 z.2)) z.2} ∩
+        {z | Φ z.1 z.2 ∈ Ω} := by
+    intro z hz
+    exact hprod ⟨hU'U₀ hz.1, hJsub hz.2⟩
+  refine ⟨{
+    U := U'
+    open_U := hU'open
+    center := a
+    center_mem := haU'
+    source_subset := inter_subset_right
+    ε := ε
+    ε_pos := hε
+    toFun := Φ
+    smooth := ?_
+    initial := hΦ0
+    target_mem := ?_
+    ode := ?_
+    composition := hΦadd }, rfl⟩
+  · exact hWsmooth.mono (fun z hz => (hprod' hz).1)
+  · intro x hx t ht
+    exact (hprod' ⟨hx,ht⟩).2.2
+  · intro x hx t ht
+    exact (hprod' ⟨hx,ht⟩).2.1
+
+lemma SymmetricFlowPatch.eq_on_overlap
+    (hΩ : IsOpen Ω) {v : Field E} (hv : ContDiffOn ℝ ∞ v Ω)
+    (P Q : SymmetricFlowPatch Ω v) {x : E}
+    (hxP : x ∈ P.U) (hxQ : x ∈ Q.U) :
+    Set.EqOn (P.toFun x) (Q.toFun x)
+      (Set.Ioo (max (-P.ε) (-Q.ε)) (min P.ε Q.ε)) := by
+  let I := Set.Ioo (max (-P.ε) (-Q.ε)) (min P.ε Q.ε)
+  have hIopen : IsOpen I := isOpen_Ioo
+  have hIconv : Convex ℝ I := convex_Ioo _ _
+  have h0I : (0 : ℝ) ∈ I := by
+    constructor
+    · exact max_lt (by linarith [P.ε_pos]) (by linarith [Q.ε_pos])
+    · exact lt_min P.ε_pos Q.ε_pos
+  apply smooth_ode_solution_unique_on_open_convex
+    (Ω := Ω) hIopen hIconv hΩ hv h0I
+  · intro t ht
+    exact P.target_mem x hxP t
+      ⟨lt_of_le_of_lt (le_max_left _ _) ht.1,
+       lt_of_lt_of_le ht.2 (min_le_left _ _)⟩
+  · intro t ht
+    exact Q.target_mem x hxQ t
+      ⟨lt_of_le_of_lt (le_max_right _ _) ht.1,
+       lt_of_lt_of_le ht.2 (min_le_right _ _)⟩
+  · intro t ht
+    exact P.ode x hxP t
+      ⟨lt_of_le_of_lt (le_max_left _ _) ht.1,
+       lt_of_lt_of_le ht.2 (min_le_left _ _)⟩
+  · intro t ht
+    exact Q.ode x hxQ t
+      ⟨lt_of_le_of_lt (le_max_right _ _) ht.1,
+       lt_of_lt_of_le ht.2 (min_le_right _ _)⟩
+  · simp [P.initial, Q.initial]
+
 /-- Standard autonomous-ODE background used by Proposition 9.  This is an
 explicit Stage-1 dependency, not an assumed theorem constant. -/
 class HasMaximalSmoothLocalFlows : Prop where
