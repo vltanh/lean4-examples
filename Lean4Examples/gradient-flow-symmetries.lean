@@ -134,8 +134,22 @@ lemma SmoothLossOn.regular {L : S → E → ℝ} (hL : SmoothLossOn Ω L) :
     RegularLossOn Ω L := by
   refine ⟨hL.isOpen, fun s => (hL.smooth s).of_le (by simp), ?_⟩
   intro s
-  -- TODO[ODE-SMOOTH-LIP]: differentiate once; C¹ maps are locally Lipschitz.
-  sorry
+  intro s p hp
+  have h₂ : ContDiffOn ℝ 2 (L s) Ω := (hL.smooth s).of_le (by simp)
+  have hD : ContDiffOn ℝ 1 (fderiv ℝ (L s)) Ω := by
+    exact ((contDiffOn_succ_iff_fderiv_of_isOpen hL.isOpen).mp h₂).2
+  have hgrad : ContDiffOn ℝ 1 (gradient (L s)) Ω := by
+    rw [show gradient (L s) =
+      (InnerProductSpace.toDual ℝ E).symm ∘ fderiv ℝ (L s) by
+        ext x
+        simp [gradient]]
+    exact (InnerProductSpace.toDual ℝ E).symm.contDiff.comp_contDiffOn hD
+  have hgradp : ContDiffAt ℝ 1 (gradient (L s)) p :=
+    (hgrad p hp).contDiffAt (hL.isOpen.mem_nhds hp)
+  obtain ⟨K, V, hV, hKV⟩ := hgradp.exists_lipschitzOnWith
+  obtain ⟨U, hUV, hUopen, hpU⟩ := mem_nhds_iff.mp hV
+  refine ⟨U ∩ Ω, hUopen.inter hL.isOpen, ⟨hpU, hp⟩, inter_subset_right, K, ?_⟩
+  exact hKV.mono (fun x hx => hUV hx.1)
 
 /-- Equation (2): the span of all single-sample gradients. -/
 def gradientDistribution (L : S → E → ℝ) (p : E) : Submodule ℝ E :=
@@ -228,8 +242,28 @@ theorem local_solution (hΩ : IsOpen Ω) {v : Field E}
     (hv : LocallyLipschitzOn Ω v) {p : E} (hp : p ∈ Ω) :
     ∃ I : Set ℝ, IsOpen I ∧ Convex ℝ I ∧ 0 ∈ I ∧
       ∃ γ : ℝ → E, γ 0 = p ∧ IsIntegralCurveOn Ω I v γ := by
-  -- TODO[ODE-LOCAL]: apply the local autonomous ODE existence theorem.
-  sorry
+  obtain ⟨U, hUopen, hpU, hUΩ, K, hvK⟩ := hv p hp
+  have hvU : ContinuousOn v U := hvK.continuousOn
+  obtain ⟨r, hr, hball⟩ := Metric.isOpen_iff.mp hUopen p hpU
+  let a : ℝ≥0 := ⟨r / 2, by positivity⟩
+  have hclosed : Metric.closedBall p a ⊆ U := by
+    intro q hq
+    apply hball
+    exact lt_of_le_of_lt hq (by simpa [a] using half_lt_self hr)
+  have hcont : ContinuousOn v (Metric.closedBall p a) :=
+    hvU.mono hclosed
+  have hlip : LipschitzOnWith K v (Metric.closedBall p a) :=
+    hvK.mono hclosed
+  obtain ⟨ε, hε, γ, hγ0, hγ⟩ :=
+    ODE.exists_local_solution_autonomous_of_continuousOn_lipschitzOnWith
+      (x₀ := p) (a := a) hcont hlip
+  let I : Set ℝ := Set.Ioo (-ε) ε
+  refine ⟨I, isOpen_Ioo, convex_Ioo _ _, ⟨by linarith, by linarith⟩, γ, hγ0, ?_⟩
+  refine ⟨?_, ?_⟩
+  · intro t ht
+    exact hUΩ (hclosed (hγ.1 t ht))
+  · intro t ht
+    exact hγ.2 t ht
 
 /-- Proposition 2, sufficient direction: chain rule + the mean value theorem. -/
 theorem conserved_of_infinitesimal {L : S → E → ℝ} {h : E → ℝ}
@@ -296,11 +330,100 @@ theorem proposition1 (L : S → E → ℝ)
         (∀ t ∈ Set.Ici (0 : ℝ),
           HasDerivWithinAt η (empiricalField L d (η t)) (Set.Ici 0) t) →
         ∀ t ∈ Set.Ici (0 : ℝ), η t = γ t) := by
-  -- TODO[ODE-GLOBAL]: Appendix D.1. Along the solution,
-  -- d/dt L_D(γ(t)) = -‖γ'(t)‖².  The lower bound and Cauchy--Schwarz give
-  -- ‖γ(t)-p₀‖ ≤ sqrt(t * (L_D(p₀)-b)); use continuation to exclude finite
-  -- escape, then local uniqueness to obtain uniqueness on the half-line.
-  sorry
+  classical
+  have hLemp : ContDiff ℝ 1 (empiricalLoss L d) := by
+    unfold empiricalLoss
+    fun_prop
+  have hgradLip : LocallyLipschitz (gradient (empiricalLoss L d)) := by
+    have h₂ : ContDiff ℝ 2 (empiricalLoss L d) := by
+      unfold empiricalLoss
+      fun_prop
+    have hD : ContDiff ℝ 1 (fderiv ℝ (empiricalLoss L d)) :=
+      ((contDiff_succ_iff_fderiv).mp h₂).2
+    have hg : ContDiff ℝ 1 (gradient (empiricalLoss L d)) := by
+      rw [show gradient (empiricalLoss L d) =
+        (InnerProductSpace.toDual ℝ E).symm ∘ fderiv ℝ (empiricalLoss L d) by
+          ext x
+          simp [gradient]]
+      exact (InnerProductSpace.toDual ℝ E).symm.contDiff.comp hD
+    exact hg.locallyLipschitz
+  have hfieldLip : LocallyLipschitz (empiricalField L d) := by
+    simpa [empiricalField] using hgradLip.neg
+  obtain ⟨J, γ, hJopen, hJconn, h0J, hγ0, hγ, hmax⟩ :=
+    ODE.exists_maximal_autonomous_solution hfieldLip p₀
+  have henergy : ∀ t ∈ J ∩ Set.Ici (0 : ℝ),
+      (∫ s in (0 : ℝ)..t, ‖deriv γ s‖ ^ 2) =
+        empiricalLoss L d p₀ - empiricalLoss L d (γ t) := by
+    intro t ht
+    have hder : ∀ s ∈ Set.Icc (0 : ℝ) t,
+        HasDerivAt (fun u => empiricalLoss L d (γ u))
+          (-‖gradient (empiricalLoss L d) (γ s)‖^2) s := by
+      intro s hs
+      have hsJ : s ∈ J := hJconn.out h0J ht.1 hs
+      simpa [empiricalField, norm_neg] using
+        loss_dissipation (hLemp.differentiable (by norm_num) _) (hγ s hsJ)
+    rw [intervalIntegral.integral_eq_sub_of_hasDerivAt hder]
+    · simp [hγ0, empiricalField] at *
+    · exact le_of_lt ht.2
+  have hbound : ∀ t ∈ J ∩ Set.Ici (0 : ℝ),
+      ‖γ t - p₀‖ ≤
+        Real.sqrt (t * (empiricalLoss L d p₀ - b)) := by
+    intro t ht
+    have hE : ∫ s in (0 : ℝ)..t, ‖deriv γ s‖ ^ 2
+        ≤ empiricalLoss L d p₀ - b := by
+      rw [henergy t ht]
+      linarith [hbelow (γ t)]
+    calc
+      ‖γ t - p₀‖ =
+          ‖∫ s in (0 : ℝ)..t, deriv γ s‖ := by
+            rw [← intervalIntegral.integral_deriv_eq_sub]
+            · exact hγ.continuousOn.mono
+                (hJconn.out_subset h0J ht.1)
+            · intro s hs
+              exact (hγ s (hJconn.out h0J ht.1 hs)).differentiableAt
+      _ ≤ ∫ s in (0 : ℝ)..t, ‖deriv γ s‖ := intervalIntegral.norm_integral_le_of_norm_le
+            (fun s _ => le_rfl)
+      _ ≤ Real.sqrt t * Real.sqrt
+            (∫ s in (0 : ℝ)..t, ‖deriv γ s‖ ^ 2) := by
+            simpa using intervalIntegral.integral_norm_le_sqrt_mul_integral_sq
+              (fun s => deriv γ s) ht.2
+      _ ≤ Real.sqrt t * Real.sqrt (empiricalLoss L d p₀ - b) := by
+            gcongr
+            exact Real.sqrt_le_sqrt hE
+      _ = Real.sqrt (t * (empiricalLoss L d p₀ - b)) := by
+            rw [Real.sqrt_mul (by positivity)]
+  have hfuture : Set.Ici (0 : ℝ) ⊆ J := by
+    apply hmax.Ici_subset_of_no_finite_escape h0J
+    intro T hT
+    let R := ‖p₀‖ + Real.sqrt (T * (empiricalLoss L d p₀ - b)) + 1
+    refine ⟨Metric.closedBall 0 R, isCompact_closedBall 0 R, ?_⟩
+    intro t ht
+    have hbnd := hbound t ⟨ht.1, ht.2.1⟩
+    have htT : t ≤ T := ht.2.2
+    have hsqrt : Real.sqrt (t * (empiricalLoss L d p₀ - b)) ≤
+        Real.sqrt (T * (empiricalLoss L d p₀ - b)) := by
+      gcongr
+      · exact htT
+      · have := hbelow p₀
+        linarith
+    rw [Metric.mem_closedBall, dist_zero_right]
+    exact (norm_le_norm_add_norm_sub _ _).trans
+      (by linarith [hbnd.trans hsqrt])
+  refine ⟨γ, hγ0, ?_, ?_⟩
+  · intro t ht
+    exact (hγ t (hfuture ht)).hasDerivWithinAt
+  · intro η hη0 hη t ht
+    exact ODE_solution_unique_of_eventually
+      (v := fun _ x => empiricalField L d x)
+      (s := fun _ => Set.univ)
+      (K := 0)
+      (hfieldLip.eventually_lipschitzOnWith_at (γ t))
+      ((hγ t (hfuture ht)).eventually_hasDerivAt.and
+        (Filter.Eventually.of_forall fun _ => Set.mem_univ _))
+      ((hη t ht).hasDerivAt (self_mem_nhdsWithin.trans
+        (by simpa using ht)).eventually.and
+        (Filter.Eventually.of_forall fun _ => Set.mem_univ _))
+      (by simpa [hη0, hγ0]) |>.self_of_nhds
 
 /-- The energy identity used in Appendix D.1. -/
 theorem loss_dissipation {f : E → ℝ} {γ : ℝ → E} {t : ℝ}
