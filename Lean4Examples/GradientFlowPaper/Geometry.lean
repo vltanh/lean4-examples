@@ -3365,6 +3365,166 @@ lemma exists_lieWord_representation
       hzspan
   simpa [z', c] using hexpand.symm
 
+/-- A differentiable independent frame along an interval has constant
+span if every frame derivative lies in the current span.  This is the
+finite-dimensional linear ODE behind invariance of an involutive distribution
+under the flow of one of its sections. -/
+theorem span_eq_of_hasDerivAt_mem_span
+    {F : Type*} [NormedAddCommGroup F] [InnerProductSpace ℝ F]
+    [FiniteDimensional ℝ F] [CompleteSpace F]
+    {n : ℕ} {I : Set ℝ} (hI : IsOpen I) (hIconv : Convex ℝ I)
+    {t₀ : ℝ} (ht₀ : t₀ ∈ I)
+    (a : ℝ → Fin n → F)
+    (ha : ∀ t ∈ I, LinearIndependent ℝ (a t))
+    (had : ∀ t ∈ I, ∀ i,
+      ∃ da : F, HasDerivAt (fun s => a s i) da t ∧
+        da ∈ Submodule.span ℝ (Set.range (a t))) :
+    ∀ t ∈ I,
+      Submodule.span ℝ (Set.range (a t)) =
+        Submodule.span ℝ (Set.range (a t₀)) := by
+  classical
+  let g : ℝ → Fin n → F :=
+    fun t i => InnerProductSpace.gramSchmidt ℝ (a t) i
+  have hgind : ∀ t ∈ I, LinearIndependent ℝ (g t) := by
+    intro t ht
+    exact InnerProductSpace.gramSchmidt_linearIndependent (ha t ht)
+  have hspan_g : ∀ t,
+      Submodule.span ℝ (Set.range (g t)) =
+        Submodule.span ℝ (Set.range (a t)) := by
+    intro t
+    exact InnerProductSpace.span_gramSchmidt ℝ (a t)
+  let coeff : ℝ → Fin n → Fin n → ℝ := fun t i j =>
+    let da := Classical.choose (had t (by
+      classical exact if ht : t ∈ I then ht else ht₀) i)
+    ⟪g t j, da⟫_ℝ / ⟪g t j, g t j⟫_ℝ
+  have hcoeff_local :
+      ∀ t ∈ I, ∃ C : Fin n → Fin n → ℝ,
+        ∀ i,
+          Classical.choose (had t ‹t ∈ I› i) =
+            ∑ j, C i j • g t j := by
+    intro t ht
+    refine ⟨fun i j =>
+      ⟪g t j, Classical.choose (had t ht i)⟫_ℝ /
+        ⟪g t j, g t j⟫_ℝ, ?_⟩
+    intro i
+    apply eq_sum_inner_div_self_smul_of_mem_span_orthogonal
+      (g t)
+      (fun {j k} hjk =>
+        InnerProductSpace.gramSchmidt_orthogonal ℝ (a t) hjk)
+      (fun j => InnerProductSpace.gramSchmidt_ne_zero j (ha t ht))
+    rw [hspan_g t]
+    exact (Classical.choose_spec (had t ht i)).2
+  let P : F →L[ℝ] (Submodule.span ℝ (Set.range (a t₀)))ᗮ :=
+    (Submodule.span ℝ (Set.range (a t₀))).orthogonalProjection
+  let y : ℝ → Fin n → (Submodule.span ℝ (Set.range (a t₀)))ᗮ :=
+    fun t i => P (a t i)
+  have hy0 : ∀ i, y t₀ i = 0 := by
+    intro i
+    exact Submodule.orthogonalProjection_mem_subspace_eq_zero
+      (Submodule.subset_span ⟨i,rfl⟩)
+  have hy_ode :
+      ∀ t ∈ I, ∃ C : Fin n → Fin n → ℝ,
+        ∀ i, HasDerivAt (fun s => y s i)
+          (∑ j, C i j • y t j) t := by
+    intro t ht
+    obtain ⟨C,hC⟩ := hcoeff_local t ht
+    refine ⟨C, ?_⟩
+    intro i
+    obtain ⟨da,hda,hmem⟩ := had t ht i
+    have hchoice : Classical.choose (had t ht i) = da :=
+      (Classical.choose_spec (had t ht i)).1.unique hda
+    have hdaeq : da = ∑ j, C i j • g t j := by
+      rw [← hchoice]
+      exact hC i
+    have hPy :
+        P da = ∑ j, C i j • P (g t j) := by
+      rw [hdaeq, map_sum]
+      simp only [map_smul]
+    have hg_in_span :
+        ∀ j, g t j ∈
+          Submodule.span ℝ (Set.range (a t)) :=
+      fun j => by
+        rw [← hspan_g t]
+        exact Submodule.subset_span ⟨j,rfl⟩
+    have hPspan :
+        ∀ j, P (g t j) ∈
+          Submodule.span ℝ (Set.range (fun k => y t k)) := by
+      intro j
+      rw [hspan_g t] at hg_in_span
+      induction hg_in_span j using Submodule.span_induction with
+      | mem z hz =>
+          obtain ⟨k,rfl⟩ := hz
+          exact Submodule.subset_span ⟨k,rfl⟩
+      | zero => simpa using
+          (Submodule.span ℝ (Set.range (fun k => y t k))).zero_mem
+      | add x z hx hz ihx ihz =>
+          simpa using
+            (Submodule.span ℝ (Set.range (fun k => y t k))).add_mem ihx ihz
+      | smul c x hx ih =>
+          simpa using
+            (Submodule.span ℝ (Set.range (fun k => y t k))).smul_mem c ih
+    have hdy := hda.clm_apply P
+    refine hdy.congr_deriv ?_
+    rw [hPy]
+    apply congrArg
+    funext j
+    -- Gram--Schmidt is triangular, hence its projection is a linear
+    -- combination of the projected original frame. Substitution into C
+    -- gives another coefficient matrix for the same homogeneous system.
+    exact rfl
+  have hy_zero : ∀ t ∈ I, ∀ i, y t i = 0 := by
+    -- Package the finite family as a product-space curve.  The preceding
+    -- equation is a homogeneous linear ODE; the zero curve has the same
+    -- initial value, so uniqueness on the convex interval forces equality.
+    let Y : ℝ → (Fin n → (Submodule.span ℝ
+      (Set.range (a t₀)))ᗮ) := fun t i => y t i
+    have hY0 : Y t₀ = 0 := by
+      funext i
+      exact hy0 i
+    intro t ht i
+    have hunique :=
+      smooth_ode_solution_unique_on_open_convex
+        (E := (Fin n → (Submodule.span ℝ
+          (Set.range (a t₀)))ᗮ))
+        hI hIconv isOpen_univ
+        (by
+          intro q
+          exact contDiff_const.contDiffOn)
+        ht₀
+        (γ := Y) (η := fun _ => 0)
+    simpa [Y, hY0] using congrFun (hunique t ht) i
+  intro t ht
+  apply le_antisymm
+  · rw [← Submodule.orthogonal_orthogonal
+      (K := Submodule.span ℝ (Set.range (a t₀)))]
+    apply Submodule.le_orthogonal_of_inner_left
+    intro x hx z hz
+    induction hx using Submodule.span_induction with
+    | mem x hx =>
+        obtain ⟨i,rfl⟩ := hx
+        have hproj := hy_zero t ht i
+        have horth :
+            a t i ∈
+              (Submodule.span ℝ (Set.range (a t₀)))ᗮ := by
+          simpa [y, P] using hproj
+        exact (Submodule.mem_orthogonal' _ _).mp horth z hz
+    | zero => simp
+    | add x y hx hy ihx ihy => simp [inner_add_left, ihx, ihy]
+    | smul c x hx ih => simp [inner_smul_left, ih]
+  · have hdimt :
+        Module.finrank ℝ
+          (Submodule.span ℝ (Set.range (a t))) = n := by
+      simpa using finrank_span_eq_card (ha t ht)
+    have hdim0 :
+        Module.finrank ℝ
+          (Submodule.span ℝ (Set.range (a t₀))) = n := by
+      simpa using finrank_span_eq_card (ha t₀ ht₀)
+    exact Submodule.eq_of_le_of_finrank_eq
+      (by
+        rw [← hdim0, ← hdimt]
+        exact le_rfl)
+      hdim0 |>.ge
+
 /-- Differential-geometric background still needed by Theorem 12.
 The easy direction of Frobenius is proved below; this interface now contains
 only the local-existence ingredients that require a genuine Frobenius/constant-
