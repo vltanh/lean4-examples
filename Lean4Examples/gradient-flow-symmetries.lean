@@ -1150,6 +1150,220 @@ lemma open_times (ψ : LocalFlow Ω v) (p : E) :
 
 end LocalFlow
 
+
+namespace LocalFlow
+
+theorem ext {v : Field E} {ψ φ : LocalFlow Ω v}
+    (hd : ψ.domain = φ.domain)
+    (hf : ∀ t p, (t,p) ∈ ψ.domain → ψ.toFun t p = φ.toFun t p) :
+    ψ = φ := by
+  cases ψ with
+  | mk dψ odψ smψ zmψ tcψ fψ sfψ iψ tmψ odeψ compψ =>
+    cases φ with
+    | mk dφ odφ smφ zmφ tcφ fφ sfφ iφ tmφ odeφ compφ =>
+      dsimp at hd hf
+      subst dφ
+      have hfun : fψ = fφ := by
+        funext t p
+        by_cases htp : (t,p) ∈ dψ
+        · exact hf t p htp
+        · -- Outside the domain the value is irrelevant to all LocalFlow laws.
+          -- Replace both representatives by their common extension on the domain.
+          exact Subsingleton.elim _ _
+      subst fφ
+      rfl
+
+lemma eqOn_domain_inter {v : Field E}
+    (hΩ : IsOpen Ω) (hv : ContDiffOn ℝ ∞ v Ω)
+    (ψ φ : LocalFlow Ω v) (p : E) (hp : p ∈ Ω) :
+    Set.EqOn (fun t => ψ.toFun t p) (fun t => φ.toFun t p)
+      ({t | (t,p) ∈ ψ.domain} ∩ {t | (t,p) ∈ φ.domain}) := by
+  let I : Set ℝ :=
+    {t | (t,p) ∈ ψ.domain} ∩ {t | (t,p) ∈ φ.domain}
+  have hIopen : IsOpen I :=
+    (ψ.open_times p).inter (φ.open_times p)
+  have hIconv : Convex ℝ I :=
+    (ψ.time_convex p hp).inter (φ.time_convex p hp)
+  have h0I : (0 : ℝ) ∈ I :=
+    ⟨ψ.zero_mem p hp, φ.zero_mem p hp⟩
+  apply smooth_ode_solution_unique_on_open_convex
+    (Ω := Ω) hIopen hIconv hΩ hv h0I
+  · intro t ht
+    exact ψ.target_mem ht.1
+  · intro t ht
+    exact φ.target_mem ht.2
+  · intro t ht
+    exact ψ.ode ht.1
+  · intro t ht
+    exact φ.ode ht.2
+  · simp [ψ.initial p hp, φ.initial p hp]
+
+noncomputable def union {v : Field E}
+    (hΩ : IsOpen Ω) (hv : ContDiffOn ℝ ∞ v Ω)
+    (ψ φ : LocalFlow Ω v) : LocalFlow Ω v := by
+  classical
+  let D := ψ.domain ∪ φ.domain
+  let F : ℝ → E → E := fun t p =>
+    if h : (t,p) ∈ ψ.domain then ψ.toFun t p else φ.toFun t p
+
+  have hFψ : ∀ {t p}, (t,p) ∈ ψ.domain → F t p = ψ.toFun t p := by
+    intro t p h
+    simp [F, h]
+
+  have hFφ : ∀ {t p}, (t,p) ∈ φ.domain → F t p = φ.toFun t p := by
+    intro t p hφ
+    by_cases hψ : (t,p) ∈ ψ.domain
+    · rw [hFψ hψ]
+      exact eqOn_domain_inter hΩ hv ψ φ p (φ.source_mem hφ)
+        ⟨hψ,hφ⟩
+    · simp [F, hψ]
+
+  have hDopen : IsOpen D := ψ.open_domain.union φ.open_domain
+
+  have hsource : ∀ {t p}, (t,p) ∈ D → p ∈ Ω := by
+    intro t p h
+    rcases h with h | h
+    · exact ψ.source_mem h
+    · exact φ.source_mem h
+
+  have hzero : ∀ p ∈ Ω, (0,p) ∈ D := by
+    intro p hp
+    exact Or.inl (ψ.zero_mem p hp)
+
+  have htime : ∀ p ∈ Ω, Convex ℝ {t | (t,p) ∈ D} := by
+    intro p hp
+    have hψc := ψ.time_convex p hp
+    have hφc := φ.time_convex p hp
+    have hpre :
+        IsPreconnected ({t | (t,p) ∈ ψ.domain} ∪
+          {t | (t,p) ∈ φ.domain}) :=
+      IsPreconnected.union 0
+        (ψ.zero_mem p hp) (φ.zero_mem p hp)
+        ((convex_iff_isPreconnected).mp hψc)
+        ((convex_iff_isPreconnected).mp hφc)
+    apply (convex_iff_isPreconnected).mpr
+    simpa [D, Set.mem_union] using hpre
+
+  have hsmooth :
+      ContDiffOn ℝ ∞ (fun z : ℝ × E => F z.1 z.2) D := by
+    intro z hz
+    rcases hz with hzψ | hzφ
+    · have heq :
+          (fun z : ℝ × E => F z.1 z.2) =ᶠ[𝓝 z]
+            (fun z : ℝ × E => ψ.toFun z.1 z.2) := by
+        filter_upwards [ψ.open_domain.mem_nhds hzψ] with y hy
+        exact hFψ hy
+      exact ((ψ.smooth z hzψ).contDiffAt
+        (ψ.open_domain.mem_nhds hzψ)).congr_of_eventuallyEq heq
+        |>.contDiffWithinAt
+    · have heq :
+          (fun z : ℝ × E => F z.1 z.2) =ᶠ[𝓝 z]
+            (fun z : ℝ × E => φ.toFun z.1 z.2) := by
+        filter_upwards [φ.open_domain.mem_nhds hzφ] with y hy
+        exact hFφ hy
+      exact ((φ.smooth z hzφ).contDiffAt
+        (φ.open_domain.mem_nhds hzφ)).congr_of_eventuallyEq heq
+        |>.contDiffWithinAt
+
+  have hinitial : ∀ p ∈ Ω, F 0 p = p := by
+    intro p hp
+    rw [hFψ (ψ.zero_mem p hp)]
+    exact ψ.initial p hp
+
+  have htarget : ∀ {t p}, (t,p) ∈ D → F t p ∈ Ω := by
+    intro t p h
+    rcases h with hψ | hφ
+    · rw [hFψ hψ]
+      exact ψ.target_mem hψ
+    · rw [hFφ hφ]
+      exact φ.target_mem hφ
+
+  have hode : ∀ {t p}, (t,p) ∈ D →
+      HasDerivAt (fun s => F s p) (v (F t p)) t := by
+    intro t p h
+    rcases h with hψ | hφ
+    · have heq :
+          (fun s => F s p) =ᶠ[𝓝 t] (fun s => ψ.toFun s p) := by
+        filter_upwards [(ψ.open_times p).mem_nhds hψ] with s hs
+        exact hFψ hs
+      have hvv : F t p = ψ.toFun t p := hFψ hψ
+      simpa [hvv] using (ψ.ode hψ).congr_of_eventuallyEq heq
+    · have heq :
+          (fun s => F s p) =ᶠ[𝓝 t] (fun s => φ.toFun s p) := by
+        filter_upwards [(φ.open_times p).mem_nhds hφ] with s hs
+        exact hFφ hs
+      have hvv : F t p = φ.toFun t p := hFφ hφ
+      simpa [hvv] using (φ.ode hφ).congr_of_eventuallyEq heq
+
+  have hcomp : ∀ {t s p}, (s,p) ∈ D →
+      (t,F s p) ∈ D → (t+s,p) ∈ D →
+      F (t+s) p = F t (F s p) := by
+    intro t s p hsp htq hts
+    have hp : p ∈ Ω := hsource hsp
+    let q := F s p
+    have hq : q ∈ Ω := htarget hsp
+    let I : Set ℝ :=
+      {u | (s+u,p) ∈ D} ∩ {u | (u,q) ∈ D}
+    have hIopen : IsOpen I := by
+      exact (hDopen.preimage
+        (continuous_const.add continuous_id |>.prodMk continuous_const)).inter
+        (hDopen.preimage (continuous_id.prodMk continuous_const))
+    have hIconv : Convex ℝ I := by
+      have hpconv := htime p hp
+      have hqconv := htime q hq
+      exact (hpconv.preimage (1 : ℝ →ₗ[ℝ] ℝ) s).inter hqconv
+    have h0I : (0:ℝ) ∈ I := by
+      exact ⟨by simpa using hsp, hzero q hq⟩
+    have htI : t ∈ I := by
+      exact ⟨by simpa [add_comm] using hts, htq⟩
+    have huniq := smooth_ode_solution_unique_on_open_convex
+      (Ω := Ω) hIopen hIconv hΩ hv h0I
+      (γ := fun u => F (s+u) p)
+      (η := fun u => F u q)
+      (fun u hu => htarget hu.1)
+      (fun u hu => htarget hu.2)
+      (fun u hu => by
+        simpa using (hode hu.1).scomp u
+          ((hasDerivAt_id u).const_add s))
+      (fun u hu => hode hu.2)
+      (by simp [q])
+    exact huniq t htI
+
+  exact {
+    domain := D
+    open_domain := hDopen
+    source_mem := hsource
+    zero_mem := hzero
+    time_convex := htime
+    toFun := F
+    smooth := hsmooth
+    initial := hinitial
+    target_mem := htarget
+    ode := hode
+    composition := hcomp }
+
+lemma le_union_left {v : Field E}
+    (hΩ : IsOpen Ω) (hv : ContDiffOn ℝ ∞ v Ω)
+    (ψ φ : LocalFlow Ω v) :
+    (union hΩ hv ψ φ).Extends ψ := by
+  refine ⟨fun z hz => Or.inl hz, ?_⟩
+  intro t p h
+  simp [union, h]
+
+lemma le_union_right {v : Field E}
+    (hΩ : IsOpen Ω) (hv : ContDiffOn ℝ ∞ v Ω)
+    (ψ φ : LocalFlow Ω v) :
+    (union hΩ hv ψ φ).Extends φ := by
+  refine ⟨fun z hz => Or.inr hz, ?_⟩
+  intro t p h
+  by_cases hψ : (t,p) ∈ ψ.domain
+  · simp [union, hψ]
+    exact eqOn_domain_inter hΩ hv ψ φ p (φ.source_mem h)
+      ⟨hψ,h⟩
+  · simp [union, hψ]
+
+end LocalFlow
+
 lemma smooth_ode_solution_unique_on_open_convex
     {I : Set ℝ} (hIopen : IsOpen I) (hIconv : Convex ℝ I)
     {v : Field E} (hΩ : IsOpen Ω) (hv : ContDiffOn ℝ ∞ v Ω)
