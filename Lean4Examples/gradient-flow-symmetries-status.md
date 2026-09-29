@@ -46,7 +46,7 @@ Target: Nguyen–Montúfar, *On Parameter Symmetries and Conservation Laws in Gr
 - [ ] `SmoothDistribution.exists_orthogonal_localFrame`
 
 ### Matrix factorization / attention
-- [ ] `Matrix.fullColumnRank_factorization_unique`
+- [x] `Matrix.fullColumnRank_factorization_unique` — eliminated; proof inlined from the full-rank Gram/cancellation argument
 - [ ] `MatrixFactorization.complete_balance_laws` — paper cites Marcotte et al. (2023)
 - [x] `MatrixFactorization.symmetryDistribution_eq_kernel_of_squaredLoss` — eliminated with the non-paper squared-loss rank detour
 - [x] `MatrixFactorization.fderiv_observation_surjective_of_fullColumnRank` — eliminated with the non-paper squared-loss rank detour
@@ -71,5 +71,6 @@ Target: Nguyen–Montúfar, *On Parameter Symmetries and Conservation Laws in Gr
 1. Inline the easy linear-algebra helper `Matrix.fullColumnRank_factorization_unique`.
 2. [x] Remove the auxiliary one-neuron PNN flow and derive conservation directly from the explicit scaling symmetry.
 3. [x] Remove the non-paper squared-loss rank detour; its two provisional helpers are no longer needed.
-4. Inline the full-column-rank factorization uniqueness lemma.
-5. Update this checklist after each proof batch.
+4. [x] Inline the full-column-rank factorization uniqueness lemma.
+5. Replace the attention local-product chart helper.
+6. Update this checklist after each proof batch.
