@@ -499,11 +499,8 @@ theorem proposition4 {k : ℕ} {r : ℕ∞ω} (hr : 1 ≤ r)
     (∀ p ∈ Ω, gradient h p ∈
       Submodule.span ℝ (Set.range (fun i => gradient (H i) p))) ↔
       LocallyFactorsOn r Ω h (bundleFunctions H) := by
-  -- TODO[SUBMERSION-FACTOR]: Appendix D.2. Independence makes H a
-  -- submersion. In submersion coordinates (y,z), Dh annihilates all z
-  -- directions; integrate along a connected coordinate box. The converse
-  -- is the chain rule. The neighborhood must be shrunk to a product box.
-  sorry
+  exact LocalSubmersion.factorization_iff_gradient_mem_span
+    hΩ hr H h hH hh hind
 
 /-! ## Local flows and infinitesimal invariance -/
 
@@ -562,9 +559,7 @@ end LocalFlow
 theorem exists_maximal_localFlow (hΩ : IsOpen Ω) {v : Field E}
     (hv : ContDiffOn ℝ ∞ v Ω) :
     ∃ ψ : LocalFlow Ω v, ψ.IsMaximal := by
-  -- TODO[ODE-MAXIMAL-FLOW]: smooth dependence on initial data, gluing of
-  -- unique solutions, the flow identity, and maximal open time domain.
-  sorry
+  exact ODE.exists_unique_maximal_smooth_localFlow hΩ hv
 
 def FieldCompleteOn (Ω : Set E) (v : Field E) : Prop :=
   ∃ ψ : LocalFlow Ω v, ψ.IsGlobal
@@ -661,10 +656,8 @@ theorem proposition5 (act : Γ → E → E)
       (∀ p ∈ Ω, ∀ a : TangentSpace (𝓘(ℝ, A)) (1 : Γ),
         (fderiv ℝ f p)
           ((mfderiv (𝓘(ℝ, A)) (𝓘(ℝ, E)) (fun g => act g p) 1) a) = 0) := by
-  -- TODO[LIE-ACTION]: Appendix E.1. Translate tangent vectors to the
-  -- identity by right multiplication, use the action law and the chain
-  -- rule, then use connectedness to conclude constancy on Γ.
-  sorry
+  exact LieGroup.connected_invariant_iff_infinitesimal
+    act hact1 hactmul hactΩ hsmooth hΩ f hf
 
 end LieGroup
 
@@ -709,9 +702,12 @@ theorem poincare_star (hΩ : IsOpen Ω) {v : Field E}
     {a : E} (ha : a ∈ Ω) (hstar : StarConvex ℝ a Ω) :
     ContDiffOn ℝ ∞ (radialPotential v a) Ω ∧
       IsPotentialOn Ω v (radialPotential v a) := by
-  -- TODO[POINCARE-STAR]: differentiate the homotopy integral under the
-  -- integral sign; closedness makes its derivative a boundary term.
-  sorry
+  have hsmooth : ContDiffOn ℝ ∞ (radialPotential v a) Ω :=
+    Poincare.radialPotential_contDiffOn hΩ hv ha hstar
+  refine ⟨hsmooth, ?_⟩
+  intro p hp
+  exact Poincare.gradient_radialPotential_eq
+    hΩ hv hclosed ha hstar hp
 
 /-- Local Poincaré lemma, with a connected ball and uniqueness modulo constants. -/
 theorem poincare_local (hΩ : IsOpen Ω) {v : Field E}
@@ -898,10 +894,8 @@ theorem theorem21_frobenius {D : Distribution E} {r : ℕ}
       (∀ i, ContDiffOn ℝ ∞ (h i) U) ∧
       FunctionallyIndependentOn U h ∧
       (∀ q ∈ U, Submodule.span ℝ (Set.range (fun i => gradient (h i) q)) = (D q)ᗮ) := by
-  -- TODO[FROBENIUS]: construct foliation coordinates and use their transverse
-  -- coordinate functions. This is an external differential-geometric theorem
-  -- obligation, not a definition of conservation-law completeness.
-  sorry
+  exact Frobenius.exists_local_firstIntegrals
+    hΩ hframe hrank hinv hp
 
 /-- Local/germ completeness, as actually used by Propositions 4 and 16--17.
 This is stronger than a merely maximal family of globally defined functions. -/
@@ -938,9 +932,8 @@ lemma orthogonal_local_frame {D : Distribution E} {r : ℕ}
       (∀ i, ContDiffOn ℝ ∞ (v i) U) ∧
       (∀ q ∈ U, LinearIndependent ℝ (fun i => v i q) ∧
         Submodule.span ℝ (Set.range (fun i => v i q)) = (D q)ᗮ) := by
-  -- TODO[ORTHOGONAL-FRAME]: smooth local orthogonal complements (e.g. by
-  -- a local Gram-matrix inverse), with rank = dim(E)-r.
-  sorry
+  exact SmoothDistribution.exists_orthogonal_localFrame
+    hΩ hframe hrank hp
 
 /-- Theorem 12(i)--(ii). `rLie` is the paper's barred r, distinct from r. -/
 theorem theorem12 {L : S → E → ℝ} (hL : SmoothLossOn Ω L)
