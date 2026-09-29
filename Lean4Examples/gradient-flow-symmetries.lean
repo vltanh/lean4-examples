@@ -1,4 +1,5 @@
 import Mathlib
+import Lean4Examples.GradientFlowVendor.TauCeti.Analysis.ODE.InitialCondition
 
 /-!
 # GradientFlowPaper — single-file draft
