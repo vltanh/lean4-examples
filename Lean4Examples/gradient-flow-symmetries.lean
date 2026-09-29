@@ -10,7 +10,7 @@ API/typing repair against the repository's pinned Lean and mathlib versions.
 
 This file is the concatenation of the eight mathematical modules in dependency
 order. Use it instead of, not together with, the modular source. The project
-pins Lean and mathlib to v4.34.0. No custom axioms are introduced.
+targets the repository's Lean and mathlib v4.26.0 pin. No custom axioms are introduced.
 -/
 
 
@@ -2435,8 +2435,26 @@ theorem genericSet_isOpen : IsOpen (genericSet A) := by
   exact isOpen_compl_singleton.preimage (by fun_prop)
 
 theorem genericSet_dense : Dense (genericSet A) := by
-  exact EuclideanSpace.dense_iInter_coordinate_ne_zero
-    (fun a p => bias A p (currentLayer A a) a.2)
+  change Dense (⋂ a : Hidden A,
+    {p : Param A | bias A p (currentLayer A a) a.2 ≠ 0})
+  apply dense_iInter_of_isOpen
+  · intro a
+    exact isOpen_compl_singleton.preimage (by fun_prop)
+  · intro a
+    let ℓ : Param A →ₗ[ℝ] ℝ :=
+      { toFun := fun p => bias A p (currentLayer A a) a.2
+        map_add' := by intro p q; rfl
+        map_smul' := by intro t p; rfl }
+    have hsurj : Function.Surjective ℓ := by
+      intro z
+      let e : Index A := ⟨currentLayer A a, Sum.inr a.2⟩
+      refine ⟨WithLp.toLp 2 (fun i => if i = e then z else 0), ?_⟩
+      simp [ℓ, bias, e]
+    have hopen : IsOpenMap ℓ :=
+      ℓ.isOpenMap_of_finiteDimensional hsurj
+    have hd : Dense (ℓ ⁻¹' ({0}ᶜ : Set ℝ)) :=
+      (dense_compl_singleton (0 : ℝ)).preimage hopen
+    simpa [ℓ, Set.preimage_compl, Set.preimage_singleton_eq_iff] using hd
 
 theorem generator_bias_coordinate (p : Param A) (a b : Hidden A) :
     generator A a p ⟨currentLayer A b, Sum.inr b.2⟩ =
