@@ -3199,6 +3199,76 @@ def voBlock (p : Param nG k D dh) (j : Fin nG) :
   simp [voBlock, reblockEquiv, stackedOFin, Blocks.block,
     attentionIndexEquiv, factorIndex]
 
+def scoreStackFin (p : Param nG k D dh) (j : Fin nG) : Mat (k * D) D :=
+  fun a b =>
+    let ia := finProdFinEquiv.symm a
+    score p j ia.1 ia.2 b
+
+def weightStackFin (p : Param nG k D dh) (j : Fin nG) : Mat D (k * D) :=
+  fun a b =>
+    let ib := finProdFinEquiv.symm b
+    weight p j ib.1 a ib.2
+
+lemma qkBlock_observation (p : Param nG k D dh) (j : Fin nG) :
+    Factorization.observation (qkBlock p j) = scoreStackFin p j := by
+  ext a b
+  let ia := finProdFinEquiv.symm a
+  simp [Factorization.observation, qkBlock_U, qkBlock_V,
+    stackedQFin, scoreStackFin, score, ia, Matrix.mul_apply]
+
+lemma voBlock_observation (p : Param nG k D dh) (j : Fin nG) :
+    Factorization.observation (voBlock p j) = weightStackFin p j := by
+  ext a b
+  let ib := finProdFinEquiv.symm b
+  simp [Factorization.observation, voBlock_U, voBlock_V,
+    stackedOFin, weightStackFin, weight, ib, Matrix.mul_apply]
+
+lemma scoreStackFin_eq_iff (p q : Param nG k D dh) (j : Fin nG) :
+    scoreStackFin p j = scoreStackFin q j ↔
+      ∀ i, score p j i = score q j i := by
+  constructor
+  · intro h i
+    ext a b
+    have hab := congrFun₂ h (finProdFinEquiv (i,a)) b
+    simpa [scoreStackFin] using hab
+  · intro h
+    ext a b
+    let ia := finProdFinEquiv.symm a
+    simpa [scoreStackFin, ia] using congrFun₂ (h ia.1) ia.2 b
+
+lemma weightStackFin_eq_iff (p q : Param nG k D dh) (j : Fin nG) :
+    weightStackFin p j = weightStackFin q j ↔
+      ∀ i, weight p j i = weight q j i := by
+  constructor
+  · intro h i
+    ext a b
+    have hab := congrFun₂ h a (finProdFinEquiv (i,b))
+    simpa [weightStackFin] using hab
+  · intro h
+    ext a b
+    let ib := finProdFinEquiv.symm b
+    simpa [weightStackFin, ib] using congrFun₂ (h ib.1) a ib.2
+
+lemma blockFunctionalEquiv_reblock
+    (p q : Param nG k D dh) (b : FactorBlock nG) :
+    FunctionalEquiv
+      (blockModel (nG := nG) (k := k) (D := D) (dh := dh) b)
+      (Blocks.block (factorIndex (nG := nG) k D dh) b
+        (reblockEquiv (nG := nG) (k := k) (D := D) (dh := dh) p))
+      (Blocks.block (factorIndex (nG := nG) k D dh) b
+        (reblockEquiv (nG := nG) (k := k) (D := D) (dh := dh) q))
+      ↔
+      if b.2 then
+        ∀ i, weight p b.1 i = weight q b.1 i
+      else
+        ∀ i, score p b.1 i = score q b.1 i := by
+  rcases b with ⟨j,b⟩
+  cases b
+  · simp [blockModel, FunctionalEquiv, Factorization.model,
+      qkBlock, qkBlock_observation, scoreStackFin_eq_iff]
+  · simp [blockModel, FunctionalEquiv, Factorization.model,
+      voBlock, voBlock_observation, weightStackFin_eq_iff]
+
 lemma stackedQFin_gram (p : Param nG k D dh) (j : Fin nG) :
     (stackedQFin p j)ᵀ * stackedQFin p j =
       ∑ i, (Q p j i)ᵀ * Q p j i := by
