@@ -2700,20 +2700,44 @@ theorem independent_laws_of_nonzero_biases {U : Set (Param A)}
   rw [hscale]
   exact hgen.smul (fun _ => by norm_num)
 
-/-- The flow of ∇h is the neuron scaling at time 2t, rather than time t. -/
-theorem lawGradient_flow {U : Set (Param A)} (hU : IsOpen U) (a : Hidden A) :
-    ∃ ψ : LocalFlow U (gradient (law A a)), IsFunctionalSymmetry (model A) ψ := by
-  exact PolynomialNetwork.singleGauge_gradient_localFlow
-    A hU a (gradient_law A a) (diagonalGauge_functional A)
-
-/-- Preservation holds without a finite-to-one or genericity assumption. -/
+/-- Preservation holds without a finite-to-one or genericity assumption.
+Appendix G.2 only needs the infinitesimal derivative of the explicit scaling
+symmetry, so no auxiliary local-flow construction is required here. -/
 theorem laws_conserved {U : Set (Param A)} {Y : Type*}
     (ell : Output A → Y → ℝ)
     (hL : RegularLossOn U (sampleLoss (model A) ell)) (a : Hidden A) :
     IsConservedOn U (sampleLoss (model A) ell) (law A a) := by
-  obtain ⟨ψ, hψ⟩ := lawGradient_flow A hL.isOpen a
   apply (proposition2 hL ((law_smooth A a).contDiffOn.of_le (by simp))).mpr
-  exact (corollary7 hL ψ).mp (functionalSymmetry_loss (model A) ell ψ hψ)
+  intro p hp
+  rw [mem_symmetryDistribution_iff]
+  rintro s
+  have hcurve :
+      HasDerivAt (fun t : ℝ => singleGauge A a t p) (generator A a p) 0 := by
+    have hd : DifferentiableAt ℝ (fun t : ℝ => singleGauge A a t p) 0 := by
+      unfold singleGauge diagonalGauge outgoingScale incomingScale
+      fun_prop
+    simpa [generator] using hd.hasDerivAt
+  have hsample :
+      DifferentiableAt ℝ (sampleLoss (model A) ell s) p :=
+    differentiableAt_of_c1 hL.isOpen (hL.c1 s) hp
+  have hchain := hasDerivAt_observable hsample hcurve
+  have hconst :
+      (fun t : ℝ => sampleLoss (model A) ell s (singleGauge A a t p)) =
+        fun _ => sampleLoss (model A) ell s p := by
+    funext t
+    rcases s with ⟨x, y⟩
+    exact congrArg (fun z => ell z y)
+      (diagonalGauge_functional A
+        (fun b => Units.mk0
+          (Real.exp (if b = a then t else 0)) (Real.exp_ne_zero _)) p x)
+  have hz :
+      HasDerivAt
+        (fun t : ℝ => sampleLoss (model A) ell s (singleGauge A a t p)) 0 0 := by
+    rw [hconst]
+    exact hasDerivAt_const 0 _
+  have horth := hchain.unique hz
+  rw [gradient_law A a p]
+  simpa [real_inner_smul_left] using congrArg (fun z : ℝ => (2 : ℝ) * z) horth
 
 /-- The completeness step uses the local fibre description, not merely the
 observation that the displayed quantities are conserved. -/
