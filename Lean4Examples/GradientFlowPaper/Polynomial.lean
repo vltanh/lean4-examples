@@ -100,6 +100,65 @@ def diagonalGauge (s : Hidden A → ℝˣ) (p : Param A) : Param A :=
     | Sum.inl (i, k) => outgoingScale A s a.1 i * W A p a.1 i k * incomingScale A s a.1 k
     | Sum.inr i => outgoingScale A s a.1 i * bias A p a.1 i)
 
+@[simp] lemma outgoingScale_one (j : Layer A)
+    (i : Fin (A.width (j.val + 1))) :
+    outgoingScale A (fun _ => (1 : ℝˣ)) j i = 1 := by
+  simp [outgoingScale]
+
+@[simp] lemma incomingScale_one (j : Layer A)
+    (i : Fin (A.width j.val)) :
+    incomingScale A (fun _ => (1 : ℝˣ)) j i = 1 := by
+  simp [incomingScale]
+
+lemma outgoingScale_mul (s t : Hidden A → ℝˣ) (j : Layer A)
+    (i : Fin (A.width (j.val + 1))) :
+    outgoingScale A (fun a => t a * s a) j i =
+      outgoingScale A t j i * outgoingScale A s j i := by
+  simp [outgoingScale]
+  split <;> simp
+
+lemma incomingScale_mul (s t : Hidden A → ℝˣ) (j : Layer A)
+    (i : Fin (A.width j.val)) :
+    incomingScale A (fun a => t a * s a) j i =
+      incomingScale A t j i * incomingScale A s j i := by
+  simp [incomingScale]
+  split <;> simp [mul_zpow]
+
+@[simp] theorem diagonalGauge_one (p : Param A) :
+    diagonalGauge A (fun _ => (1 : ℝˣ)) p = p := by
+  ext z
+  rcases z with ⟨j, z⟩
+  cases z <;> simp [diagonalGauge, W, bias]
+
+/-- The diagonal rescalings form a genuine group action.  The order below
+matches function composition: the outer scaling `t` multiplies the inner
+scaling `s`. -/
+theorem diagonalGauge_mul (s t : Hidden A → ℝˣ) (p : Param A) :
+    diagonalGauge A t (diagonalGauge A s p) =
+      diagonalGauge A (fun a => t a * s a) p := by
+  ext z
+  rcases z with ⟨j, z⟩
+  cases z with
+  | inl ik =>
+      rcases ik with ⟨i,k⟩
+      simp only [diagonalGauge, W, WithLp.ofLp_toLp]
+      rw [outgoingScale_mul, incomingScale_mul]
+      ring
+  | inr i =>
+      simp only [diagonalGauge, bias, WithLp.ofLp_toLp]
+      rw [outgoingScale_mul]
+      ring
+
+@[simp] theorem diagonalGauge_inv_left (s : Hidden A → ℝˣ) (p : Param A) :
+    diagonalGauge A (fun a => (s a)⁻¹) (diagonalGauge A s p) = p := by
+  rw [diagonalGauge_mul]
+  simpa using diagonalGauge_one A p
+
+@[simp] theorem diagonalGauge_inv_right (s : Hidden A → ℝˣ) (p : Param A) :
+    diagonalGauge A s (diagonalGauge A (fun a => (s a)⁻¹) p) = p := by
+  rw [diagonalGauge_mul]
+  simpa using diagonalGauge_one A p
+
 /-- Continuous one-neuron scaling subgroup. -/
 def singleGauge (a : Hidden A) (t : ℝ) (p : Param A) : Param A :=
   diagonalGauge A
