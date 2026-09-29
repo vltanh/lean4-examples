@@ -1011,11 +1011,25 @@ lemma lieCompletion_eq_iff {D : Distribution E} (hD : HasLocalSmoothFrame Ω D) 
       exact (word_section hv).2 p hpU
     · exact le_lieCompletion hD hp
 
-/-- Differential-geometric background used by Theorem 12: involutivity of
-the Lie closure, Frobenius first integrals, and smooth orthogonal frames. -/
+def LocallyCompletelyIntegrableOn
+    (Ω : Set E) (D : Distribution E) : Prop :=
+  ∀ p ∈ Ω, ∃ (U : Set E) (m : ℕ) (h : Fin m → E → ℝ),
+    IsOpen U ∧ p ∈ U ∧ U ⊆ Ω ∧
+    (∀ i, ContDiffOn ℝ ∞ (h i) U) ∧
+    (∀ q ∈ U,
+      LinearIndependent ℝ (fun i => gradient (h i) q) ∧
+      Submodule.span ℝ (Set.range (fun i => gradient (h i) q)) = (D q)ᗮ)
+
+/-- Differential-geometric background used by Theorem 12: Theorem 21
+(Frobenius), involutivity of the Lie closure, first integrals, and smooth
+orthogonal frames. -/
 class HasFrobeniusBackground
     (E : Type*) [NormedAddCommGroup E] [InnerProductSpace ℝ E]
     [FiniteDimensional ℝ E] [CompleteSpace E] : Prop where
+  frobenius_iff :
+    ∀ {Ω : Set E} {D : Distribution E} {r : ℕ},
+      IsOpen Ω → HasLocalSmoothFrame Ω D → ConstantRankOn Ω D r →
+      (LocallyCompletelyIntegrableOn Ω D ↔ InvolutiveOn Ω D)
   lieClosure_involutive :
     ∀ {Ω : Set E} {D : Distribution E},
       HasLocalSmoothFrame Ω (lieCompletion Ω D) →
@@ -1040,6 +1054,15 @@ class HasFrobeniusBackground
           (∀ i, ContDiffOn ℝ ∞ (v i) U) ∧
           (∀ q ∈ U, LinearIndependent ℝ (fun i => v i q) ∧
             Submodule.span ℝ (Set.range (fun i => v i q)) = (D q)ᗮ)
+
+/-- Theorem 21 (Frobenius), in the local complete-integrability
+form reviewed in Appendix A. -/
+theorem theorem21 [HasFrobeniusBackground E]
+    {D : Distribution E} {r : ℕ}
+    (hΩ : IsOpen Ω) (hframe : HasLocalSmoothFrame Ω D)
+    (hrank : ConstantRankOn Ω D r) :
+    LocallyCompletelyIntegrableOn Ω D ↔ InvolutiveOn Ω D :=
+  HasFrobeniusBackground.frobenius_iff hΩ hframe hrank
 
 lemma lieCompletion_involutive [HasFrobeniusBackground E]
     {D : Distribution E}
