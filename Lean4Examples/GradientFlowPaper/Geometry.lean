@@ -2593,6 +2593,33 @@ lemma LieWordOn.mono {U V : Set E} {D : Distribution E} {v : Field E}
   | smul a ha hv ih => exact LieWordOn.smul a (ha.mono hVU) ih
   | bracket hv hw ihv ihw => exact LieWordOn.bracket ihv ihw
 
+lemma LieWordOn.neg {U : Set E} {D : Distribution E} {v : Field E}
+    (hv : LieWordOn U D v) : LieWordOn U D (fun q => -v q) := by
+  simpa using LieWordOn.smul (D := D) (fun _ : E => (-1 : ℝ))
+    contDiff_const.contDiffOn hv
+
+lemma LieWordOn.sub {U : Set E} {D : Distribution E} {v w : Field E}
+    (hv : LieWordOn U D v) (hw : LieWordOn U D w) :
+    LieWordOn U D (fun q => v q - w q) := by
+  simpa [sub_eq_add_neg] using LieWordOn.add hv hw.neg
+
+lemma LieWordOn.sum {U : Set E} {D : Distribution E} {ι : Type*}
+    (s : Finset ι) {v : ι → Field E}
+    (hv : ∀ i ∈ s, LieWordOn U D (v i)) :
+    LieWordOn U D (fun q => ∑ i ∈ s, v i q) := by
+  classical
+  induction s using Finset.induction_on with
+  | empty =>
+      simpa using LieWordOn.smul (D := D) (fun _ : E => (0 : ℝ))
+        contDiff_const.contDiffOn
+        (LieWordOn.basic (fun _ => 0)
+          ⟨contDiff_const.contDiffOn, fun q hq => (D q).zero_mem⟩)
+  | @insert i s hi ih =>
+      have hvi := hv i (Finset.mem_insert_self _ _)
+      have hvs : ∀ j ∈ s, LieWordOn U D (v j) :=
+        fun j hj => hv j (Finset.mem_insert_of_mem hj)
+      simpa [Finset.sum_insert hi] using LieWordOn.add hvi (ih hvs)
+
 /-- Use germs of local sections, not just globally defined generators. -/
 def lieCompletion (Ω : Set E) (D : Distribution E) (p : E) : Submodule ℝ E :=
   Submodule.span ℝ {a | ∃ (U : Set E) (v : Field E),
@@ -2738,6 +2765,59 @@ lemma pointwiseGramSchmidt_smooth {n : ℕ} {U : Set E}
     exact pow_ne_zero 2 (norm_ne_zero_iff.mpr <|
       InnerProductSpace.gramSchmidt_ne_zero j (hind q hq))
   exact (hnum.div hden hden_ne).smul hgj
+
+/-- Pointwise Gram--Schmidt stays inside the smooth Lie module:
+each orthogonalized field is obtained from earlier ones by smooth scalar
+multiples and finite sums. -/
+lemma pointwiseGramSchmidt_lieWord {n : ℕ} {U : Set E} {D : Distribution E}
+    (f : Fin n → Field E)
+    (hf : ∀ i, LieWordOn U D (f i))
+    (hind : ∀ q ∈ U, LinearIndependent ℝ (fun i => f i q)) :
+    ∀ i, LieWordOn U D (pointwiseGramSchmidt f i) := by
+  intro i
+  apply wellFounded_lt.induction i
+  intro i ih
+  have hsmooth : ∀ j, ContDiffOn ℝ ∞ (pointwiseGramSchmidt f j) U :=
+    pointwiseGramSchmidt_smooth f (fun j => (hf j).smooth) hind
+  have hformula :
+      pointwiseGramSchmidt f i =
+        fun q => f i q -
+          ∑ j in Finset.Iio i,
+            (⟪pointwiseGramSchmidt f j q, f i q⟫_ℝ /
+                ⟪pointwiseGramSchmidt f j q,
+                  pointwiseGramSchmidt f j q⟫_ℝ) •
+              pointwiseGramSchmidt f j q := by
+    funext q
+    have hgs :=
+      InnerProductSpace.gramSchmidt_def'' ℝ (fun j : Fin n => f j q) i
+    simp only [pointwiseGramSchmidt] at *
+    simp only [← real_inner_self_eq_norm_sq] at hgs
+    exact (eq_sub_iff_add_eq).2 hgs.symm
+  rw [hformula]
+  apply (hf i).sub
+  apply LieWordOn.sum (Finset.Iio i)
+  intro j hj
+  have hji : j < i := Finset.mem_Iio.mp hj
+  have hgj := ih j hji
+  have hnum :
+      ContDiffOn ℝ ∞
+        (fun q => ⟪pointwiseGramSchmidt f j q, f i q⟫_ℝ) U :=
+    (hsmooth j).inner ℝ (hf i).smooth
+  have hden :
+      ContDiffOn ℝ ∞
+        (fun q => ⟪pointwiseGramSchmidt f j q,
+          pointwiseGramSchmidt f j q⟫_ℝ) U :=
+    (hsmooth j).inner ℝ (hsmooth j)
+  have hden_ne :
+      ∀ q ∈ U,
+        ⟪pointwiseGramSchmidt f j q,
+          pointwiseGramSchmidt f j q⟫_ℝ ≠ 0 := by
+    intro q hq
+    rw [real_inner_self_eq_norm_sq]
+    exact pow_ne_zero 2 (norm_ne_zero_iff.mpr <|
+      InnerProductSpace.gramSchmidt_ne_zero j (hind q hq))
+  exact LieWordOn.smul
+    (hnum.div hden hden_ne) hgj
 
 /-- Differential-geometric background still needed by Theorem 12.
 The easy direction of Frobenius is proved below; this interface now contains
