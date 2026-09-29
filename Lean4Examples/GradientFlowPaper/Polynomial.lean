@@ -12,12 +12,14 @@ form a finite group, they may be absorbed in a finite set of representatives;
 `FiniteToOneAt` below therefore quotients by all nonzero diagonal scalings.
 
 The paper does not further define the word "generic" in Proposition 19.
-Accordingly, Stage 1 keeps genericity as an abstract predicate and records
-exactly the consequences used in Appendix G.2: after excluding the finite
-discrete branches, the local functional fibre is the diagonal-scaling orbit,
-and its infinitesimal generators are independent. Stage 2 will derive that
-regime from the precise Usevich et al. identifiability theorem rather than
-silently substituting a convenient coordinate condition.
+This module therefore separates two issues.  The concrete nonzero-hidden-bias
+locus is proved open and dense and is used only for the differential scaling
+argument.  The cited finite-identifiability input is represented by the
+source-facing witness `GenericFiniteToOneAt`, which says only that
+`FiniteToOneAt` holds on an open neighborhood.  The paper-internal step
+from a finite fibre modulo scaling to a locally isolated scaling orbit is
+proved below by the canonical bias-normalization slice; it is not assumed as
+part of the external input.
 -/
 
 noncomputable section
