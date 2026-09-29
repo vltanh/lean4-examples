@@ -1084,23 +1084,7 @@ lemma locallyFactors_of_gradient_mem_span {k : ℕ} {r : ℕ∞ω}
   exact ⟨V, U, f, hVopen, hpV, hVΩ, hU, hBpU,
     hmap, hfsmooth, heq⟩
 
-/-- Standard finite-dimensional constant-rank/submersion factorization
-principle used in Proposition 4.  Nguyen--Montúfar treat this as differential
-geometry background rather than proving it. Stage 2 will instantiate this
-interface from Mathlib or a proved adapter theorem. -/
-class HasLocalSubmersionFactorization
-    (E : Type*) [NormedAddCommGroup E] [InnerProductSpace ℝ E]
-    [FiniteDimensional ℝ E] [CompleteSpace E] : Prop where
-  factorization_iff :
-    ∀ {k : ℕ} {r : ℕ∞ω} (hr : 1 ≤ r) {Ω : Set E}
-      (hΩ : IsOpen Ω) (H : Fin k → E → ℝ) (h : E → ℝ)
-      (hH : ∀ i, ContDiffOn ℝ r (H i) Ω) (hh : ContDiffOn ℝ r h Ω)
-      (hind : FunctionallyIndependentOn Ω H),
-      (∀ p ∈ Ω, gradient h p ∈
-        Submodule.span ℝ (Set.range (fun i => gradient (H i) p))) ↔
-        LocallyFactorsOn r Ω h (bundleFunctions H)
-
-theorem proposition4 [HasLocalSubmersionFactorization E]
+theorem proposition4
     {k : ℕ} {r : ℕ∞ω} (hr : 1 ≤ r)
     (hΩ : IsOpen Ω) (H : Fin k → E → ℝ) (h : E → ℝ)
     (hH : ∀ i, ContDiffOn ℝ r (H i) Ω) (hh : ContDiffOn ℝ r h Ω)
@@ -1108,7 +1092,8 @@ theorem proposition4 [HasLocalSubmersionFactorization E]
     (∀ p ∈ Ω, gradient h p ∈
       Submodule.span ℝ (Set.range (fun i => gradient (H i) p))) ↔
       LocallyFactorsOn r Ω h (bundleFunctions H) :=
-  HasLocalSubmersionFactorization.factorization_iff hr hΩ H h hH hh hind
+  ⟨locallyFactors_of_gradient_mem_span hr hΩ H h hH hh hind,
+    gradient_mem_span_of_locallyFactors hr hΩ H h hH hh⟩
 
 /-! ## Local flows and infinitesimal invariance -/
 
