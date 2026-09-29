@@ -2590,6 +2590,129 @@ lemma generated_eq_top_of_identity_neighborhood
   ext g
   simp [H, hHuniv]
 
+
+lemma orderedProductMap_identity_neighborhood
+    {s : ℕ} (φ : Fin s → ℝ → Γ)
+    (hφ : ∀ i, IsOneParameterSubgroup (A := A) (Γ := Γ) (φ i))
+    (hind : LinearIndependent ℝ
+      (fun i => InfinitesimalGenerator (A := A) (Γ := Γ) (φ i)))
+    (hspan : Submodule.span ℝ
+      (Set.range (fun i =>
+        InfinitesimalGenerator (A := A) (Γ := Γ) (φ i))) = ⊤) :
+    ∃ U : Set Γ, IsOpen U ∧ (1 : Γ) ∈ U ∧
+      U ⊆ Subgroup.closure
+        (Set.range (fun z : Fin s × ℝ => φ z.1 z.2)) := by
+  let IΓ := 𝓘(ℝ, A)
+  let chart := extChartAt IΓ (1 : Γ)
+  let P := orderedProductMap φ
+  let F : (Fin s → ℝ) → A := fun x => chart (P x)
+
+  have hP0 : P 0 = 1 :=
+    orderedProductMap_zero φ hφ
+  have hPMD :
+      ContMDiff (𝓘(ℝ, Fin s → ℝ)) IΓ ∞ P :=
+    orderedProductMap_contMDiff φ hφ
+  have hPdiff :
+      MDiffAt (𝓘(ℝ, Fin s → ℝ)) IΓ P 0 :=
+    hPMD.mdifferentiableAt (by simp)
+  have hchartSrc : (1 : Γ) ∈ chart.source :=
+    mem_extChartAt_source _
+  have hchartMD :
+      MDiffAt IΓ (𝓘(ℝ, A)) chart (1 : Γ) :=
+    mdifferentiableAt_extChartAt hchartSrc
+  have hFMD :
+      MDiffAt (𝓘(ℝ, Fin s → ℝ)) (𝓘(ℝ, A)) F 0 := by
+    simpa [F, chart, P, hP0] using hchartMD.comp 0 hPdiff
+  have hFcd : ContDiffAt ℝ ∞ F 0 := by
+    simpa [contMDiffAt_iff_contDiffAt] using
+      (hFMD.contMDiffAt (by simp))
+
+  let L :=
+    generatorSynthesisEquiv (A := A) (Γ := Γ) φ hind hspan
+  have hchartInv :
+      (mfderiv IΓ (𝓘(ℝ, A)) chart (1 : Γ)).IsInvertible :=
+    isInvertible_mfderiv_extChartAt hchartSrc
+  let Cchart :
+      TangentSpace IΓ (1 : Γ) ≃L[ℝ] A :=
+    ContinuousLinearEquiv.ofBijective
+      (mfderiv IΓ (𝓘(ℝ, A)) chart (1 : Γ))
+      (LinearMap.ker_eq_bot.mpr hchartInv.bijective.1)
+      (LinearMap.range_eq_top.mpr hchartInv.bijective.2)
+  let D : (Fin s → ℝ) ≃L[ℝ] A := L.trans Cchart
+
+  have hPder :
+      mfderiv (𝓘(ℝ, Fin s → ℝ)) IΓ P 0 =
+        L.toContinuousLinearMap := by
+    apply ContinuousLinearMap.ext
+    intro u
+    simpa [L, P, generatorSynthesisEquiv] using
+      mfderiv_orderedProductMap_zero
+        (A := A) (Γ := Γ) φ hφ u
+  have hchain :=
+    mfderiv_comp
+      (I := 𝓘(ℝ, Fin s → ℝ)) (I' := IΓ)
+      (I'' := 𝓘(ℝ, A)) 0 hchartMD hPdiff
+  have hFderEq :
+      fderiv ℝ F 0 = D.toContinuousLinearMap := by
+    have hmf :
+        mfderiv (𝓘(ℝ, Fin s → ℝ)) (𝓘(ℝ, A)) F 0 =
+          D.toContinuousLinearMap := by
+      rw [show F = chart ∘ P by rfl, hchain, hPder]
+      rfl
+    simpa [mfderiv_eq_fderiv] using hmf
+  have hFder :
+      HasFDerivAt F D.toContinuousLinearMap 0 := by
+    have hd := hFcd.differentiableAt (by simp)
+    simpa [hFderEq] using hd.hasFDerivAt
+
+  let R : OpenPartialHomeomorph (Fin s → ℝ) A :=
+    hFcd.toOpenPartialHomeomorph F hFder (by simp)
+  have h0R : (0 : Fin s → ℝ) ∈ R.source :=
+    ContDiffAt.mem_toOpenPartialHomeomorph_source hFcd hFder (by simp)
+
+  let V : Set (Fin s → ℝ) :=
+    R.source ∩ P ⁻¹' chart.source
+  have hVopen : IsOpen V :=
+    R.open_source.inter
+      (chart.open_source.preimage hPMD.continuous)
+  have h0V : (0 : Fin s → ℝ) ∈ V := by
+    exact ⟨h0R, by simpa [P,hP0] using hchartSrc⟩
+  have hVR : V ⊆ R.source := inter_subset_left
+
+  let T : Set A := R '' V
+  have hTopen : IsOpen T :=
+    R.isOpen_image_of_subset_source hVopen hVR
+  have hF0T : F 0 ∈ T :=
+    ⟨0,h0V,rfl⟩
+  have hTchart : T ⊆ chart.target := by
+    rintro y ⟨x,hxV,rfl⟩
+    have hxChart : P x ∈ chart.source := hxV.2
+    have hRfun : R x = F x := rfl
+    change F x ∈ chart.target
+    simpa [F] using chart.map_source hxChart
+
+  let U : Set Γ := chart.symm '' T
+  have hUopen : IsOpen U :=
+    chart.symm.isOpen_image_of_subset_source hTopen hTchart
+  have h1U : (1 : Γ) ∈ U := by
+    refine ⟨F 0,hF0T, ?_⟩
+    change chart.symm (chart (P 0)) = 1
+    rw [hP0]
+    exact chart.left_inv hchartSrc
+  have hUH :
+      U ⊆ Subgroup.closure
+        (Set.range (fun z : Fin s × ℝ => φ z.1 z.2)) := by
+    rintro g ⟨y,hyT,rfl⟩
+    obtain ⟨x,hxV,hxy⟩ := hyT
+    have hxChart : P x ∈ chart.source := hxV.2
+    have hRapply : R x = F x := rfl
+    have hxyF : y = F x := hxy
+    rw [hxyF]
+    change chart.symm (chart (P x)) ∈ _
+    rw [chart.left_inv hxChart]
+    exact orderedProductMap_mem_generated φ x
+  exact ⟨U,hUopen,h1U,hUH⟩
+
 /-- Fulton--Harris generation theorem quoted as Theorem 22. This is an
 external background result in Stage 1. -/
 class HasConnectedLieGroupGeneration
