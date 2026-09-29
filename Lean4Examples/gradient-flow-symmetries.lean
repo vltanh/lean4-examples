@@ -4122,11 +4122,12 @@ form a finite group, they may be absorbed in a finite set of representatives;
 `FiniteToOneAt` below therefore quotients by all nonzero diagonal scalings.
 
 The paper does not further define the word "generic" in Proposition 19.
-Here it is instantiated by the canonical dense open locus on which every
-hidden bias coordinate is nonzero.  This is enough for exactly the two uses
-of genericity in Appendix G.2: the diagonal scaling action has a local slice,
-and its infinitesimal generators are linearly independent.  The locus is
-proved open and dense below rather than postulated.
+Accordingly, Stage 1 keeps genericity as an abstract predicate and records
+exactly the consequences used in Appendix G.2: after excluding the finite
+discrete branches, the local functional fibre is the diagonal-scaling orbit,
+and its infinitesimal generators are independent. Stage 2 will derive that
+regime from the precise Usevich et al. identifiability theorem rather than
+silently substituting a convenient coordinate condition.
 -/
 
 noncomputable section
