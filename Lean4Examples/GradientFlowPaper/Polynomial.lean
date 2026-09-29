@@ -785,8 +785,7 @@ observation that the displayed quantities are conserved. -/
 theorem conserved_gradient_spanned
     {U : Set (Param A)} (hU : IsOpen U)
     (hregular : ∀ p ∈ U, GenericPoint A p)
-    (hident : ∀ p ∈ U, ∀ q ∈ U, FunctionalEquiv (model A) p q ↔
-      ∃ s : Hidden A → ℝˣ, q = diagonalGauge A s p)
+    (hfinite : FiniteToOneOn A U)
     {Y : Type*} (ell : Output A → Y → ℝ) (hsep : SeparatesPredictions ell)
     (hL : RegularLossOn U (sampleLoss (model A) ell))
     {V : Set (Param A)} (hV : IsOpen V) (hVU : V ⊆ U)
@@ -805,10 +804,19 @@ theorem conserved_gradient_spanned
   have hγ : HasDerivAt γ (gradient h p) 0 := by
     simpa [γ, ψ.initial p hp] using ψ.ode (ψ.zero_mem p hp)
   have hγ0 : γ 0 = p := ψ.initial p hp
+  obtain ⟨W, hW, hpW, -, hfiber⟩ :=
+    finiteToOneAt_local_scaling_orbit A
+      (hfinite p (hVU hp)) (hregular p (hVU hp))
+  have hγW : ∀ᶠ t in 𝓝 0, γ t ∈ W := by
+    have hW0 : W ∈ 𝓝 (γ 0) := by
+      simpa [hγ0] using hW.mem_nhds hpW
+    exact hγ.continuousAt hW0
   have horbit : ∀ᶠ t in 𝓝 0,
       ∃ s : Hidden A → ℝˣ, γ t = diagonalGauge A s p := by
-    filter_upwards [(ψ.open_times p).mem_nhds (ψ.zero_mem p hp)] with t ht
-    apply (hident _ (hVU (ψ.target_mem ht)) p (hVU hp)).mp
+    filter_upwards
+      [(ψ.open_times p).mem_nhds (ψ.zero_mem p hp), hγW]
+      with t ht htW
+    apply (hfiber (γ t) htW).mp
     exact hψfun t p ht
   have hspan :=
     tangent_mem_span_scaling_orbit A (hregular p (hVU hp)) hγ hγ0 horbit
@@ -835,42 +843,39 @@ theorem conserved_gradient_spanned
         (Submodule.subset_span ⟨a, rfl⟩)
   exact hle hspan
 
-/-- Proposition 19 on the intersection of the paper's abstract
-identifiability-generic regime and the concrete dense-open regular locus used
-for the differential argument. No identification of the two notions is made. -/
+/-- Proposition 19 at a point of a generic finite-identifiability
+neighborhood, intersected with the explicit dense-open regular locus used by
+the differential argument.  The finite-identifiability hypothesis contains
+no local fibre/orbit conclusion; that conclusion is derived pointwise above. -/
 theorem proposition19
-    {Generic : Param A → Prop}
-    [HasPNNGenericRegime A Generic]
     {Y : Type*} (ell : Output A → Y → ℝ)
     (hsep : SeparatesPredictions ell)
     (hL : RegularLossOn Set.univ (sampleLoss (model A) ell))
-    {p₀ : Param A} (hfinite : FiniteToOneAt A p₀)
-    (hgeneric : Generic p₀) (hregular : GenericPoint A p₀) :
+    {p₀ : Param A} (hfinite : GenericFiniteToOneAt A p₀)
+    (hregular : GenericPoint A p₀) :
     ∃ U : Set (Param A), IsOpen U ∧ p₀ ∈ U ∧
       CompleteLawsOn U (sampleLoss (model A) ell) (law A) := by
-  obtain ⟨U₀, hU₀, hpU₀, hident₀⟩ :=
-    local_scaling_identifiability A hfinite hgeneric
-  let U := U₀ ∩ genericSet A
-  have hU : IsOpen U := hU₀.inter (genericSet_isOpen A)
-  have hpU : p₀ ∈ U := ⟨hpU₀, hregular⟩
+  let U := hfinite.neighborhood ∩ genericSet A
+  have hU : IsOpen U :=
+    hfinite.isOpen_neighborhood.inter (genericSet_isOpen A)
+  have hpU : p₀ ∈ U :=
+    ⟨hfinite.mem_neighborhood, hregular⟩
   have hregularU : ∀ p ∈ U, GenericPoint A p := by
     intro p hp
     exact hp.2
+  have hfiniteU : FiniteToOneOn A U := by
+    intro p hp
+    exact hfinite.finiteToOneOn_neighborhood p hp.1
   have hind : ∀ p ∈ U,
       LinearIndependent ℝ (fun a : Hidden A => generator A a p) := by
     intro p hp
     exact generic_generators_independent A hp.2
-  have hident : ∀ p ∈ U, ∀ q ∈ U,
-      FunctionalEquiv (model A) p q ↔
-        ∃ s : Hidden A → ℝˣ, q = diagonalGauge A s p := by
-    intro p hp q hq
-    exact hident₀ p hp.1 q hq.1
   have hreg := hL.mono hU (Set.subset_univ U)
   refine ⟨U, hU, hpU, (fun a => (law_smooth A a).contDiffOn),
     (fun a => laws_conserved A ell hreg a),
     independent_laws_of_generators A hind, ?_⟩
   intro V hV hVU h hh hc p hp
-  exact conserved_gradient_spanned A hU hregularU hident
+  exact conserved_gradient_spanned A hU hregularU hfiniteU
     ell hsep hreg hV hVU hh hc p hp
 
 theorem number_of_laws :
