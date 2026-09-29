@@ -3006,6 +3006,74 @@ lemma eq_sum_inner_div_self_smul_of_mem_span_orthogonal
     exact hmem
   exact sub_eq_zero.mp hzero
 
+/-- A smooth local section of the Lie completion can be replaced, on
+the neighborhood, by an actual Lie word. Orthogonalizing a Lie-word frame
+gives smooth orthogonal coordinates, and the usual inner-product expansion
+has smooth coefficients. -/
+lemma exists_lieWord_representation
+    {D : Distribution E} {U : Set E} {n : ℕ}
+    (g : Fin n → Field E)
+    (hgword : ∀ i, LieWordOn U D (g i))
+    (hgind : ∀ q ∈ U, LinearIndependent ℝ (fun i => g i q))
+    (hgspan : ∀ q ∈ U,
+      lieCompletion Ω D q =
+        Submodule.span ℝ (Set.range (fun i => g i q)))
+    {z : Field E} (hzsmooth : ContDiffOn ℝ ∞ z U)
+    (hzmem : ∀ q ∈ U, z q ∈ lieCompletion Ω D q) :
+    ∃ z' : Field E, LieWordOn U D z' ∧ EqOn z' z U := by
+  let gs : Fin n → Field E := fun i => pointwiseGramSchmidt g i
+  have hgsword : ∀ i, LieWordOn U D (gs i) := by
+    intro i
+    exact pointwiseGramSchmidt_lieWord g hgword hgind i
+  have hgssmooth : ∀ i, ContDiffOn ℝ ∞ (gs i) U :=
+    fun i => (hgsword i).smooth
+  let c : Fin n → E → ℝ := fun i q =>
+    ⟪gs i q, z q⟫_ℝ / ⟪gs i q, gs i q⟫_ℝ
+  have hden_ne :
+      ∀ i q, q ∈ U → ⟪gs i q, gs i q⟫_ℝ ≠ 0 := by
+    intro i q hq
+    rw [real_inner_self_eq_norm_sq]
+    exact pow_ne_zero 2 (norm_ne_zero_iff.mpr <| by
+      simpa [gs, pointwiseGramSchmidt] using
+        InnerProductSpace.gramSchmidt_ne_zero i (hgind q hq))
+  have hc : ∀ i, ContDiffOn ℝ ∞ (c i) U := by
+    intro i
+    exact ((hgssmooth i).inner ℝ hzsmooth).div
+      ((hgssmooth i).inner ℝ (hgssmooth i))
+      (fun q hq => hden_ne i q hq)
+  let z' : Field E := fun q => ∑ i : Fin n, c i q • gs i q
+  have hzword : LieWordOn U D z' := by
+    dsimp [z']
+    apply LieWordOn.sum Finset.univ
+    intro i hi
+    exact LieWordOn.smul (hc i) (hgsword i)
+  refine ⟨z', hzword, ?_⟩
+  intro q hq
+  have hzspan :
+      z q ∈
+        Submodule.span ℝ
+          (Set.range (fun i : Fin n => gs i q)) := by
+    have hzq := hzmem q hq
+    rw [hgspan q hq] at hzq
+    rw [show
+      Submodule.span ℝ (Set.range (fun i : Fin n => gs i q)) =
+        Submodule.span ℝ (Set.range (fun i : Fin n => g i q)) by
+          simpa [gs, pointwiseGramSchmidt] using
+            InnerProductSpace.span_gramSchmidt ℝ (fun i : Fin n => g i q)]
+    exact hzq
+  have hexpand :=
+    eq_sum_inner_div_self_smul_of_mem_span_orthogonal
+      (fun i : Fin n => gs i q)
+      (fun {i j} hij => by
+        simpa [gs, pointwiseGramSchmidt] using
+          InnerProductSpace.gramSchmidt_orthogonal ℝ
+            (fun a : Fin n => g a q) hij)
+      (fun i => by
+        simpa [gs, pointwiseGramSchmidt] using
+          InnerProductSpace.gramSchmidt_ne_zero i (hgind q hq))
+      hzspan
+  simpa [z', c] using hexpand.symm
+
 /-- Differential-geometric background still needed by Theorem 12.
 The easy direction of Frobenius is proved below; this interface now contains
 only the local-existence ingredients that require a genuine Frobenius/constant-
