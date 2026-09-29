@@ -1339,6 +1339,103 @@ lemma isLocallyConstant_of_mfderiv_eq_zero
     exact (hc₀ y hy).trans (hc₀ (e x) hxB).symm
   simpa [G, e.left_inv hxsrc] using hyeq
 
+
+lemma mfderiv_rightMul_surjective (g : Γ) :
+    Function.Surjective
+      (mfderiv (𝓘(ℝ, A)) (𝓘(ℝ, A)) (fun h : Γ => h * g) 1) := by
+  let Rg : Γ → Γ := fun h => h * g
+  let Rginv : Γ → Γ := fun h => h * g⁻¹
+  have hRg : ContMDiff (𝓘(ℝ, A)) (𝓘(ℝ, A)) ∞ Rg :=
+    contMDiff_mul_right
+  have hRginv : ContMDiff (𝓘(ℝ, A)) (𝓘(ℝ, A)) ∞ Rginv :=
+    contMDiff_mul_right
+  let dR :=
+    mfderiv (𝓘(ℝ, A)) (𝓘(ℝ, A)) Rg 1
+  let dRi :=
+    mfderiv (𝓘(ℝ, A)) (𝓘(ℝ, A)) Rginv g
+  have hcomp :
+      dR.comp dRi = ContinuousLinearMap.id ℝ (TangentSpace (𝓘(ℝ, A)) g) := by
+    have hchain :=
+      mfderiv_comp (I' := 𝓘(ℝ, A)) g
+        (hRg.mdifferentiableAt (by simp))
+        (hRginv.mdifferentiableAt (by simp))
+    have heq :
+        (Rg ∘ Rginv) = fun h : Γ => h := by
+      funext h
+      simp [Rg, Rginv, Function.comp_def, mul_assoc]
+    rw [heq, mfderiv_id] at hchain
+    simpa [dR, dRi, Rg, Rginv] using hchain.symm
+  intro b
+  refine ⟨dRi b, ?_⟩
+  have hb := congrArg (fun T :
+      TangentSpace (𝓘(ℝ, A)) g →L[ℝ]
+        TangentSpace (𝓘(ℝ, A)) g => T b) hcomp
+  simpa [dR, ContinuousLinearMap.comp_apply] using hb
+
+lemma orbit_eval_mfderiv_zero_of_identity_condition
+    (act : Γ → E → E)
+    (hactmul : ∀ g h p, act (g * h) p = act g (act h p))
+    (hactΩ : ∀ g p, p ∈ Ω → act g p ∈ Ω)
+    (hsmooth : ∀ p ∈ Ω,
+      ContMDiff (𝓘(ℝ, A)) (𝓘(ℝ, E)) ∞ (fun g => act g p))
+    (hΩ : IsOpen Ω) (f : E → ℝ) (hf : ContDiffOn ℝ 1 f Ω)
+    (hinf : ∀ p ∈ Ω, ∀ a : TangentSpace (𝓘(ℝ, A)) (1 : Γ),
+      (fderiv ℝ f p)
+        ((mfderiv (𝓘(ℝ, A)) (𝓘(ℝ, E)) (fun g => act g p) 1) a) = 0)
+    {p : E} (hp : p ∈ Ω) :
+    ∀ g : Γ,
+      mfderiv (𝓘(ℝ, A)) (𝓘(ℝ, ℝ))
+        (fun h : Γ => f (act h p)) g = 0 := by
+  intro g
+  let q : E := act g p
+  have hq : q ∈ Ω := hactΩ g p hp
+  let orbitP : Γ → E := fun h => act h p
+  let orbitQ : Γ → E := fun h => act h q
+  let Rg : Γ → Γ := fun h => h * g
+  have horbit :
+      orbitQ = orbitP ∘ Rg := by
+    funext h
+    simp [orbitQ, orbitP, Rg, q, Function.comp_def, hactmul]
+  have hRgMD :
+      MDiffAt (𝓘(ℝ, A)) (𝓘(ℝ, A)) Rg 1 :=
+    contMDiff_mul_right.mdifferentiableAt (by simp)
+  have hPmd :
+      MDiffAt (𝓘(ℝ, A)) (𝓘(ℝ, E)) orbitP g :=
+    (hsmooth p hp).mdifferentiableAt (by simp)
+  have hQmd :
+      MDiffAt (𝓘(ℝ, A)) (𝓘(ℝ, E)) orbitQ 1 :=
+    (hsmooth q hq).mdifferentiableAt (by simp)
+  have horbitDer :
+      mfderiv (𝓘(ℝ, A)) (𝓘(ℝ, E)) orbitQ 1 =
+        (mfderiv (𝓘(ℝ, A)) (𝓘(ℝ, E)) orbitP g).comp
+          (mfderiv (𝓘(ℝ, A)) (𝓘(ℝ, A)) Rg 1) := by
+    rw [horbit]
+    exact mfderiv_comp (I' := 𝓘(ℝ, A)) 1 hPmd hRgMD
+  have hfat : DifferentiableAt ℝ f q :=
+    differentiableAt_of_c1 hΩ hf hq
+  have hFmd :
+      MDiffAt (𝓘(ℝ, A)) (𝓘(ℝ, ℝ))
+        (fun h : Γ => f (orbitP h)) g :=
+    hfat.contMDiffAt.contMDiffAt.comp g hPmd
+      |>.mdifferentiableAt (by norm_num)
+  apply ContinuousLinearMap.ext
+  intro b
+  obtain ⟨a, ha⟩ := mfderiv_rightMul_surjective (A := A) (Γ := Γ) g b
+  have hzero := hinf q hq a
+  have hqchain :
+      (fderiv ℝ f q)
+        ((mfderiv (𝓘(ℝ, A)) (𝓘(ℝ, E)) orbitQ 1) a) = 0 :=
+    hzero
+  rw [horbitDer, ContinuousLinearMap.comp_apply, ha] at hqchain
+  have hchain :=
+    mfderiv_comp (I' := 𝓘(ℝ, E)) g
+      hfat.contDiffAt.contMDiffAt.mdifferentiableAt hPmd
+  have happ := congrArg (fun T :
+      TangentSpace (𝓘(ℝ, A)) g →L[ℝ]
+        TangentSpace (𝓘(ℝ, ℝ)) (f q) => T b) hchain
+  simpa [orbitP, q, mfderiv_eq_fderiv,
+    ContinuousLinearMap.comp_apply] using hqchain
+
 /-- Connected-Lie-group infinitesimal invariance principle used in
 Proposition 5. The paper treats this as standard Lie theory. -/
 class HasConnectedLieGroupInfinitesimalPrinciple
