@@ -2574,6 +2574,25 @@ inductive LieWordOn (U : Set E) (D : Distribution E) : Field E → Prop
   | bracket {v w} : LieWordOn U D v → LieWordOn U D w →
       LieWordOn U D (lieBracket v w)
 
+lemma LieWordOn.smooth {U : Set E} {D : Distribution E} {v : Field E}
+    (hv : LieWordOn U D v) : ContDiffOn ℝ ∞ v U := by
+  induction hv with
+  | basic v hv => exact hv.1
+  | add hv hw ihv ihw => exact ihv.add ihw
+  | smul a ha hv ih => exact ha.smul ih
+  | bracket hv hw ihv ihw =>
+      simpa [lieBracket] using ihv.lieBracket_vectorField ihw (by simp)
+
+lemma LieWordOn.mono {U V : Set E} {D : Distribution E} {v : Field E}
+    (hVU : V ⊆ U) (hv : LieWordOn U D v) : LieWordOn V D v := by
+  induction hv with
+  | basic v hv =>
+      exact LieWordOn.basic v
+        ⟨hv.1.mono hVU, fun q hq => hv.2 q (hVU hq)⟩
+  | add hv hw ihv ihw => exact LieWordOn.add ihv ihw
+  | smul a ha hv ih => exact LieWordOn.smul a (ha.mono hVU) ih
+  | bracket hv hw ihv ihw => exact LieWordOn.bracket ihv ihw
+
 /-- Use germs of local sections, not just globally defined generators. -/
 def lieCompletion (Ω : Set E) (D : Distribution E) (p : E) : Submodule ℝ E :=
   Submodule.span ℝ {a | ∃ (U : Set E) (v : Field E),
