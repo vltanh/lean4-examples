@@ -57,7 +57,7 @@ Target: Nguyen–Montúfar, *On Parameter Symmetries and Conservation Laws in Gr
 ### Polynomial network
 - [ ] `PolynomialIdentifiability.local_scaling_orbit_chart`
 - [x] `PolynomialNetwork.singleGauge_gradient_localFlow` — eliminated; conservation now differentiates the explicit scaling symmetry directly
-- [ ] `PolynomialIdentifiability.conserved_gradient_spanned_by_scalings`
+- [x] `PolynomialIdentifiability.conserved_gradient_spanned_by_scalings` — eliminated; canonical bias-ratio gauge chart and tangent-to-orbit argument are now inlined
 
 ### Appendix H spectral algebra
 - [ ] `Matrix.posDef_sq_add_pos_scalar_one`
@@ -73,4 +73,5 @@ Target: Nguyen–Montúfar, *On Parameter Symmetries and Conservation Laws in Gr
 3. [x] Remove the non-paper squared-loss rank detour; its two provisional helpers are no longer needed.
 4. [x] Inline the full-column-rank factorization uniqueness lemma.
 5. Replace the attention local-product chart helper.
-6. Update this checklist after each proof batch.
+6. [x] Inline the PNN tangent-to-scaling-orbit completeness step.
+7. Update this checklist after each proof batch.
