@@ -666,6 +666,70 @@ def LocallyFactorsOn {k : ℕ} (r : ℕ∞ω) (Ω : Set E)
     IsOpen V ∧ p ∈ V ∧ V ⊆ Ω ∧ IsOpen U ∧ H p ∈ U ∧
     MapsTo H V U ∧ ContDiffOn ℝ r f U ∧ EqOn h (f ∘ H) V
 
+lemma fderiv_bundleFunctions_apply {k : ℕ}
+    (H : Fin k → E → ℝ) {p u : E}
+    (hH : ∀ i, DifferentiableAt ℝ (H i) p) (i : Fin k) :
+    (fderiv ℝ (bundleFunctions H) p u) i =
+      ⟪gradient (H i) p, u⟫_ℝ := by
+  have hB : DifferentiableAt ℝ (bundleFunctions H) p := by
+    unfold bundleFunctions
+    fun_prop
+  have heval :
+      HasFDerivAt (fun z : Vec (Fin k) => z i)
+        (ContinuousLinearMap.apply ℝ (Vec (Fin k)) i) (bundleFunctions H p) :=
+    (ContinuousLinearMap.apply ℝ (Vec (Fin k)) i).hasFDerivAt
+  have hc := heval.comp p hB.hasFDerivAt
+  have hcoord : (fun x => (bundleFunctions H x) i) = H i := by
+    funext x
+    rfl
+  rw [hcoord] at hc
+  have hu := congrArg (fun T : E →L[ℝ] ℝ => T u)
+    (hc.unique (hH i).hasFDerivAt)
+  simpa [ContinuousLinearMap.comp_apply, inner_gradient_left] using hu
+
+lemma adjoint_fderiv_bundleFunctions_apply {k : ℕ}
+    (H : Fin k → E → ℝ) {p : E}
+    (hH : ∀ i, DifferentiableAt ℝ (H i) p)
+    (y : Vec (Fin k)) :
+    (fderiv ℝ (bundleFunctions H) p)† y =
+      ∑ i, (y i) • gradient (H i) p := by
+  apply ext_inner_right ℝ
+  intro u
+  rw [ContinuousLinearMap.adjoint_inner_left]
+  simp only [inner_sum_left, inner_smul_left]
+  rw [EuclideanSpace.inner_eq_sum]
+  apply Finset.sum_congr rfl
+  intro i _
+  rw [fderiv_bundleFunctions_apply H hH i]
+  simp [real_inner_comm, mul_comm]
+
+lemma bundleFunctions_fderiv_surjective {k : ℕ}
+    (H : Fin k → E → ℝ) {p : E}
+    (hH : ∀ i, DifferentiableAt ℝ (H i) p)
+    (hind : LinearIndependent ℝ (fun i => gradient (H i) p)) :
+    Function.Surjective (fderiv ℝ (bundleFunctions H) p) := by
+  let T : E →L[ℝ] Vec (Fin k) := fderiv ℝ (bundleFunctions H) p
+  have hadj : Function.Injective (T†) := by
+    intro y z hyz
+    have hsum :
+        ∑ i, ((y - z) i) • gradient (H i) p = 0 := by
+      rw [← adjoint_fderiv_bundleFunctions_apply H hH (y - z)]
+      simp [T, hyz]
+    have hyz0 : y - z = 0 := by
+      apply WithLp.ext
+      intro i
+      exact Fintype.linearIndependent_iff.mp hind
+        (fun j => (y - z) j) hsum i
+    exact sub_eq_zero.mp hyz0
+  have hkerAdj : LinearMap.ker (T†) = ⊥ :=
+    LinearMap.ker_eq_bot.mpr hadj
+  have hrangeOrth : (LinearMap.range T)ᗮ = ⊥ := by
+    rw [T.orthogonal_range, hkerAdj]
+  have hrange : LinearMap.range T = ⊤ := by
+    rw [← Submodule.orthogonal_eq_bot_iff]
+    exact hrangeOrth
+  exact LinearMap.range_eq_top.mp hrange
+
 /-- Standard finite-dimensional constant-rank/submersion factorization
 principle used in Proposition 4.  Nguyen--Montúfar treat this as differential
 geometry background rather than proving it. Stage 2 will instantiate this
