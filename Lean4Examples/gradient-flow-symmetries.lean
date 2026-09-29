@@ -721,17 +721,6 @@ def IsClosedFieldOn (Ω : Set E) (v : Field E) : Prop :=
 def IsPotentialOn (Ω : Set E) (v : Field E) (h : E → ℝ) : Prop :=
   ∀ p ∈ Ω, gradient h p = v p
 
-/-- Star-shaped Poincaré lemma in exactly the form used by the paper. -/
-class HasStarPoincareLemma
-    (E : Type*) [NormedAddCommGroup E] [InnerProductSpace ℝ E]
-    [FiniteDimensional ℝ E] [CompleteSpace E] : Prop where
-  radial_potential :
-    ∀ {Ω : Set E} {v : Field E}, IsOpen Ω →
-      ContDiffOn ℝ ∞ v Ω → IsClosedFieldOn Ω v →
-      ∀ {a : E}, a ∈ Ω → StarConvex ℝ a Ω →
-        ContDiffOn ℝ ∞ (radialPotential v a) Ω ∧
-          IsPotentialOn Ω v (radialPotential v a)
-
 theorem gradient_isClosed (hΩ : IsOpen Ω) {h : E → ℝ}
     (hh : ContDiffOn ℝ 2 h Ω) : IsClosedFieldOn Ω (gradient h) := by
   intro p hp a b
@@ -753,6 +742,17 @@ theorem gradient_isClosed (hΩ : IsOpen Ω) {h : E → ℝ}
     (fderiv ℝ (fderiv ℝ h) p a) b =
       (fderiv ℝ (fderiv ℝ h) p b) a
   exact hs a b
+
+/-- Star-shaped Poincaré lemma in exactly the form used by the paper. -/
+class HasStarPoincareLemma
+    (E : Type*) [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+    [FiniteDimensional ℝ E] [CompleteSpace E] : Prop where
+  radial_potential :
+    ∀ {Ω : Set E} {v : Field E}, IsOpen Ω →
+      ContDiffOn ℝ ∞ v Ω → IsClosedFieldOn Ω v →
+      ∀ {a : E}, a ∈ Ω → StarConvex ℝ a Ω →
+        ContDiffOn ℝ ∞ (radialPotential v a) Ω ∧
+          IsPotentialOn Ω v (radialPotential v a)
 
 def radialPotential (v : Field E) (a p : E) : ℝ :=
   ∫ t in (0 : ℝ)..1, ⟪v (a + t • (p - a)), p - a⟫_ℝ
@@ -983,6 +983,36 @@ lemma lieCompletion_eq_iff {D : Distribution E} (hD : HasLocalSmoothFrame Ω D) 
       exact (word_section hv).2 p hpU
     · exact le_lieCompletion hD hp
 
+/-- Differential-geometric background used by Theorem 12: involutivity of
+the Lie closure, Frobenius first integrals, and smooth orthogonal frames. -/
+class HasFrobeniusBackground
+    (E : Type*) [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+    [FiniteDimensional ℝ E] [CompleteSpace E] : Prop where
+  lieClosure_involutive :
+    ∀ {Ω : Set E} {D : Distribution E},
+      HasLocalSmoothFrame Ω (lieCompletion Ω D) →
+      InvolutiveOn Ω (lieCompletion Ω D)
+  firstIntegrals :
+    ∀ {Ω : Set E} {D : Distribution E} {r : ℕ},
+      IsOpen Ω → HasLocalSmoothFrame Ω D →
+      ConstantRankOn Ω D r → InvolutiveOn Ω D →
+      ∀ {p : E}, p ∈ Ω →
+        ∃ (U : Set E) (h : Fin (Module.finrank ℝ E - r) → E → ℝ),
+          IsOpen U ∧ p ∈ U ∧ U ⊆ Ω ∧
+          (∀ i, ContDiffOn ℝ ∞ (h i) U) ∧
+          FunctionallyIndependentOn U h ∧
+          (∀ q ∈ U,
+            Submodule.span ℝ (Set.range (fun i => gradient (h i) q)) = (D q)ᗮ)
+  orthogonalFrame :
+    ∀ {Ω : Set E} {D : Distribution E} {r : ℕ},
+      IsOpen Ω → HasLocalSmoothFrame Ω D →
+      ConstantRankOn Ω D r → ∀ {p : E}, p ∈ Ω →
+        ∃ (U : Set E) (v : Fin (Module.finrank ℝ E - r) → Field E),
+          IsOpen U ∧ p ∈ U ∧ U ⊆ Ω ∧
+          (∀ i, ContDiffOn ℝ ∞ (v i) U) ∧
+          (∀ q ∈ U, LinearIndependent ℝ (fun i => v i q) ∧
+            Submodule.span ℝ (Set.range (fun i => v i q)) = (D q)ᗮ)
+
 lemma lieCompletion_involutive [HasFrobeniusBackground E]
     {D : Distribution E}
     (hD : HasLocalSmoothFrame Ω (lieCompletion Ω D)) :
@@ -1058,36 +1088,6 @@ lemma firstIntegral_lieCompletion {D : Distribution E} {h : E → ℝ}
       simp [inner_add_right, ihx, ihy]
   | smul a x hx ih =>
       simp [inner_smul_right, ih]
-
-/-- Differential-geometric background used by Theorem 12: involutivity of
-the Lie closure, Frobenius first integrals, and smooth orthogonal frames. -/
-class HasFrobeniusBackground
-    (E : Type*) [NormedAddCommGroup E] [InnerProductSpace ℝ E]
-    [FiniteDimensional ℝ E] [CompleteSpace E] : Prop where
-  lieClosure_involutive :
-    ∀ {Ω : Set E} {D : Distribution E},
-      HasLocalSmoothFrame Ω (lieCompletion Ω D) →
-      InvolutiveOn Ω (lieCompletion Ω D)
-  firstIntegrals :
-    ∀ {Ω : Set E} {D : Distribution E} {r : ℕ},
-      IsOpen Ω → HasLocalSmoothFrame Ω D →
-      ConstantRankOn Ω D r → InvolutiveOn Ω D →
-      ∀ {p : E}, p ∈ Ω →
-        ∃ (U : Set E) (h : Fin (Module.finrank ℝ E - r) → E → ℝ),
-          IsOpen U ∧ p ∈ U ∧ U ⊆ Ω ∧
-          (∀ i, ContDiffOn ℝ ∞ (h i) U) ∧
-          FunctionallyIndependentOn U h ∧
-          (∀ q ∈ U,
-            Submodule.span ℝ (Set.range (fun i => gradient (h i) q)) = (D q)ᗮ)
-  orthogonalFrame :
-    ∀ {Ω : Set E} {D : Distribution E} {r : ℕ},
-      IsOpen Ω → HasLocalSmoothFrame Ω D →
-      ConstantRankOn Ω D r → ∀ {p : E}, p ∈ Ω →
-        ∃ (U : Set E) (v : Fin (Module.finrank ℝ E - r) → Field E),
-          IsOpen U ∧ p ∈ U ∧ U ⊆ Ω ∧
-          (∀ i, ContDiffOn ℝ ∞ (v i) U) ∧
-          (∀ q ∈ U, LinearIndependent ℝ (fun i => v i q) ∧
-            Submodule.span ℝ (Set.range (fun i => v i q)) = (D q)ᗮ)
 
 /-- Local Frobenius theorem in exactly the form used in Appendix E.8. -/
 theorem theorem21_frobenius [HasFrobeniusBackground E]
