@@ -397,7 +397,109 @@ lemma continuousAt_sliceNormalize {p : Param A} (hp : GenericPoint A p) :
   unfold sliceNormalize sliceOutgoingScale sliceIncomingScale sliceRatio
   fun_prop (disch := aesop)
 
- /-- Exponential coordinates on the connected component of the diagonal
+/-- A finite functional fibre modulo scaling has an isolated scaling orbit at
+every regular point.  This is the local-neighborhood deduction that was
+previously (and incorrectly) hidden inside `HasPNNGenericRegime.local_regime`.
+
+The normalization sends every regular point in one scaling orbit to the same
+slice point.  The fibre of `p` has only finitely many scaling orbits, so
+after normalization there are only finitely many competing slice points.
+Remove those points and pull the resulting open set back through the
+continuous normalization map. -/
+theorem finiteToOneAt_local_scaling_orbit
+    {p : Param A} (hfinite : FiniteToOneAt A p)
+    (hp : GenericPoint A p) :
+    ∃ U : Set (Param A), IsOpen U ∧ p ∈ U ∧
+      U ⊆ genericSet A ∧
+      ∀ q ∈ U,
+        FunctionalEquiv (model A) q p ↔
+          ∃ s : Hidden A → ℝˣ, q = diagonalGauge A s p := by
+  obtain ⟨R, hRfin, hR⟩ := hfinite
+  let badReps : Set (Param A) :=
+    {r | r ∈ R ∧ GenericPoint A r ∧
+      ¬ ∃ t : Hidden A → ℝˣ, p = diagonalGauge A t r}
+  let badSlice : Set (Param A) := sliceNormalize A p '' badReps
+  have hbadRepsFin : badReps.Finite := by
+    apply hRfin.subset
+    intro r hr
+    exact hr.1
+  have hbadSliceFin : badSlice.Finite :=
+    hbadRepsFin.image (sliceNormalize A p)
+  have hp_not_badSlice : p ∉ badSlice := by
+    intro hbad
+    rcases hbad with ⟨r, hr, hnorm⟩
+    have hrgen : GenericPoint A r := hr.2.1
+    apply hr.2.2
+    refine ⟨biasRatioGauge A r p hrgen, ?_⟩
+    calc
+      p = sliceNormalize A p r := hnorm.symm
+      _ = diagonalGauge A (biasRatioGauge A r p hrgen) r :=
+        sliceNormalize_eq_diagonalGauge A hp hrgen
+  have hnormp :
+      sliceNormalize A p p ∈ badSliceᶜ := by
+    simpa [sliceNormalize_self A hp] using hp_not_badSlice
+  have hpre :
+      sliceNormalize A p ⁻¹' badSliceᶜ ∈ 𝓝 p := by
+    exact (continuousAt_sliceNormalize A hp)
+      (hbadSliceFin.isClosed.isOpen_compl.mem_nhds hnormp)
+  have hgen : genericSet A ∈ 𝓝 p :=
+    (genericSet_isOpen A).mem_nhds hp
+  have hgood :
+      (sliceNormalize A p ⁻¹' badSliceᶜ) ∩ genericSet A ∈ 𝓝 p :=
+    inter_mem hpre hgen
+  obtain ⟨U, hUsub, hUopen, hpU⟩ := mem_nhds_iff.mp hgood
+  refine ⟨U, hUopen, hpU, ?_, ?_⟩
+  · intro q hq
+    exact (hUsub hq).2
+  · intro q hq
+    constructor
+    · intro hqp
+      have hqgen : GenericPoint A q := (hUsub hq).2
+      have hpq : FunctionalEquiv (model A) p q := hqp.symm
+      obtain ⟨r, hrR, hpr, s, hqsr⟩ := hR q hpq
+      have hrgen : GenericPoint A r := by
+        intro a
+        intro hz
+        have hqzero :
+            bias A q (currentLayer A a) a.2 = 0 := by
+          rw [hqsr, bias_diagonalGauge_hidden, hz, mul_zero]
+        exact hqgen a hqzero
+      have hnorm :
+          sliceNormalize A p q = sliceNormalize A p r := by
+        rw [hqsr]
+        exact sliceNormalize_diagonalGauge A hp hrgen s
+      have hr_not_bad :
+          sliceNormalize A p r ∉ badSlice := by
+        intro hrbad
+        have hqbad : sliceNormalize A p q ∈ badSlice := by
+          rw [hnorm]
+          exact hrbad
+        exact (hUsub hq).1 hqbad
+      have horbit_r :
+          ∃ t : Hidden A → ℝˣ, p = diagonalGauge A t r := by
+        by_contra hno
+        apply hr_not_bad
+        exact ⟨r, ⟨hrR, hrgen, hno⟩, rfl⟩
+      obtain ⟨t, hptr⟩ := horbit_r
+      have hrp :
+          r = diagonalGauge A (fun a => (t a)⁻¹) p := by
+        calc
+          r = diagonalGauge A (fun a => (t a)⁻¹)
+              (diagonalGauge A t r) :=
+            (diagonalGauge_inv_left A t r).symm
+          _ = diagonalGauge A (fun a => (t a)⁻¹) p := by
+            rw [← hptr]
+      refine ⟨fun a => s a * (t a)⁻¹, ?_⟩
+      calc
+        q = diagonalGauge A s r := hqsr
+        _ = diagonalGauge A s
+            (diagonalGauge A (fun a => (t a)⁻¹) p) := by rw [hrp]
+        _ = diagonalGauge A (fun a => s a * (t a)⁻¹) p := by
+          rw [diagonalGauge_mul]
+    · rintro ⟨s, rfl⟩
+      exact diagonalGauge_functional A s p
+
+/-- Exponential coordinates on the connected component of the diagonal
 scaling group. -/
 def expGauge (p : Param A) (x : Hidden A → ℝ) : Param A :=
   diagonalGauge A
