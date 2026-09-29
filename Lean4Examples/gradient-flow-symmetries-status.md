@@ -118,7 +118,7 @@ For each external field:
 - [x] Prove/adapt local submersion factorization — discharged from Mathlib's finite-dimensional implicit-function theorem.
 - [ ] Prove/adapt maximal local-flow existence and uniqueness.
 - [ ] Prove/adapt connected Lie-group infinitesimal invariance.
-- [ ] Prove the needed Poincaré lemma.
+- [x] Prove the needed Poincaré lemma — discharged using Mathlib curve integrals and convex Poincaré on local triangles inside a star-shaped domain.
 - [ ] Prove/adapt Frobenius/local first integrals.
 - [ ] Prove smooth orthogonal local frames.
 - [ ] Prove Lie-completion involutivity.
@@ -214,4 +214,14 @@ For each external field:
   - [x] Mathlib's implicit-function chart supplies local product coordinates;
   - [x] the observable is constant on vertical fibres;
   - [x] the two directions of Proposition 4 are now proved directly.
-- [ ] Next dependency target: star-shaped Poincaré lemma.
+- [x] Star-shaped Poincaré dependency eliminated.
+- [ ] Next dependency target: maximal smooth local flows / ODE.
+
+
+### Stage-2 Poincare checkpoint
+
+- [x] `HasStarPoincareLemma` removed.
+- [x] Explicit radial potential identified with a curve integral over the radial segment.
+- [x] Local triangle relation proved using Mathlib's convex Poincare theorem.
+- [x] Derivative of the radial potential proved to be the associated one-form.
+- [x] Smoothness bootstrapped from the smooth derivative.
