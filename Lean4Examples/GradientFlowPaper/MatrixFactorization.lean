@@ -760,29 +760,98 @@ theorem laws_conserved {m n r : ℕ} {Y : Type*}
   exact (corollary7 hL ψ).mp
     (functionalSymmetry_loss model ell ψ hψ) p hp
 
-/-- Marcotte et al. (2023), Section 4.1: completeness of the
-upper-triangular Gram-difference coordinates for full-rank matrix
-factorization.  This is external to Nguyen--Montúfar and therefore remains an
-explicit Stage-1 dependency. -/
-class HasMarcotteMatrixFactorizationCompleteness : Prop where
-  complete_balance_laws :
-    ∀ {m n r : ℕ}, 0 < r → ∀ {Y : Type*}
-      (ell : Mat m n → Y → ℝ), SeparatesPredictions ell →
-      RegularLossOn (regular : Set (Param m n r)) (sampleLoss model ell) →
-      ∀ {p₀ : Param m n r}, p₀ ∈ regular →
-        ∃ Ω : Set (Param m n r), IsOpen Ω ∧ p₀ ∈ Ω ∧ Ω ⊆ regular ∧
-          CompleteLawsOn Ω (sampleLoss model ell) (law (m := m) (n := n))
+/-- A smooth conservation law on the full-rank stratum has, at every
+point, a symmetric infinitesimal gauge coefficient.  This is the core
+completeness step of Marcotte et al. Section 4.1. -/
+lemma conserved_gradient_is_symmetric_gauge
+    {m n r : ℕ} (hr : 0 < r) {Y : Type*}
+    {V : Set (Param m n r)} (hV : IsOpen V)
+    (hVreg : V ⊆ (regular : Set (Param m n r)))
+    (ell : Mat m n → Y → ℝ) (hsep : SeparatesPredictions ell)
+    (hL : RegularLossOn V (sampleLoss model ell))
+    {h : Param m n r → ℝ} (hh : ContDiffOn ℝ ∞ h V)
+    (hc : IsConservedOn V (sampleLoss model ell) h)
+    {p : Param m n r} (hp : p ∈ V) :
+    ∃ A : Mat r r, Aᵀ = A ∧
+      gradient h p = gaugeGenerator A p := by
+  obtain ⟨ψ, -, hψloss⟩ := proposition9 hL
+    (smooth_gradient_on hV hh)
+    ((proposition2 hL (hh.of_le (by simp))).mp hc)
+  have hψfun : IsFunctionalSymmetry model ψ :=
+    proposition14 model ell hsep ψ hψloss
+  have hpoint :
+      ∀ q ∈ V, ∃ A : Mat r r,
+        gradient h q = gaugeGenerator A q := by
+    intro q hq
+    let γ : ℝ → Param m n r := fun t => ψ.toFun t q
+    have hγ : HasDerivAt γ (gradient h q) 0 := by
+      simpa [γ, ψ.initial q hq] using ψ.ode (ψ.zero_mem q hq)
+    have hγ0 : γ 0 = q := ψ.initial q hq
+    have hfun : ∀ᶠ t in 𝓝 0, FunctionalEquiv model (γ t) q := by
+      filter_upwards [(ψ.open_times q).mem_nhds (ψ.zero_mem q hq)] with t ht
+      exact hψfun t q ht
+    obtain ⟨A, hA⟩ :=
+      tangent_functional_fibre_is_gauge (hVreg hq) hγ hγ0 hfun
+    exact ⟨A, hA⟩
+  have hnormal :
+      ∀ q ∈ V, gradient h q ∈ (normalDistribution q)ᗮ := by
+    intro q hq
+    obtain ⟨A, hA⟩ := hpoint q hq
+    rw [hA]
+    exact gaugeGenerator_mem_normal_orthogonal A q
+  have hlie :
+      gradient h p ∈
+        (lieCompletion V normalDistribution p)ᗮ :=
+    firstIntegral_lieCompletion hV hh hnormal p hp
+  obtain ⟨A, hA⟩ := hpoint p hp
+  have hlieA :
+      gaugeGenerator A p ∈
+        (lieCompletion V normalDistribution p)ᗮ := by
+    simpa [hA] using hlie
+  have hsym :
+      Aᵀ = A :=
+    gaugeCoefficient_symmetric_of_lieOrthogonal
+      hr hV hp (hVreg hp) A hlieA
+  exact ⟨A, hsym, hA⟩
 
-/-- Lemma 28 as used by Nguyen--Montúfar. -/
-theorem lemma28 [HasMarcotteMatrixFactorizationCompleteness]
+/-- Marcotte et al. (2023), Section 4.1, proved here from the full-rank
+product-fibre geometry and the first Lie brackets of the normal fields. -/
+theorem complete_balance_laws
+    {m n r : ℕ} (hr : 0 < r) {Y : Type*}
+    (ell : Mat m n → Y → ℝ) (hsep : SeparatesPredictions ell)
+    (hL : RegularLossOn (regular : Set (Param m n r))
+      (sampleLoss model ell)) :
+    CompleteLawsOn (regular : Set (Param m n r))
+      (sampleLoss model ell) (law (m := m) (n := n)) := by
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · intro a
+    exact (law_smooth a).contDiffOn
+  · intro a
+    exact laws_conserved ell hL a
+  · intro p hp
+    exact gradient_laws_independent hp
+  · intro V hV hVreg h hh hc p hp
+    have hLV := hL.mono hV hVreg
+    obtain ⟨A, hsym, hgrad⟩ :=
+      conserved_gradient_is_symmetric_gauge
+        hr hV hVreg ell hsep hLV hh hc hp
+    rw [hgrad]
+    have hspan := gaugeGenerator_mem_span_of_symmetric A hsym p
+    simpa only [gradient_law] using hspan
+
+/-- Lemma 28 as used by Nguyen--Montúfar.  On the stronger stratum where
+both factors have full column rank, the Gram-difference laws are complete on
+the whole stratum, so the requested local neighborhood can be taken to be
+`regular` itself. -/
+theorem lemma28
     {m n r : ℕ} (hr : 0 < r) {Y : Type*}
     (ell : Mat m n → Y → ℝ) (hsep : SeparatesPredictions ell)
     (hL : RegularLossOn (regular : Set (Param m n r)) (sampleLoss model ell))
     {p₀ : Param m n r} (hp₀ : p₀ ∈ regular) :
     ∃ Ω : Set (Param m n r), IsOpen Ω ∧ p₀ ∈ Ω ∧ Ω ⊆ regular ∧
-      CompleteLawsOn Ω (sampleLoss model ell) (law (m := m) (n := n)) :=
-  HasMarcotteMatrixFactorizationCompleteness.complete_balance_laws
-    hr ell hsep hL hp₀
+      CompleteLawsOn Ω (sampleLoss model ell) (law (m := m) (n := n)) := by
+  exact ⟨regular, regular_isOpen, hp₀, Set.Subset.rfl,
+    complete_balance_laws hr ell hsep hL⟩
 
 /-- Counting upper-triangular coordinates. -/
 theorem card_upper (r : ℕ) : Fintype.card (Upper r) = r * (r + 1) / 2 := by
