@@ -1153,26 +1153,6 @@ end LocalFlow
 
 namespace LocalFlow
 
-theorem ext {v : Field E} {ψ φ : LocalFlow Ω v}
-    (hd : ψ.domain = φ.domain)
-    (hf : ∀ t p, (t,p) ∈ ψ.domain → ψ.toFun t p = φ.toFun t p) :
-    ψ = φ := by
-  cases ψ with
-  | mk dψ odψ smψ zmψ tcψ fψ sfψ iψ tmψ odeψ compψ =>
-    cases φ with
-    | mk dφ odφ smφ zmφ tcφ fφ sfφ iφ tmφ odeφ compφ =>
-      dsimp at hd hf
-      subst dφ
-      have hfun : fψ = fφ := by
-        funext t p
-        by_cases htp : (t,p) ∈ dψ
-        · exact hf t p htp
-        · -- Outside the domain the value is irrelevant to all LocalFlow laws.
-          -- Replace both representatives by their common extension on the domain.
-          exact Subsingleton.elim _ _
-      subst fφ
-      rfl
-
 lemma eqOn_domain_inter {v : Field E}
     (hΩ : IsOpen Ω) (hv : ContDiffOn ℝ ∞ v Ω)
     (ψ φ : LocalFlow Ω v) (p : E) (hp : p ∈ Ω) :
@@ -1931,20 +1911,19 @@ theorem exists_common_extension {v : Field E}
 
 end LocalFlow
 
-/-- Standard autonomous-ODE background used by Proposition 9.  This is an
-explicit Stage-1 dependency, not an assumed theorem constant. -/
-class HasMaximalSmoothLocalFlows : Prop where
-  exists_maximal :
-    ∀ {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
-      [FiniteDimensional ℝ E] [CompleteSpace E]
-      {Ω : Set E} {v : Field E}, IsOpen Ω → ContDiffOn ℝ ∞ v Ω →
-        ∃ ψ : LocalFlow Ω v, ψ.IsMaximal
-
-/-- Standard ODE/local-flow background required by Proposition 9. -/
-theorem exists_maximal_localFlow [HasMaximalSmoothLocalFlows] (hΩ : IsOpen Ω) {v : Field E}
+/-- Maximal smooth local flow.  All local flows admit a common extension,
+so extending the nonempty family of every local flow gives a maximal one. -/
+theorem exists_maximal_localFlow (hΩ : IsOpen Ω) {v : Field E}
     (hv : ContDiffOn ℝ ∞ v Ω) :
-    ∃ ψ : LocalFlow Ω v, ψ.IsMaximal :=
-  HasMaximalSmoothLocalFlows.exists_maximal hΩ hv
+    ∃ ψ : LocalFlow Ω v, ψ.IsMaximal := by
+  obtain ⟨ψ₀, -⟩ := exists_glued_smooth_localFlow hΩ hv
+  let C : Set (LocalFlow Ω v) := Set.univ
+  have hC : C.Nonempty := ⟨ψ₀, Set.mem_univ _⟩
+  obtain ⟨Ψ, hΨ⟩ :=
+    LocalFlow.exists_common_extension hΩ hv C hC
+  refine ⟨Ψ, ?_⟩
+  intro φ
+  exact hΨ φ (Set.mem_univ φ)
 
 def FieldCompleteOn (Ω : Set E) (v : Field E) : Prop :=
   ∃ ψ : LocalFlow Ω v, ψ.IsGlobal
@@ -3096,7 +3075,7 @@ lemma orthogonal_local_frame [HasFrobeniusBackground E]
   HasFrobeniusBackground.orthogonalFrame hΩ hframe hrank hp
 
 /-- Theorem 12(i)--(ii). `rLie` is the paper's barred r, distinct from r. -/
-theorem theorem12 [HasMaximalSmoothLocalFlows] [HasFrobeniusBackground E]
+theorem theorem12 [HasFrobeniusBackground E]
     {L : S → E → ℝ} (hL : SmoothLossOn Ω L)
     {r rLie : ℕ}
     (hW : HasLocalSmoothFrame Ω (gradientDistribution L))
@@ -3238,7 +3217,6 @@ open scoped BigOperators Topology InnerProductSpace ContDiff
 
 namespace GradientFlowPaper
 
-variable [HasMaximalSmoothLocalFlows]
 
 section FunctionalSymmetries
 
@@ -4403,7 +4381,6 @@ open scoped BigOperators Topology InnerProductSpace ContDiff Matrix
 namespace GradientFlowPaper
 namespace Attention
 
-variable [HasMaximalSmoothLocalFlows]
 
 inductive Slot (k : ℕ)
   | query (i : Fin k)
@@ -5472,7 +5449,6 @@ open scoped BigOperators Topology InnerProductSpace ContDiff Matrix
 namespace GradientFlowPaper
 namespace PolynomialNetwork
 
-variable [HasMaximalSmoothLocalFlows]
 
 structure Architecture where
   depth : ℕ
@@ -5816,7 +5792,6 @@ open scoped BigOperators Topology InnerProductSpace ContDiff Matrix
 namespace GradientFlowPaper
 namespace DeepLinear
 
-variable [HasMaximalSmoothLocalFlows]
 
 abbrev Index (L D : ℕ) := Fin L × Fin D × Fin D
 abbrev Param (L D : ℕ) := Vec (Index L D)
