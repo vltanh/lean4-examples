@@ -30,7 +30,7 @@
       "lean_class": "GradientFlowPaper.HasFrobeniusBackground",
       "kind": "standard-background",
       "status": "open",
-      "source": "Finite-dimensional smooth Frobenius theorem: local first-integral construction for an involutive constant-rank distribution",
+      "source": "Frobenius local first-integral theorem",
       "consumers": [
         "GradientFlowPaper.theorem21",
         "GradientFlowPaper.theorem21_frobenius",
@@ -39,20 +39,7 @@
       "obligations": [
         "firstIntegrals"
       ],
-      "note": "The integrable⇒involutive direction, Lie-completion involutivity, exact-rank bookkeeping, and smooth orthogonal-complement frames have been moved into proof code. The remaining field is the local Frobenius existence direction."
-    },
-    {
-      "lean_class": "GradientFlowPaper.HasMarcotteMatrixFactorizationCompleteness",
-      "kind": "literature",
-      "status": "open",
-      "source": "Marcotte et al. (2023), Section 4.1",
-      "consumers": [
-        "GradientFlowPaper.Factorization.lemma28",
-        "GradientFlowPaper.Attention.proposition18_laws"
-      ],
-      "obligations": [
-        "complete_balance_laws"
-      ]
+      "note": "Integrable⇒involutive, Lie-completion involutivity, exact-rank reduction, and smooth orthogonal-complement frames are now proved internally; only the hard local first-integral existence direction remains external."
     },
     {
       "lean_class": "GradientFlowPaper.Attention.HasTranAttentionIdentifiability",
@@ -91,7 +78,10 @@
     "star-shaped Poincare lemma",
     "Appendix H positive-square-root spectral facts",
     "PNN regular scaling-orbit tangent-space description",
-    "full-rank matrix-factorization fibre uniqueness"
+    "full-rank matrix-factorization fibre uniqueness",
+    "Marcotte et al. matrix-factorization completeness (Lemma 28)",
+    "smooth orthogonal-complement frame construction",
+    "Lie-completion involutivity"
   ],
   "numbered_declarations": {
     "Proposition 1": "GradientFlowPaper.proposition1",
