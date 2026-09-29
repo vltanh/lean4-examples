@@ -3561,6 +3561,48 @@ lemma FrobeniusSubmersionAt.gradient_span
     omega
   · infer_instance
 
+
+/-- Rank-zero Frobenius is just linear coordinates: a zero-dimensional
+distribution is the zero subspace, and the standard orthonormal
+representation is a submersion with trivial kernel. -/
+theorem exists_frobeniusSubmersionAt_rank_zero
+    {D : Distribution E}
+    (hΩ : IsOpen Ω) (hrank : ConstantRankOn Ω D 0)
+    {p : E} (hp : p ∈ Ω) :
+    FrobeniusSubmersionAt Ω D 0 p := by
+  let k := Module.finrank ℝ E
+  let b := stdOrthonormalBasis ℝ E
+  let H : E → Vec (Fin k) := b.repr
+  have hDzero : ∀ q ∈ Ω, D q = ⊥ := by
+    intro q hq
+    rw [← Submodule.finrank_eq_zero]
+    exact hrank q hq
+  have hHsmooth : ContDiff ℝ ∞ H := by
+    exact b.repr.toContinuousLinearEquiv.contDiff
+  refine
+    { k := k
+      dim_eq := by simp [k]
+      U := Ω
+      H := H
+      isOpen_U := hΩ
+      mem_U := hp
+      subset_U := Set.Subset.rfl
+      smooth_H := hHsmooth.contDiffOn
+      surjective_fderiv := ?_
+      ker_fderiv := ?_ }
+  · intro q hq
+    have hf :
+        fderiv ℝ H q = b.repr.toContinuousLinearEquiv := by
+      simpa [H] using b.repr.toContinuousLinearEquiv.hasFDerivAt.fderiv
+    rw [hf]
+    exact b.repr.surjective
+  · intro q hq
+    have hf :
+        fderiv ℝ H q = b.repr.toContinuousLinearEquiv := by
+      simpa [H] using b.repr.toContinuousLinearEquiv.hasFDerivAt.fderiv
+    rw [hf, hDzero q hq]
+    exact LinearMap.ker_eq_bot.mpr b.repr.injective
+
 /-- A Frobenius submersion immediately supplies the exact family of first
 integrals used by Theorem 21. -/
 theorem FrobeniusSubmersionAt.firstIntegrals
