@@ -1931,6 +1931,24 @@ lemma FullColumnRank.mul_right_cancel {m r n : ℕ} {A : Mat m r}
   have hij := congrFun hcol i
   simpa using hij
 
+lemma FullColumnRank.mulVec_injective {m r : ℕ} {A : Mat m r}
+    (hA : FullColumnRank A) : Function.Injective A.mulVec := by
+  exact (Matrix.mulVec_injective_iff).2 (by simpa [FullColumnRank] using hA)
+
+lemma FullColumnRank.gram_isUnit {m r : ℕ} {A : Mat m r}
+    (hA : FullColumnRank A) : IsUnit (Aᵀ * A) := by
+  have hkerA : LinearMap.ker A.mulVecLin = ⊥ := by
+    apply LinearMap.ker_eq_bot.mpr
+    simpa using hA.mulVec_injective
+  have hkerGram : LinearMap.ker (Aᵀ * A).mulVecLin = ⊥ := by
+    rw [Matrix.ker_mulVecLin_transpose_mul_self A, hkerA]
+  have hinjGram : Function.Injective (Aᵀ * A).mulVec := by
+    have hlinj : Function.Injective (Aᵀ * A).mulVecLin :=
+      LinearMap.ker_eq_bot.mp hkerGram
+    simpa using hlinj
+  exact Matrix.linearIndependent_cols_iff_isUnit.mp
+    ((Matrix.mulVec_injective_iff).mp hinjGram)
+
 lemma mul_invTranspose_invariant {m n r : ℕ}
     (U : Mat m r) (V : Mat n r) (s : GL r) :
     (U * (s : Mat r r)) * (V * ((s⁻¹ : GL r) : Mat r r)ᵀ)ᵀ = U * Vᵀ := by
@@ -1989,22 +2007,72 @@ theorem gauge_mul {m n r : ℕ} (s t : GL r) (p : Param m n r) :
 @[simp] theorem gauge_one {m n r : ℕ} (p : Param m n r) : gauge 1 p = p := by
   simp [gauge]
 
-/-- Rectangular full-rank factorization uniqueness, cited in Appendix G.1. -/
+/-- Rectangular full-rank factorization uniqueness, cited in Appendix G.1.
+The proof is the standard full-rank factorization argument from Piziak–Odell:
+construct the change of basis from a right Gram inverse and then cancel the
+full-column-rank factors. -/
 theorem fullRank_fiber {m n r : ℕ} {p q : Param m n r}
     (hp : p ∈ regular) (hq : q ∈ regular) :
     observation p = observation q ↔ ∃ s : GL r, q = gauge s p := by
   constructor
   · intro he
-    obtain ⟨s, hsU, hsV⟩ :=
-      Matrix.fullColumnRank_factorization_unique
-        hp.1 hp.2 hq.1 hq.2 he
+    have hGq : IsUnit ((V q)ᵀ * V q) := hq.2.gram_isUnit
+    let gq : GL r := hGq.unit
+    have hgq : (gq : Mat r r) = (V q)ᵀ * V q := hGq.unit_spec
+    let S0 : Mat r r := (V p)ᵀ * V q * ((gq⁻¹ : GL r) : Mat r r)
+    have hUS : U p * S0 = U q := by
+      calc
+        U p * S0 =
+            (U p * (V p)ᵀ) * V q * ((gq⁻¹ : GL r) : Mat r r) := by
+              simp [S0, Matrix.mul_assoc]
+        _ = (U q * (V q)ᵀ) * V q * ((gq⁻¹ : GL r) : Mat r r) := by
+              rw [show U p * (V p)ᵀ = U q * (V q)ᵀ by simpa [observation] using he]
+        _ = U q * (((V q)ᵀ * V q) * ((gq⁻¹ : GL r) : Mat r r)) := by
+              simp [Matrix.mul_assoc]
+        _ = U q := by
+              rw [← hgq]
+              simp
+    have hinjS : Function.Injective S0.mulVec := by
+      intro x y hxy
+      apply hq.1.mulVec_injective
+      calc
+        U q *ᵥ x = (U p * S0) *ᵥ x := by rw [hUS]
+        _ = U p *ᵥ (S0 *ᵥ x) := by rw [Matrix.mulVec_mulVec]
+        _ = U p *ᵥ (S0 *ᵥ y) := by rw [hxy]
+        _ = (U p * S0) *ᵥ y := by rw [Matrix.mulVec_mulVec]
+        _ = U q *ᵥ y := by rw [hUS]
+    have hS0 : IsUnit S0 :=
+      Matrix.linearIndependent_cols_iff_isUnit.mp
+        ((Matrix.mulVec_injective_iff).mp hinjS)
+    let s : GL r := hS0.unit
+    have hs : (s : Mat r r) = S0 := hS0.unit_spec
+    have hSV : S0 * (V q)ᵀ = (V p)ᵀ := by
+      apply hp.1.mul_right_cancel
+      calc
+        U p * (S0 * (V q)ᵀ) = (U p * S0) * (V q)ᵀ := by
+          simp [Matrix.mul_assoc]
+        _ = U q * (V q)ᵀ := by rw [hUS]
+        _ = U p * (V p)ᵀ := by
+          simpa [observation] using he.symm
+    have hVt : (V q)ᵀ = ((s⁻¹ : GL r) : Mat r r) * (V p)ᵀ := by
+      calc
+        (V q)ᵀ = 1 * (V q)ᵀ := by simp
+        _ = (((s⁻¹ : GL r) : Mat r r) * (s : Mat r r)) * (V q)ᵀ := by simp
+        _ = ((s⁻¹ : GL r) : Mat r r) * ((s : Mat r r) * (V q)ᵀ) := by
+              simp [Matrix.mul_assoc]
+        _ = ((s⁻¹ : GL r) : Mat r r) * (V p)ᵀ := by
+              rw [hs, hSV]
+    have hV : V q = V p * ((s⁻¹ : GL r) : Mat r r)ᵀ := by
+      have ht := congrArg Matrix.transpose hVt
+      simpa [Matrix.transpose_mul] using ht
     refine ⟨s, ?_⟩
     ext a
     cases a with
     | inl a =>
-        simpa [gauge, pack, U, V] using congrFun₂ hsU a.1 a.2
+        have hu : U q = U p * (s : Mat r r) := by simpa [hs] using hUS.symm.symm
+        simpa [gauge, pack, U, V] using congrFun₂ hu a.1 a.2
     | inr a =>
-        simpa [gauge, pack, U, V] using congrFun₂ hsV a.1 a.2
+        simpa [gauge, pack, U, V] using congrFun₂ hV a.1 a.2
   · rintro ⟨s, rfl⟩
     exact (observation_gauge s p).symm
 
