@@ -2538,35 +2538,8 @@ def FiniteToOneAt (p : Param A) : Prop :=
       ∃ r ∈ R, FunctionalEquiv (model A) p r ∧
         ∃ s : Hidden A → ℝˣ, q = diagonalGauge A s r
 
-/-- A finite evaluation grid determines the represented polynomial. -/
-def degreeBound : ℕ := ∏ j : Fin (A.depth - 1), A.degree j.val
-abbrev Grid := Fin (A.width 0) → Fin (degreeBound A + 1)
-abbrev ObservationIndex := Grid A × Fin (A.width A.depth)
-
-def observations (p : Param A) : Vec (ObservationIndex A) :=
-  WithLp.toLp 2 (fun a =>
-    model A p (WithLp.toLp 2 (fun i => ((a.1 i).val : ℝ))) a.2)
-
-theorem observations_eq_iff (p q : Param A) :
-    observations A p = observations A q ↔ FunctionalEquiv (model A) p q := by
-  constructor
-  · intro hobs x
-    apply WithLp.ext
-    intro i
-    have hpoly :=
-      PolynomialNetwork.model_coordinate_isPolynomial
-        (A := A) (i := i) p
-    have hpolyq :=
-      PolynomialNetwork.model_coordinate_isPolynomial
-        (A := A) (i := i) q
-    apply MvPolynomial.eq_of_eval_eq_on_cartesian_grid
-      (degreeBound A) hpoly.degree_le hpolyq.degree_le
-    intro g
-    have hg := congrArg (fun z : Vec (ObservationIndex A) => z (g, i)) hobs
-    simpa [observations] using hg
-  · intro he
-    ext a
-    exact he (WithLp.toLp 2 (fun i => ((a.1 i).val : ℝ))) |>.congrArg (fun z => z a.2)
+/-! The paper's proof of Proposition 19 uses the finite-to-one identifiability
+result directly; no auxiliary finite evaluation grid is needed here. -/
 
 def GenericPoint (p : Param A) : Prop :=
   ∀ a : Hidden A, bias A p (currentLayer A a) a.2 ≠ 0
