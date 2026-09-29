@@ -2280,6 +2280,17 @@ def oneParameterProduct (φ : Fin s → ℝ → Γ) :
 def ProductsGenerate (φ : Fin s → ℝ → Γ) : Prop :=
   ∀ g : Γ, ∃ xs : List (Fin s × ℝ), oneParameterProduct φ xs = g
 
+lemma oneParameterProduct_append {s : ℕ} (φ : Fin s → ℝ → Γ)
+    (xs ys : List (Fin s × ℝ)) :
+    oneParameterProduct φ (xs ++ ys) =
+      oneParameterProduct φ ys * oneParameterProduct φ xs := by
+  induction xs with
+  | nil =>
+      simp [oneParameterProduct]
+  | cons z zs ih =>
+      simp [oneParameterProduct, ih, mul_assoc]
+
+
 
 def orderedOneParameterProduct
     {s : ℕ} (φ : Fin s → ℝ → Γ) :
