@@ -647,6 +647,18 @@ theorem corollary7 {L : S → E → ℝ} (hL : RegularLossOn Ω L)
     rw [real_inner_comm]
     exact (mem_symmetryDistribution_iff L p (v p)).mp (hv p hp) s
 
+/-- Proposition 23, the partial-action extension of Corollary 6. -/
+theorem proposition23 {v : Field E} (ψ : LocalFlow Ω v)
+    (hΩ : IsOpen Ω) {f : E → ℝ} (hf : ContDiffOn ℝ 1 f Ω) :
+    FlowPreserves ψ f ↔ ∀ p ∈ Ω, ⟪v p, gradient f p⟫_ℝ = 0 :=
+  corollary6 ψ hΩ hf
+
+/-- Proposition 24, the partial-action extension of Corollary 7. -/
+theorem proposition24 {L : S → E → ℝ} (hL : RegularLossOn Ω L)
+    {v : Field E} (ψ : LocalFlow Ω v) :
+    IsLossSymmetry L ψ ↔ ∀ p ∈ Ω, v p ∈ symmetryDistribution L p :=
+  corollary7 hL ψ
+
 /-- Proposition 9, existence plus invariance. -/
 theorem proposition9 [HasMaximalSmoothLocalFlows]
     {L : S → E → ℝ} (hL : RegularLossOn Ω L)
@@ -655,6 +667,22 @@ theorem proposition9 [HasMaximalSmoothLocalFlows]
     ∃ ψ : LocalFlow Ω v, ψ.IsMaximal ∧ IsLossSymmetry L ψ := by
   obtain ⟨ψ, hmax⟩ := exists_maximal_localFlow hL.isOpen hv
   exact ⟨ψ, hmax, (corollary7 hL ψ).mpr hvorth⟩
+
+/-- Proposition 25 packages the partial-symmetry extensions of Propositions
+24 and 9 exactly as in Appendix E.6. -/
+theorem proposition25 [HasMaximalSmoothLocalFlows]
+    {L : S → E → ℝ} (hL : RegularLossOn Ω L) :
+    (∀ {v : Field E} (ψ : LocalFlow Ω v),
+      IsLossSymmetry L ψ →
+      ∀ p ∈ Ω, v p ∈ symmetryDistribution L p) ∧
+    (∀ {v : Field E}, ContDiffOn ℝ ∞ v Ω →
+      (∀ p ∈ Ω, v p ∈ symmetryDistribution L p) →
+      ∃ ψ : LocalFlow Ω v, ψ.IsMaximal ∧ IsLossSymmetry L ψ) := by
+  constructor
+  · intro v ψ hψ
+    exact (proposition24 hL ψ).mp hψ
+  · intro v hv horth
+    exact proposition9 hL hv horth
 
 theorem maximal_global_of_complete {v : Field E} {ψ : LocalFlow Ω v}
     (hmax : ψ.IsMaximal) (hc : FieldCompleteOn Ω v) : ψ.IsGlobal := by
