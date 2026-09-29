@@ -4817,32 +4817,6 @@ lemma gramCandidate_identity_mathlib
   dsimp [P] at hright ⊢
   abel
 
-/-- Standard spectral-algebra facts used in Appendix H.  Nguyen--Montúfar
-invoke the spectral theorem here; Stage 1 keeps the exact consequences
-explicit and Stage 2 discharges them from Mathlib CFC/spectral theory. -/
-class HasAppendixHSpectralAlgebra : Prop where
-  gramCandidate_posDef :
-    ∀ (H₀ : Mat 2 2), H₀ᵀ = H₀ → ∀ (α : ℝ), α ≠ 0 →
-      ∀ R : Mat 2 2,
-        PositiveSquareRoot
-          (H₀ * H₀ + (4 * α^2) • (1 : Mat 2 2)) R →
-        Matrix.PosDef (gramCandidate H₀ R)
-  gramCandidate_identity :
-    ∀ (H₀ : Mat 2 2), H₀ᵀ = H₀ → ∀ (α : ℝ), α ≠ 0 →
-      ∀ R : Mat 2 2,
-        PositiveSquareRoot
-          (H₀ * H₀ + (4 * α^2) • (1 : Mat 2 2)) R →
-        gramCandidate H₀ R - α^2 • (gramCandidate H₀ R)⁻¹ = H₀
-  positive_solution_unique :
-    ∀ (H₀ : Mat 2 2), H₀ᵀ = H₀ → ∀ (α : ℝ), α ≠ 0 →
-      ∀ P R : Mat 2 2,
-        Matrix.PosDef P →
-        P - α^2 • P⁻¹ = H₀ →
-        PositiveSquareRoot
-          (H₀ * H₀ + (4 * α^2) • (1 : Mat 2 2)) R →
-        P = gramCandidate H₀ R
-
-
 lemma positive_solution_unique_mathlib
     (H : Mat 2 2) (hH : Hᵀ = H) (α : ℝ) (hα : α ≠ 0)
     (P R : Mat 2 2)
@@ -4886,11 +4860,6 @@ lemma positive_solution_unique_mathlib
   dsimp [T]
   module
 
-instance appendixHSpectralAlgebra_mathlib : HasAppendixHSpectralAlgebra where
-  gramCandidate_posDef := gramCandidate_posDef_mathlib
-  gramCandidate_identity := gramCandidate_identity_mathlib
-  positive_solution_unique := positive_solution_unique_mathlib
-
 /-- The required positive square roots actually exist. -/
 theorem lemma29_roots_exist (H₀ : Mat 2 2) (hH : H₀ᵀ = H₀)
     (α : ℝ) (hα : α ≠ 0) :
@@ -4910,8 +4879,7 @@ theorem lemma29_roots_exist (H₀ : Mat 2 2) (hH : H₀ᵀ = H₀)
   have hRsq := hRroot.2
   let P := gramCandidate H₀ R
   have hP : Matrix.PosDef P :=
-    HasAppendixHSpectralAlgebra.gramCandidate_posDef
-      H₀ hH α hα R hRroot
+    gramCandidate_posDef_mathlib H₀ hH α hα R hRroot
   let S : Mat 2 2 := CFC.sqrt P
   have hSroot : PositiveSquareRoot P S :=
     positiveSquareRoot_cfc hP
@@ -4931,7 +4899,7 @@ theorem lemma29 (H₀ : Mat 2 2) (hH : H₀ᵀ = H₀)
   have hPformula :
       gramCandidate H₀ R -
           α^2 • (gramCandidate H₀ R)⁻¹ = H₀ :=
-    HasAppendixHSpectralAlgebra.gramCandidate_identity H₀ hH α hα R hR
+    gramCandidate_identity_mathlib H₀ hH α hα R hR
   constructor
   · rintro ⟨hbal, hprod⟩
     have hUunit : IsUnit U :=
@@ -4950,7 +4918,7 @@ theorem lemma29 (H₀ : Mat 2 2) (hH : H₀ᵀ = H₀)
       simpa [Matrix.transpose_smul, Matrix.transpose_inv,
         Matrix.mul_inv_rev, hUunit] using hbal
     have hPuniq : P = gramCandidate H₀ R :=
-      HasAppendixHSpectralAlgebra.positive_solution_unique
+      positive_solution_unique_mathlib
         H₀ hH α hα P R hPpos hPeq hR
     have hgram : Uᵀ * U = S * S := by
       rw [← hS.2, ← hPuniq]
