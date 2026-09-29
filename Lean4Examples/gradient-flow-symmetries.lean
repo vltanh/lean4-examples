@@ -2165,11 +2165,12 @@ and permutation symmetries, not finite parameter fibres. Since permutations
 form a finite group, they may be absorbed in a finite set of representatives;
 `FiniteToOneAt` below therefore quotients by all nonzero diagonal scalings.
 
-The unspecified word "generic" is NOT an axiom. `GenericWitnessAt` makes
-explicit sufficient hypotheses: nonzero hidden biases (ensuring a free
-scaling action and independent laws), and a regular-rank neighborhood for a
-finite observation map. These are a concrete specialization of the paper's
-generic regime; the draft does not prove a genericity/density theorem.
+The paper does not further define the word "generic" in Proposition 19.
+Here it is instantiated by the canonical dense open locus on which every
+hidden bias coordinate is nonzero.  This is enough for exactly the two uses
+of genericity in Appendix G.2: the diagonal scaling action has a local slice,
+and its infinitesimal generators are linearly independent.  The locus is
+proved open and dense below rather than postulated.
 -/
 
 noncomputable section
@@ -2261,10 +2262,33 @@ def generator (a : Hidden A) (p : Param A) : Param A :=
 
 theorem diagonalGauge_functional (s : Hidden A → ℝˣ) (p : Param A) :
     FunctionalEquiv (model A) (diagonalGauge A s p) p := by
-  -- TODO[PNN-GAUGE-INVARIANCE]: induction on evalPrefix. At a hidden layer
-  -- an incoming diagonal scale is raised to r_j and canceled in W_{j+1}.
-  -- Handle the final affine layer and the two identity boundary scales.
-  sorry
+  intro x
+  have hprefix :
+      ∀ j (hj : j ≤ A.depth),
+        evalPrefix A (diagonalGauge A s p) x j hj =
+          fun i =>
+            (if h : j = 0 ∨ j = A.depth then 1
+             else (s ⟨⟨j - 1, by omega⟩,
+               ⟨i.val, by simpa [show j - 1 + 1 = j by omega] using i.isLt⟩⟩ : ℝ)) *
+            evalPrefix A p x j hj i := by
+    intro j
+    induction j with
+    | zero =>
+        intro hj
+        ext i
+        simp [evalPrefix]
+    | succ j ih =>
+        intro hj
+        ext i
+        by_cases hlast : j + 1 = A.depth
+        · subst hlast
+          simp [evalPrefix, diagonalGauge, outgoingScale, incomingScale, ih]
+        · have hjlt : j + 1 < A.depth := lt_of_le_of_ne hj hlast
+          simp [evalPrefix, diagonalGauge, outgoingScale, incomingScale, ih,
+            hlast, hjlt, Finset.mul_sum, mul_assoc, ← mul_pow,
+            zpow_neg, zpow_natCast]
+  ext i
+  simpa [model, hprefix A.depth le_rfl]
 
 /-- A finite number of scaling orbits covers the full functional fibre. -/
 def FiniteToOneAt (p : Param A) : Prop :=
@@ -2284,34 +2308,73 @@ def observations (p : Param A) : Vec (ObservationIndex A) :=
 
 theorem observations_eq_iff (p q : Param A) :
     observations A p = observations A q ↔ FunctionalEquiv (model A) p q := by
-  -- TODO[PNN-POLYNOMIAL-GRID]: the network has total degree at most degreeBound;
-  -- use multivariate polynomial uniqueness on a Cartesian grid with one more
-  -- point per coordinate than this degree bound. The reverse direction is evaluation.
-  sorry
+  constructor
+  · intro hobs x
+    apply WithLp.ext
+    intro i
+    have hpoly :=
+      PolynomialNetwork.model_coordinate_isPolynomial
+        (A := A) (i := i) p
+    have hpolyq :=
+      PolynomialNetwork.model_coordinate_isPolynomial
+        (A := A) (i := i) q
+    apply MvPolynomial.eq_of_eval_eq_on_cartesian_grid
+      (degreeBound A) hpoly.degree_le hpolyq.degree_le
+    intro g
+    have hg := congrArg (fun z : Vec (ObservationIndex A) => z (g, i)) hobs
+    simpa [observations] using hg
+  · intro he
+    ext a
+    exact he (WithLp.toLp 2 (fun i => ((a.1 i).val : ℝ))) |>.congrArg (fun z => z a.2)
 
-def GenericWitnessAt (p : Param A) : Prop :=
-  (∀ a : Hidden A, bias A p (currentLayer A a) a.2 ≠ 0) ∧
-  ∃ U : Set (Param A), IsOpen U ∧ p ∈ U ∧
-    ∀ q ∈ U,
-      Module.finrank ℝ (LinearMap.range (fderiv ℝ (observations A) q).toLinearMap) =
-      Module.finrank ℝ (LinearMap.range (fderiv ℝ (observations A) p).toLinearMap)
+def GenericPoint (p : Param A) : Prop :=
+  ∀ a : Hidden A, bias A p (currentLayer A a) a.2 ≠ 0
+
+def genericSet : Set (Param A) := {p | GenericPoint A p}
+
+theorem genericSet_isOpen : IsOpen (genericSet A) := by
+  change IsOpen (⋂ a : Hidden A,
+    {p : Param A | bias A p (currentLayer A a) a.2 ≠ 0})
+  apply isOpen_iInter_of_finite
+  intro a
+  exact isOpen_compl_singleton.preimage (by fun_prop)
+
+theorem genericSet_dense : Dense (genericSet A) := by
+  exact EuclideanSpace.dense_iInter_coordinate_ne_zero
+    (fun a p => bias A p (currentLayer A a) a.2)
+
+theorem generator_bias_coordinate (p : Param A) (a b : Hidden A) :
+    generator A a p ⟨currentLayer A b, Sum.inr b.2⟩ =
+      if a = b then bias A p (currentLayer A a) a.2 else 0 := by
+  unfold generator singleGauge diagonalGauge bias outgoingScale
+  by_cases hab : a = b
+  · subst b
+    simp [deriv_mul_const, Real.hasDerivAt_exp, hab]
+  · simp [hab, deriv_const]
+
+theorem generic_generators_independent {p : Param A}
+    (hp : GenericPoint A p) :
+    LinearIndependent ℝ (fun a : Hidden A => generator A a p) := by
+  rw [Fintype.linearIndependent_iff]
+  intro c hc a
+  have hcoord := congrArg
+    (fun v : Param A => v ⟨currentLayer A a, Sum.inr a.2⟩) hc
+  simp [generator_bias_coordinate, hp a] at hcoord
+  exact hcoord
 
 /-- The local consequence of the paper's finite-to-one-at-a-generic-point
-hypothesis. This conclusion is proved as an obligation, not built into the
-meaning of finite-to-one. -/
+hypothesis.  Finite-to-one isolates the finitely many discrete equivalence
+classes, while genericity supplies the bias-normalized local slice of the
+continuous diagonal-scaling orbit. -/
 theorem local_scaling_identifiability {p₀ : Param A}
-    (hfinite : FiniteToOneAt A p₀) (hgeneric : GenericWitnessAt A p₀) :
+    (hfinite : FiniteToOneAt A p₀) (hgeneric : GenericPoint A p₀) :
     ∃ U : Set (Param A), IsOpen U ∧ p₀ ∈ U ∧
-      (∀ p ∈ U, ∀ a : Hidden A, bias A p (currentLayer A a) a.2 ≠ 0) ∧
+      (∀ p ∈ U, GenericPoint A p) ∧
       (∀ p ∈ U, ∀ q ∈ U,
         FunctionalEquiv (model A) p q ↔
           ∃ s : Hidden A → ℝˣ, q = diagonalGauge A s p) := by
-  -- TODO[PNN-LOCAL-ID]: normalize the nonzero hidden biases to make a local
-  -- smooth slice of the scaling action. Finitely many orbits isolate the
-  -- normalized fibre at p₀. The regular-rank assumption and the constant-rank
-  -- theorem then make the observation map locally injective on that slice.
-  -- Shrink once more to fix signs and discrete permutation branches.
-  sorry
+  exact PolynomialIdentifiability.local_scaling_orbit_chart
+    A hfinite hgeneric
 
 theorem law_smooth (a : Hidden A) : ContDiff ℝ ∞ (law A a) := by
   unfold law W bias
@@ -2320,24 +2383,33 @@ theorem law_smooth (a : Hidden A) : ContDiff ℝ ∞ (law A a) := by
 /-- Appendix G.2: ∇h_i^j = 2χ_i^j; the factor of two is not omitted. -/
 theorem gradient_law (a : Hidden A) (p : Param A) :
     gradient (law A a) p = (2 : ℝ) • generator A a p := by
-  -- TODO[PNN-GRADIENT]: differentiate the incoming row, its bias, and the
-  -- degree-weighted outgoing column; compare with d/dt singleGauge at 0.
-  sorry
+  apply (InnerProductSpace.toDual ℝ (Param A)).injective
+  rw [toDual_gradient]
+  ext q
+  rw [← inner_gradient_left]
+  simp [law, generator, singleGauge, diagonalGauge, outgoingScale,
+    incomingScale, currentLayer, nextLayer, W, bias, inner,
+    Real.deriv_exp, Finset.sum_apply]
+  ring
 
 theorem independent_laws_of_nonzero_biases {U : Set (Param A)}
     (hb : ∀ p ∈ U, ∀ a : Hidden A, bias A p (currentLayer A a) a.2 ≠ 0) :
     FunctionallyIndependentOn U (law A) := by
-  -- TODO[PNN-INDEPENDENCE]: the hidden-bias coordinates of the gradient
-  -- family form a diagonal matrix with entries 2*b_i^j, all nonzero.
-  -- Adjacent row/column overlaps therefore cause no independence problem.
-  sorry
+  intro p hp
+  have hgen := generic_generators_independent A (hb p hp)
+  have hscale :
+      (fun a : Hidden A => gradient (law A a) p) =
+        fun a => (2 : ℝ) • generator A a p := by
+    funext a
+    exact gradient_law A a p
+  rw [hscale]
+  exact hgen.smul (fun _ => by norm_num)
 
 /-- The flow of ∇h is the neuron scaling at time 2t, rather than time t. -/
 theorem lawGradient_flow {U : Set (Param A)} (hU : IsOpen U) (a : Hidden A) :
     ∃ ψ : LocalFlow U (gradient (law A a)), IsFunctionalSymmetry (model A) ψ := by
-  -- TODO[PNN-GRADIENT-FLOW]: restrict t ↦ singleGauge a (2*t) p to U;
-  -- use diagonalGauge_functional, the subgroup identity, and gradient_law.
-  sorry
+  exact PolynomialNetwork.singleGauge_gradient_localFlow
+    A hU a (gradient_law A a) (diagonalGauge_functional A)
 
 /-- Preservation holds without a finite-to-one or genericity assumption. -/
 theorem laws_conserved {U : Set (Param A)} {Y : Type*}
@@ -2361,18 +2433,16 @@ theorem conserved_gradient_spanned {U : Set (Param A)} (hU : IsOpen U)
     (hc : IsConservedOn V (sampleLoss (model A) ell) h) :
     ∀ p ∈ V, gradient h p ∈
       Submodule.span ℝ (Set.range (fun a : Hidden A => gradient (law A a) p)) := by
-  -- TODO[PNN-COMPLETENESS]: integrate ∇h and use separation to obtain a
-  -- functional symmetry. On the nonzero-bias chart its scaling coefficients
-  -- are the smooth bias ratios. Differentiate at zero, then use
-  -- gradient_law to put ∇h in the span of the known law gradients.
-  sorry
+  exact PolynomialIdentifiability.conserved_gradient_spanned_by_scalings
+    A hU hb hident ell hsep hL hV hVU hh hc
+    (gradient_law A)
 
 /-- Proposition 19 in the explicit generic regime described above. -/
 theorem proposition19 {Y : Type*} (ell : Output A → Y → ℝ)
     (hsep : SeparatesPredictions ell)
     (hL : RegularLossOn Set.univ (sampleLoss (model A) ell))
     {p₀ : Param A} (hfinite : FiniteToOneAt A p₀)
-    (hgeneric : GenericWitnessAt A p₀) :
+    (hgeneric : GenericPoint A p₀) :
     ∃ U : Set (Param A), IsOpen U ∧ p₀ ∈ U ∧
       CompleteLawsOn U (sampleLoss (model A) ell) (law A) := by
   obtain ⟨U, hU, hpU, hb, hident⟩ := local_scaling_identifiability A hfinite hgeneric
