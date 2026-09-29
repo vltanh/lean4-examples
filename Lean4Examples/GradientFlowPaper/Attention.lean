@@ -183,6 +183,77 @@ lemma exists_bilinear_separator
   exact hnonzero hzero
 
 
+
+/-- For a fixed left vector `u`, the right vectors that separate a finite
+family of bilinear forms form an open set. -/
+def bilinearSeparatorSet
+    {I : Type*} [Fintype I] [DecidableEq I] {D : ℕ}
+    (A : I → Mat D D) (u : Fin D → ℝ) : Set (Fin D → ℝ) :=
+  {z | Function.Injective (fun i => bilinearValue (A i) u z)}
+
+lemma bilinearSeparatorSet_isOpen
+    {I : Type*} [Fintype I] [DecidableEq I] {D : ℕ}
+    (A : I → Mat D D) (u : Fin D → ℝ) :
+    IsOpen (bilinearSeparatorSet A u) := by
+  rw [isOpen_iff_mem_nhds]
+  intro z hz
+  have hev :
+      ∀ᶠ w in 𝓝 z, ∀ i j : I, i ≠ j →
+        bilinearValue (A i) u w ≠ bilinearValue (A j) u w := by
+    rw [Filter.eventually_all]
+    intro i
+    rw [Filter.eventually_all]
+    intro j
+    by_cases hij : i = j
+    · exact Filter.Eventually.of_forall (fun _ h => (h hij).elim)
+    · have hne :
+          bilinearValue (A i) u z ≠ bilinearValue (A j) u z :=
+        (hz hij)
+      exact (isOpen_ne (by fun_prop) (by fun_prop)).mem_nhds hne
+  simpa [bilinearSeparatorSet, Function.Injective] using hev
+
+lemma bilinearSeparatorSet_nonempty
+    {I : Type*} [Fintype I] [DecidableEq I] {D : ℕ}
+    (A : I → Mat D D) (hA : Function.Injective A) :
+    ∃ u : Fin D → ℝ, (bilinearSeparatorSet A u).Nonempty := by
+  obtain ⟨u,z,hz⟩ := exists_bilinear_separator A hA
+  exact ⟨u, z, hz⟩
+
+/-- A submodule containing a nonempty open set is the whole ambient space. -/
+lemma submodule_eq_top_of_nonempty_open_subset
+    {E : Type*} [NormedAddCommGroup E] [NormedSpace ℝ E]
+    (K : Submodule ℝ E) {U : Set E}
+    (hU : IsOpen U) (hne : U.Nonempty) (hUK : U ⊆ K) :
+    K = ⊤ := by
+  apply K.eq_top_of_nonempty_interior'
+  obtain ⟨x,hx⟩ := hne
+  refine ⟨x, ?_⟩
+  rw [mem_interior_iff_mem_nhds]
+  exact Filter.mem_of_superset (hU.mem_nhds hx) hUK
+
+/-- A matrix whose left action vanishes on a nonempty open set is zero. -/
+lemma matrix_eq_zero_of_vecMul_eq_zero_on_open
+    {D : ℕ} (B : Mat D D) {U : Set (Fin D → ℝ)}
+    (hU : IsOpen U) (hne : U.Nonempty)
+    (hzero : ∀ z ∈ U, Matrix.vecMul z B = 0) :
+    B = 0 := by
+  have hsub :
+      U ⊆ LinearMap.ker (Matrix.vecMulLinear B) := by
+    intro z hz
+    rw [LinearMap.mem_ker]
+    simpa [Matrix.vecMulLinear_apply] using hzero z hz
+  have hker :
+      LinearMap.ker (Matrix.vecMulLinear B) = ⊤ :=
+    submodule_eq_top_of_nonempty_open_subset _ hU hne hsub
+  have hmap : Matrix.vecMulLinear B = 0 :=
+    LinearMap.ker_eq_top.mp hker
+  ext i j
+  have h := congrArg
+    (fun T : (Fin D → ℝ) →ₗ[ℝ] (Fin D → ℝ) =>
+      T (Pi.single i (1 : ℝ))) hmap
+  have hij := congrFun h j
+  simpa [Matrix.vecMulLinear_apply, Matrix.vecMul, Pi.single_apply] using hij
+
 /-- Common-denominator polynomial for a linear combination of the functions
 `L ↦ 1 / (a i + L)`. -/
 noncomputable def reciprocalCombinationPolynomial
