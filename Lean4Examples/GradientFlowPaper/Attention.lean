@@ -92,6 +92,96 @@ theorem gauge_functional (s t : Fin nG → GL dh) (p : Param nG k D dh) :
   intro X
   simp only [model, run_gauge]
 
+
+/-- The scalar bilinear form represented by a square matrix. -/
+def bilinearValue {D : ℕ} (M : Mat D D)
+    (u v : Fin D → ℝ) : ℝ :=
+  ⟪Matrix.vecMul u M, v⟫_ℝ
+
+lemma bilinearValue_sub {D : ℕ} (M N : Mat D D)
+    (u v : Fin D → ℝ) :
+    bilinearValue (M - N) u v =
+      bilinearValue M u v - bilinearValue N u v := by
+  simp [bilinearValue, Matrix.vecMul_sub, inner_sub_left]
+
+/-- A nonzero matrix has a proper left-kernel: some row vector detects it. -/
+lemma ker_vecMulLinear_ne_top {D : ℕ} {M : Mat D D} (hM : M ≠ 0) :
+    LinearMap.ker (Matrix.vecMulLinear M) ≠ ⊤ := by
+  intro htop
+  apply hM
+  ext i j
+  have hi :
+      (Pi.single i (1 : ℝ) : Fin D → ℝ) ∈
+        LinearMap.ker (Matrix.vecMulLinear M) := by
+    rw [htop]
+    exact Submodule.mem_top
+  rw [LinearMap.mem_ker] at hi
+  have hij := congrFun hi j
+  simpa [Matrix.vecMulLinear_apply, Matrix.vecMul, Pi.single_apply] using hij
+
+/-- A nonzero vector defines a proper orthogonality hyperplane. -/
+lemma ker_innerSL_ne_top {D : ℕ} {u : Fin D → ℝ} (hu : u ≠ 0) :
+    LinearMap.ker (innerSL ℝ u).toLinearMap ≠ ⊤ := by
+  intro htop
+  have hu_mem :
+      u ∈ LinearMap.ker (innerSL ℝ u).toLinearMap := by
+    rw [htop]
+    exact Submodule.mem_top
+  rw [LinearMap.mem_ker] at hu_mem
+  have hz : ⟪u, u⟫_ℝ = 0 := by
+    simpa using hu_mem
+  rw [real_inner_self_eq_norm_sq] at hz
+  exact hu (norm_eq_zero.mp (sq_eq_zero_iff.mp hz))
+
+/-- Finite simultaneous separation for distinct bilinear forms.  This is
+the bilinear specialization of Tran et al.'s Appendix Lemma A.3.  The proof
+avoids algebraic-geometry machinery: first choose a row vector outside the
+finitely many left kernels of `A i - A j`, then choose a column vector
+outside the finitely many orthogonality hyperplanes of the resulting rows. -/
+lemma exists_bilinear_separator
+    {I : Type*} [Fintype I] [DecidableEq I] {D : ℕ}
+    (A : I → Mat D D) (hA : Function.Injective A) :
+    ∃ u v : Fin D → ℝ,
+      Function.Injective (fun i => bilinearValue (A i) u v) := by
+  classical
+  let P := {ij : I × I // ij.1 ≠ ij.2}
+  let Krow : P → Submodule ℝ (Fin D → ℝ) := fun ij =>
+    LinearMap.ker (Matrix.vecMulLinear (A ij.1.1 - A ij.1.2))
+  have hKrow : ∀ ij : P, Krow ij ≠ ⊤ := by
+    intro ij
+    apply ker_vecMulLinear_ne_top
+    exact sub_ne_zero.mpr (hA.ne ij.2)
+  obtain ⟨u, hu⟩ :=
+    Submodule.exists_forall_notMem_of_forall_ne_top Krow hKrow
+  have hrow :
+      ∀ ij : P, Matrix.vecMul u (A ij.1.1 - A ij.1.2) ≠ 0 := by
+    intro ij hzero
+    apply hu ij
+    rw [LinearMap.mem_ker]
+    simpa [Krow, Matrix.vecMulLinear_apply] using hzero
+  let Kcol : P → Submodule ℝ (Fin D → ℝ) := fun ij =>
+    LinearMap.ker
+      (innerSL ℝ (Matrix.vecMul u (A ij.1.1 - A ij.1.2))).toLinearMap
+  have hKcol : ∀ ij : P, Kcol ij ≠ ⊤ := by
+    intro ij
+    exact ker_innerSL_ne_top (hrow ij)
+  obtain ⟨v, hv⟩ :=
+    Submodule.exists_forall_notMem_of_forall_ne_top Kcol hKcol
+  refine ⟨u, v, ?_⟩
+  intro i j hij
+  by_contra hne
+  let ij : P := ⟨(i,j), hne⟩
+  have hnonzero :
+      bilinearValue (A i - A j) u v ≠ 0 := by
+    have hnot := hv ij
+    rw [LinearMap.mem_ker] at hnot
+    simpa [Kcol, bilinearValue, ij] using hnot
+  have hzero :
+      bilinearValue (A i - A j) u v = 0 := by
+    rw [bilinearValue_sub, sub_eq_zero]
+    exact hij
+  exact hnonzero hzero
+
 /-- Tran et al. (2025a), Theorem 3.1, restated as Theorem 27 by
 Nguyen--Montúfar.  It is explicitly external during Stage 1. -/
 class HasTranAttentionIdentifiability : Prop where
