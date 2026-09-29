@@ -1436,31 +1436,9 @@ lemma orbit_eval_mfderiv_zero_of_identity_condition
   simpa [orbitP, q, mfderiv_eq_fderiv,
     ContinuousLinearMap.comp_apply] using hqchain
 
-/-- Connected-Lie-group infinitesimal invariance principle used in
-Proposition 5. The paper treats this as standard Lie theory. -/
-class HasConnectedLieGroupInfinitesimalPrinciple
-    (A Γ E : Type*)
-    [NormedAddCommGroup A] [NormedSpace ℝ A] [FiniteDimensional ℝ A]
-    [Group Γ] [TopologicalSpace Γ] [ChartedSpace A Γ]
-    [LieGroup (𝓘(ℝ, A)) ∞ Γ] [ConnectedSpace Γ]
-    [NormedAddCommGroup E] [InnerProductSpace ℝ E]
-    [FiniteDimensional ℝ E] [CompleteSpace E] : Prop where
-  invariant_iff :
-    ∀ {Ω : Set E} (act : Γ → E → E)
-      (hact1 : ∀ p, act 1 p = p)
-      (hactmul : ∀ g h p, act (g * h) p = act g (act h p))
-      (hactΩ : ∀ g p, p ∈ Ω → act g p ∈ Ω)
-      (hsmooth : ∀ p ∈ Ω,
-        ContMDiff (𝓘(ℝ, A)) (𝓘(ℝ, E)) ∞ (fun g => act g p))
-      (hΩ : IsOpen Ω) (f : E → ℝ) (hf : ContDiffOn ℝ 1 f Ω),
-      (∀ g p, p ∈ Ω → f (act g p) = f p) ↔
-        (∀ p ∈ Ω, ∀ a : TangentSpace (𝓘(ℝ, A)) (1 : Γ),
-          (fderiv ℝ f p)
-            ((mfderiv (𝓘(ℝ, A)) (𝓘(ℝ, E)) (fun g => act g p) 1) a) = 0)
-
 /-- Equation (5) written without an adjoint: every tangent direction at the
 identity annihilates the loss. This is equivalent to the transposed equation. -/
-theorem proposition5 [HasConnectedLieGroupInfinitesimalPrinciple A Γ E]
+theorem proposition5
     (act : Γ → E → E)
     (hact1 : ∀ p, act 1 p = p)
     (hactmul : ∀ g h p, act (g * h) p = act g (act h p))
@@ -1471,9 +1449,57 @@ theorem proposition5 [HasConnectedLieGroupInfinitesimalPrinciple A Γ E]
     (∀ g p, p ∈ Ω → f (act g p) = f p) ↔
       (∀ p ∈ Ω, ∀ a : TangentSpace (𝓘(ℝ, A)) (1 : Γ),
         (fderiv ℝ f p)
-          ((mfderiv (𝓘(ℝ, A)) (𝓘(ℝ, E)) (fun g => act g p) 1) a) = 0) :=
-  HasConnectedLieGroupInfinitesimalPrinciple.invariant_iff
-    act hact1 hactmul hactΩ hsmooth hΩ f hf
+          ((mfderiv (𝓘(ℝ, A)) (𝓘(ℝ, E)) (fun g => act g p) 1) a) = 0) := by
+  constructor
+  · intro hinv p hp a
+    let orbit : Γ → E := fun g => act g p
+    let F : Γ → ℝ := fun g => f (orbit g)
+    have hFconst : F = fun _ : Γ => f p := by
+      funext g
+      exact hinv g p hp
+    have horbitMD :
+        MDiffAt (𝓘(ℝ, A)) (𝓘(ℝ, E)) orbit 1 :=
+      (hsmooth p hp).mdifferentiableAt (by simp)
+    have hfat : DifferentiableAt ℝ f p :=
+      differentiableAt_of_c1 hΩ hf hp
+    have hchain :=
+      mfderiv_comp (I' := 𝓘(ℝ, E)) 1
+        hfat.contDiffAt.contMDiffAt.mdifferentiableAt horbitMD
+    have hzero :
+        mfderiv (𝓘(ℝ, A)) (𝓘(ℝ, ℝ)) F 1 = 0 := by
+      rw [hFconst, mfderiv_const]
+    have happ := congrArg
+      (fun T : TangentSpace (𝓘(ℝ, A)) (1 : Γ) →L[ℝ]
+          TangentSpace (𝓘(ℝ, ℝ)) (f p) => T a)
+      hchain
+    rw [hzero] at happ
+    simpa [F, orbit, hact1, mfderiv_eq_fderiv,
+      ContinuousLinearMap.comp_apply] using happ.symm
+  · intro hinf g p hp
+    let F : Γ → ℝ := fun h => f (act h p)
+    have hFmd : ContMDiff (𝓘(ℝ, A)) (𝓘(ℝ, ℝ)) 1 F := by
+      intro h
+      have hq : act h p ∈ Ω := hactΩ h p hp
+      have hforbit :
+          ContMDiffAt (𝓘(ℝ, A)) (𝓘(ℝ, E)) ∞
+            (fun k : Γ => act k p) h :=
+        (hsmooth p hp) h
+      have hfat : ContDiffAt ℝ 1 f (act h p) :=
+        (hf _ hq).contDiffAt (hΩ.mem_nhds hq)
+      exact hfat.contMDiffAt.comp h
+        (hforbit.of_le (by norm_num))
+    have hzero :
+        ∀ h : Γ,
+          mfderiv (𝓘(ℝ, A)) (𝓘(ℝ, ℝ)) F h = 0 :=
+      orbit_eval_mfderiv_zero_of_identity_condition
+        act hactmul hactΩ hsmooth hΩ f hf hinf hp
+    have hloc : IsLocallyConstant F :=
+      isLocallyConstant_of_mfderiv_eq_zero
+        (𝓘(ℝ, A)) F hFmd hzero
+    have heq : F g = F 1 :=
+      hloc.apply_eq_of_isPreconnected isPreconnected_univ
+        (Set.mem_univ g) (Set.mem_univ 1)
+    simpa [F, hact1] using heq
 
 /-- One-parameter subgroup data used in Appendix C. -/
 def IsOneParameterSubgroup (φ : ℝ → Γ) : Prop :=
