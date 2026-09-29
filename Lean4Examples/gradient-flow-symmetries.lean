@@ -6260,6 +6260,126 @@ def logBiasRatio (p q : Param A) (a : Hidden A) : ℝ :=
       bias A p (currentLayer A a) a.2)
 
 
+def logBiasVelocity (p v : Param A) (a : Hidden A) : ℝ :=
+  v ⟨currentLayer A a, Sum.inr a.2⟩ /
+    bias A p (currentLayer A a) a.2
+
+lemma hasDerivAt_logBiasRatio
+    {p : Param A} (hp : GenericPoint A p)
+    {γ : ℝ → Param A} {v : Param A}
+    (hγ : HasDerivAt γ v 0) (hγ0 : γ 0 = p) :
+    HasDerivAt
+      (fun t => fun a : Hidden A => logBiasRatio A p (γ t) a)
+      (logBiasVelocity A p v) 0 := by
+  rw [hasDerivAt_pi]
+  intro a
+  let idx : Index A := ⟨currentLayer A a, Sum.inr a.2⟩
+  have hcoord :
+      HasDerivAt (fun t => γ t idx) (v idx) 0 :=
+    hγ.clm_apply (ContinuousLinearMap.apply ℝ (Param A) idx)
+  have hratio :
+      HasDerivAt
+        (fun t => bias A (γ t) (currentLayer A a) a.2 /
+          bias A p (currentLayer A a) a.2)
+        (logBiasVelocity A p v a) 0 := by
+    simpa [bias, idx, logBiasVelocity] using
+      hcoord.div_const (bias A p (currentLayer A a) a.2)
+  have hratio0 :
+      bias A (γ 0) (currentLayer A a) a.2 /
+          bias A p (currentLayer A a) a.2 = 1 := by
+    rw [hγ0]
+    exact div_self (hp a)
+  have hlog :=
+    (Real.hasDerivAt_log (by simpa [hratio0] : (1 : ℝ) ≠ 0)).comp 0 hratio
+  simpa [logBiasRatio, hratio0] using hlog
+
+lemma eventually_positive_biasRatio
+    {p : Param A} (hp : GenericPoint A p)
+    {γ : ℝ → Param A} {v : Param A}
+    (hγ : HasDerivAt γ v 0) (hγ0 : γ 0 = p) :
+    ∀ᶠ t in 𝓝 0, ∀ a : Hidden A,
+      0 < bias A (γ t) (currentLayer A a) a.2 /
+        bias A p (currentLayer A a) a.2 := by
+  rw [Filter.eventually_all]
+  intro a
+  let idx : Index A := ⟨currentLayer A a, Sum.inr a.2⟩
+  have hcoord :
+      HasDerivAt (fun t => γ t idx) (v idx) 0 :=
+    hγ.clm_apply (ContinuousLinearMap.apply ℝ (Param A) idx)
+  have hratio :
+      ContinuousAt
+        (fun t => bias A (γ t) (currentLayer A a) a.2 /
+          bias A p (currentLayer A a) a.2) 0 := by
+    exact (by
+      simpa [bias, idx] using
+        hcoord.continuousAt.div_const
+          (bias A p (currentLayer A a) a.2))
+  apply hratio.eventually
+  have hzero :
+      bias A (γ 0) (currentLayer A a) a.2 /
+        bias A p (currentLayer A a) a.2 = 1 := by
+    rw [hγ0]
+    exact div_self (hp a)
+  simpa [hzero] using (isOpen_Ioi.mem_nhds (show (0 : ℝ) < 1 by norm_num))
+
+lemma expGauge_logBiasRatio_eq_canonical
+    {p q : Param A} (hp : GenericPoint A p)
+    (hpos : ∀ a : Hidden A,
+      0 < bias A q (currentLayer A a) a.2 /
+        bias A p (currentLayer A a) a.2) :
+    expGauge A p (fun a => logBiasRatio A p q a) =
+      diagonalGauge A (biasRatioGauge A p q hp) p := by
+  unfold expGauge
+  congr 2
+  funext a
+  apply Units.ext
+  have hq : bias A q (currentLayer A a) a.2 ≠ 0 := by
+    intro hz
+    have := hpos a
+    simp [hz] at this
+  simp [biasRatioGauge, logBiasRatio, hq,
+    Real.exp_log (hpos a)]
+
+/-- Tangent space of the regular diagonal-scaling orbit. -/
+theorem tangent_mem_span_scaling_orbit
+    {p : Param A} (hp : GenericPoint A p)
+    {γ : ℝ → Param A} {v : Param A}
+    (hγ : HasDerivAt γ v 0) (hγ0 : γ 0 = p)
+    (horbit : ∀ᶠ t in 𝓝 0,
+      ∃ s : Hidden A → ℝˣ, γ t = diagonalGauge A s p) :
+    v ∈ Submodule.span ℝ
+      (Set.range (fun a : Hidden A => generator A a p)) := by
+  have hpos :=
+    eventually_positive_biasRatio A hp hγ hγ0
+  have heq : ∀ᶠ t in 𝓝 0,
+      γ t = expGauge A p (fun a => logBiasRatio A p (γ t) a) := by
+    filter_upwards [horbit, hpos] with t ht hpt
+    calc
+      γ t = diagonalGauge A (biasRatioGauge A p (γ t) hp) p :=
+        gauge_of_biasRatio_on_orbit A hp ht
+      _ = expGauge A p (fun a => logBiasRatio A p (γ t) a) :=
+        (expGauge_logBiasRatio_eq_canonical A hp hpt).symm
+  have hlog :=
+    hasDerivAt_logBiasRatio A hp hγ hγ0
+  have hcomp :
+      HasDerivAt
+        (fun t => expGauge A p
+          ((fun t => fun a : Hidden A => logBiasRatio A p (γ t) a) t))
+        ((fderiv ℝ (expGauge A p) 0) (logBiasVelocity A p v)) 0 :=
+    (expGauge_differentiableAt A p 0).hasFDerivAt.comp_hasDerivAt 0 hlog
+  have hsame :
+      HasDerivAt
+        (fun t => expGauge A p
+          (fun a : Hidden A => logBiasRatio A p (γ t) a))
+        v 0 :=
+    hγ.congr_of_eventuallyEq heq
+  have hv :
+      v = (fderiv ℝ (expGauge A p) 0) (logBiasVelocity A p v) :=
+    hsame.unique hcomp
+  rw [hv]
+  exact fderiv_expGauge_mem_span A p (logBiasVelocity A p v)
+
+
 /-! The paper's proof of Proposition 19 uses the finite-to-one identifiability
 result directly; no auxiliary finite evaluation grid is needed here. -/
 
