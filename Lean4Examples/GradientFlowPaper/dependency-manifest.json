@@ -1,0 +1,157 @@
+{
+  "schema_version": 1,
+  "project": "Nguyen–Montúfar gradient-flow symmetry formalization",
+  "paper": {
+    "title": "On Parameter Symmetries and Conservation Laws in Gradient Flow",
+    "arxiv": "2609.34549v1"
+  },
+  "toolchain": {
+    "lean": "4.26.0",
+    "mathlib": "4.26.0"
+  },
+  "aggregate_module": "Lean4Examples.GradientFlowPaper",
+  "modules": [
+    "Lean4Examples.GradientFlowPaper.Core",
+    "Lean4Examples.GradientFlowPaper.Geometry",
+    "Lean4Examples.GradientFlowPaper.Inheritance",
+    "Lean4Examples.GradientFlowPaper.MatrixFactorization",
+    "Lean4Examples.GradientFlowPaper.Attention",
+    "Lean4Examples.GradientFlowPaper.Polynomial",
+    "Lean4Examples.GradientFlowPaper.DeepLinear",
+    "Lean4Examples.GradientFlowPaper.Examples"
+  ],
+  "source_invariants": {
+    "sorry": 0,
+    "admit": 0,
+    "custom_axiom_declarations": 0
+  },
+  "external_dependencies": [
+    {
+      "lean_class": "GradientFlowPaper.HasFrobeniusBackground",
+      "kind": "standard-background",
+      "status": "open",
+      "source": "Frobenius/local first-integral theorem and smooth orthogonal-complement frame construction",
+      "consumers": [
+        "GradientFlowPaper.theorem21",
+        "GradientFlowPaper.theorem21_frobenius",
+        "GradientFlowPaper.theorem12"
+      ],
+      "obligations": [
+        "frobenius_iff",
+        "lieClosure_involutive",
+        "firstIntegrals",
+        "orthogonalFrame"
+      ]
+    },
+    {
+      "lean_class": "GradientFlowPaper.HasMarcotteMatrixFactorizationCompleteness",
+      "kind": "literature",
+      "status": "open",
+      "source": "Marcotte et al. (2023), Section 4.1",
+      "consumers": [
+        "GradientFlowPaper.Factorization.lemma28",
+        "GradientFlowPaper.Attention.proposition18_laws"
+      ],
+      "obligations": [
+        "complete_balance_laws"
+      ]
+    },
+    {
+      "lean_class": "GradientFlowPaper.Attention.HasTranAttentionIdentifiability",
+      "kind": "literature",
+      "status": "open",
+      "source": "Tran et al. (2025), Theorem 3.1 / Appendix Theorem A.1",
+      "source_url": "https://arxiv.org/abs/2410.04209",
+      "consumers": [
+        "GradientFlowPaper.Attention.theorem27",
+        "GradientFlowPaper.Attention.proposition18_symmetries",
+        "GradientFlowPaper.Attention.proposition18_laws"
+      ],
+      "obligations": [
+        "identifiability"
+      ]
+    },
+    {
+      "lean_class": "GradientFlowPaper.PolynomialNetwork.HasPNNGenericRegime",
+      "kind": "literature",
+      "status": "open",
+      "source": "Usevich et al. (2025), generic finite-to-one identifiability for deep polynomial neural networks",
+      "consumers": [
+        "GradientFlowPaper.PolynomialNetwork.proposition19"
+      ],
+      "obligations": [
+        "local_regime"
+      ],
+      "note": "The paper/Usevich generic predicate is kept separate from the proved dense-open nonzero-hidden-bias regular locus."
+    }
+  ],
+  "discharged_dependencies": [
+    "local submersion/factorization",
+    "maximal smooth local-flow existence and uniqueness",
+    "connected Lie-group generation",
+    "star-shaped Poincare lemma",
+    "Appendix H positive-square-root spectral facts",
+    "PNN regular scaling-orbit tangent-space description",
+    "full-rank matrix-factorization fibre uniqueness"
+  ],
+  "numbered_declarations": {
+    "Proposition 1": "GradientFlowPaper.proposition1",
+    "Proposition 2": "GradientFlowPaper.proposition2",
+    "Proposition 4": "GradientFlowPaper.proposition4",
+    "Proposition 5": "GradientFlowPaper.proposition5",
+    "Corollary 6": "GradientFlowPaper.corollary6",
+    "Corollary 7": "GradientFlowPaper.corollary7",
+    "Proposition 8": [
+      "GradientFlowPaper.proposition8_forward",
+      "GradientFlowPaper.proposition8_local",
+      "GradientFlowPaper.proposition8_star"
+    ],
+    "Proposition 9": "GradientFlowPaper.proposition9",
+    "Corollary 10": [
+      "GradientFlowPaper.corollary10_forward",
+      "GradientFlowPaper.corollary10_reverse"
+    ],
+    "Theorem 12": [
+      "GradientFlowPaper.theorem12",
+      "GradientFlowPaper.theorem12_gap"
+    ],
+    "Proposition 14": "GradientFlowPaper.proposition14",
+    "Proposition 15": [
+      "GradientFlowPaper.Inheritance.proposition15_symmetry",
+      "GradientFlowPaper.Inheritance.proposition15_law"
+    ],
+    "Proposition 16": [
+      "GradientFlowPaper.Inheritance.proposition16_symmetries",
+      "GradientFlowPaper.Inheritance.proposition16_laws"
+    ],
+    "Theorem 17": [
+      "GradientFlowPaper.Inheritance.theorem17_symmetries",
+      "GradientFlowPaper.Inheritance.theorem17_laws"
+    ],
+    "Proposition 18": [
+      "GradientFlowPaper.Attention.proposition18_symmetries",
+      "GradientFlowPaper.Attention.proposition18_laws"
+    ],
+    "Proposition 19": "GradientFlowPaper.PolynomialNetwork.proposition19",
+    "Proposition 20": "GradientFlowPaper.DeepLinear.proposition20",
+    "Theorem 21": [
+      "GradientFlowPaper.theorem21",
+      "GradientFlowPaper.theorem21_frobenius"
+    ],
+    "Theorem 22": "GradientFlowPaper.theorem22",
+    "Proposition 23": "GradientFlowPaper.proposition23",
+    "Proposition 24": "GradientFlowPaper.proposition24",
+    "Proposition 25": "GradientFlowPaper.proposition25",
+    "Lemma 26": "GradientFlowPaper.lemma26",
+    "Theorem 27": [
+      "GradientFlowPaper.Attention.theorem27",
+      "GradientFlowPaper.Attention.theorem27_fintype",
+      "GradientFlowPaper.Attention.theorem27_matching"
+    ],
+    "Lemma 28": "GradientFlowPaper.Factorization.lemma28",
+    "Lemma 29": [
+      "GradientFlowPaper.LearningToScale.lemma29_roots_exist",
+      "GradientFlowPaper.LearningToScale.lemma29"
+    ]
+  }
+}
