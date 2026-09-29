@@ -821,6 +821,7 @@ lemma constant_on_vertical_implicit_slice
     (φ : F × K → E) (B : E → F) (h : E → ℝ)
     (hφ : ContDiffOn ℝ 1 φ (U ×ˢ Z))
     (hBφ : ∀ y ∈ U, ∀ z ∈ Z, B (φ (y,z)) = y)
+    (hB : ∀ y ∈ U, ∀ z ∈ Z, DifferentiableAt ℝ B (φ (y,z)))
     (hh : ∀ y ∈ U, ∀ z ∈ Z, DifferentiableAt ℝ h (φ (y,z)))
     (hker : ∀ y ∈ U, ∀ z ∈ Z, ∀ u : E,
       (fderiv ℝ B (φ (y,z))) u = 0 →
@@ -863,11 +864,7 @@ lemma constant_on_vertical_implicit_slice
         fderiv ℝ (fun u : K => B (φ (y,u))) z =
           (fderiv ℝ B (φ (y,z))).comp
             ((fderiv ℝ φ (y,z)).comp (ContinuousLinearMap.inr ℝ F K)) := by
-      have hBat : DifferentiableAt ℝ B (φ (y,z)) := by
-        have hconst : DifferentiableAt ℝ (fun u : K => B (φ (y,u))) z :=
-          hBslice.differentiableAt_iff.mpr differentiableAt_const
-        exact differentiableAt_of_comp_iff hsliceφ hconst
-      exact (hBat.hasFDerivAt.comp z hsliceφ).fderiv.symm
+      exact ((hB y hy z hz).hasFDerivAt.comp z hsliceφ).fderiv.symm
     have hvertical :
         (fderiv ℝ B (φ (y,z)))
           ((fderiv ℝ φ (y,z)) (0,w)) = 0 := by
