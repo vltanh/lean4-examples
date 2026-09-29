@@ -6144,6 +6144,47 @@ theorem generic_generators_independent {p : Param A}
   simp [Finset.sum_apply, generator_bias_coordinate, hp a] at hcoord
   exact hcoord
 
+lemma bias_diagonalGauge_hidden (s : Hidden A → ℝˣ) (p : Param A)
+    (a : Hidden A) :
+    bias A (diagonalGauge A s p) (currentLayer A a) a.2 =
+      (s a : ℝ) * bias A p (currentLayer A a) a.2 := by
+  simp [bias, diagonalGauge, outgoingScale, currentLayer, outgoingNode]
+  congr
+
+/-- Canonical diagonal-scaling coordinates, read from hidden biases. -/
+def biasRatioGauge (p q : Param A) (hp : GenericPoint A p) :
+    Hidden A → ℝˣ :=
+  fun a =>
+    if hq : bias A q (currentLayer A a) a.2 ≠ 0 then
+      Units.mk0
+        (bias A q (currentLayer A a) a.2 /
+          bias A p (currentLayer A a) a.2)
+        (div_ne_zero hq (hp a))
+    else 1
+
+lemma biasRatioGauge_eq_of_gauge {p q : Param A}
+    (hp : GenericPoint A p)
+    {s : Hidden A → ℝˣ} (hqp : q = diagonalGauge A s p) :
+    biasRatioGauge A p q hp = s := by
+  funext a
+  have hq : bias A q (currentLayer A a) a.2 ≠ 0 := by
+    rw [show bias A q (currentLayer A a) a.2 =
+      (s a : ℝ) * bias A p (currentLayer A a) a.2 by
+        simpa [hqp] using bias_diagonalGauge_hidden A s p a]
+    exact mul_ne_zero (Units.ne_zero _) (hp a)
+  apply Units.ext
+  rw [show bias A q (currentLayer A a) a.2 =
+    (s a : ℝ) * bias A p (currentLayer A a) a.2 by
+      simpa [hqp] using bias_diagonalGauge_hidden A s p a]
+  simp [biasRatioGauge, hp a, hq]
+
+lemma gauge_of_biasRatio_on_orbit {p q : Param A}
+    (hp : GenericPoint A p)
+    (horbit : ∃ s : Hidden A → ℝˣ, q = diagonalGauge A s p) :
+    q = diagonalGauge A (biasRatioGauge A p q hp) p := by
+  obtain ⟨s,rfl⟩ := horbit
+  rw [biasRatioGauge_eq_of_gauge A hp rfl]
+
 /-! The paper's proof of Proposition 19 uses the finite-to-one identifiability
 result directly; no auxiliary finite evaluation grid is needed here. -/
 
