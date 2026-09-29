@@ -3311,7 +3311,7 @@ theorems. No SGD conservation theorem is inferred from gradient-flow conservatio
 
 noncomputable section
 open Set Function
-open scoped BigOperators Topology InnerProductSpace ContDiff Matrix
+open scoped BigOperators Topology InnerProductSpace ContDiff Matrix MatrixOrder
 
 namespace GradientFlowPaper
 namespace NonlinearScalarExample
@@ -3362,6 +3362,28 @@ def gramCandidate (H₀ R : Mat 2 2) : Mat 2 2 := (1 / 2 : ℝ) • (H₀ + R)
 
 def IsOrthogonal (Q : Mat 2 2) : Prop := Qᵀ * Q = 1
 
+lemma positiveSquareRoot_cfc {A : Mat 2 2} (hA : Matrix.PosDef A) :
+    PositiveSquareRoot A (CFC.sqrt A) := by
+  have hsem : Matrix.PosSemidef (CFC.sqrt A) :=
+    (CFC.sqrt_nonneg A).posSemidef
+  have hunit : IsUnit (CFC.sqrt A) :=
+    (CFC.isUnit_sqrt_iff A hA.posSemidef.nonneg).2 hA.isUnit
+  have hpos : Matrix.PosDef (CFC.sqrt A) :=
+    hsem.posDef_iff_isUnit.mpr hunit
+  have hsq : CFC.sqrt A * CFC.sqrt A = A := by
+    simpa [pow_two] using (CFC.sq_sqrt A)
+  exact ⟨hpos, hsq⟩
+
+lemma posDef_sq_add_scalar_one (H : Mat 2 2) (hH : Hᵀ = H)
+    {c : ℝ} (hc : 0 < c) :
+    Matrix.PosDef (H * H + c • (1 : Mat 2 2)) := by
+  have hsq : Matrix.PosSemidef (H * H) := by
+    have h := Matrix.posSemidef_conjTranspose_mul_self H
+    simpa [star_eq_transpose, hH] using h
+  have hcI : Matrix.PosDef (c • (1 : Mat 2 2)) :=
+    (Matrix.PosDef.one).smul hc
+  exact hsq.posSemidef_add hcI
+
 /-- The required positive square roots actually exist. -/
 theorem lemma29_roots_exist (H₀ : Mat 2 2) (hH : H₀ᵀ = H₀)
     (α : ℝ) (hα : α ≠ 0) :
@@ -3370,17 +3392,23 @@ theorem lemma29_roots_exist (H₀ : Mat 2 2) (hH : H₀ᵀ = H₀)
       PositiveSquareRoot (gramCandidate H₀ R) S := by
   have hA :
       Matrix.PosDef (H₀ * H₀ + (4 * α^2) • (1 : Mat 2 2)) := by
-    exact Matrix.posDef_sq_add_pos_scalar_one
-      hH (by positivity [sq_pos_of_ne_zero hα])
-  obtain ⟨R, hRpos, hRsq⟩ :=
-    Matrix.PosDef.exists_posDef_squareRoot hA
+    exact posDef_sq_add_scalar_one H₀ hH
+      (by positivity [sq_pos_of_ne_zero hα])
+  let R : Mat 2 2 := CFC.sqrt
+    (H₀ * H₀ + (4 * α^2) • (1 : Mat 2 2))
+  have hRroot :
+      PositiveSquareRoot (H₀ * H₀ + (4 * α^2) • (1 : Mat 2 2)) R := by
+    exact positiveSquareRoot_cfc hA
+  have hRpos := hRroot.1
+  have hRsq := hRroot.2
   let P := gramCandidate H₀ R
   have hP : Matrix.PosDef P := by
     exact Matrix.posDef_half_add_sqrt_sq_add
       hH hα hRpos hRsq
-  obtain ⟨S, hSpos, hSsq⟩ :=
-    Matrix.PosDef.exists_posDef_squareRoot hP
-  exact ⟨R, S, ⟨hRpos, hRsq⟩, ⟨hSpos, hSsq⟩⟩
+  let S : Mat 2 2 := CFC.sqrt P
+  have hSroot : PositiveSquareRoot P S :=
+    positiveSquareRoot_cfc hP
+  exact ⟨R, S, ⟨hRpos, hRsq⟩, hSroot⟩
 
 /-- Lemma 29. Supplying R and S by their unique positive-root properties
 expresses the explicit formula without relying on a specific CFC interface. -/
@@ -3405,8 +3433,11 @@ theorem lemma29 (H₀ : Mat 2 2) (hH : H₀ᵀ = H₀)
       exact Matrix.eq_smul_inv_transpose_of_mul_transpose_eq_smul_one
         hα hprod
     let P : Mat 2 2 := Uᵀ * U
-    have hPpos : Matrix.PosDef P :=
-      Matrix.posDef_transpose_mul_self_of_isUnit hUunit
+    have hPpos : Matrix.PosDef P := by
+      have hinj : Function.Injective U.mulVec :=
+        Matrix.mulVec_injective_of_isUnit hUunit
+      simpa [P, star_eq_transpose] using
+        (Matrix.conjTranspose_mul_self U hinj)
     have hPeq : P - α^2 • P⁻¹ = H₀ := by
       rw [P, hVform] at hbal
       simpa [Matrix.transpose_smul, Matrix.transpose_inv,
