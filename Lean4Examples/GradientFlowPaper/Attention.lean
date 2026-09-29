@@ -471,6 +471,103 @@ lemma sum_valueMatrices_eq_zero
   simp [rowSoftmax, X, Matrix.mul_apply, Finset.sum_apply] at h
   simpa using h
 
+
+/-- The global attention identity implies the reciprocal-weight identity in
+Tran et al.'s proof, after the special input calculation and cancellation of
+the length-one sum of value matrices. -/
+lemma attention_reciprocal_relation
+    {I : Type*} [Fintype I] [DecidableEq I] {D : ℕ}
+    (A B : I → Mat D D)
+    (hzero : ∀ (N : ℕ+) (X : Mat (N : ℕ) D),
+      (∑ i, rowSoftmax (X * A i * Xᵀ) * X * B i) = 0) :
+    ∀ (L : ℕ+) (x z : Fin D → ℝ) (b : Fin D),
+      ∑ i, (Matrix.vecMul z (B i)) b /
+        (Real.exp (bilinearValue (A i) x z) + (L : ℕ : ℝ)) = 0 := by
+  classical
+  have hsumB : ∑ i, B i = 0 :=
+    sum_valueMatrices_eq_zero A B hzero
+  intro L x z b
+  let N : ℕ+ := ⟨(L : ℕ) + 1, by omega⟩
+  let X : Mat (N : ℕ) D := tranTestInput L x z
+  have h0 :
+      (∑ i,
+        (rowSoftmax (X * A i * Xᵀ) * X * B i) 0 b) = 0 := by
+    have h := congrFun₂ (hzero N X) 0 b
+    simpa [Finset.sum_apply] using h
+  have hhead :
+      ∀ i,
+        (rowSoftmax (X * A i * Xᵀ) * X * B i) 0 b
+          =
+        (Matrix.vecMul (x - z) (B i)) b +
+          (Real.exp (bilinearValue (A i) x z) /
+            (Real.exp (bilinearValue (A i) x z) + (L : ℕ : ℝ))) *
+            (Matrix.vecMul z (B i)) b := by
+    intro i
+    simpa [N, X] using tranTest_head_firstRow L (A i) (B i) x z b
+  simp_rw [hhead] at h0
+  rw [Finset.sum_add_distrib] at h0
+  have hbase :
+      ∑ i, (Matrix.vecMul (x - z) (B i)) b = 0 := by
+    calc
+      ∑ i, (Matrix.vecMul (x - z) (B i)) b
+          =
+        (Matrix.vecMul (x - z) (∑ i, B i)) b := by
+          simp [Matrix.vecMul, Finset.sum_apply, Finset.mul_sum]
+      _ = 0 := by rw [hsumB]; simp
+  rw [hbase, zero_add] at h0
+  let c : I → ℝ := fun i => (Matrix.vecMul z (B i)) b
+  have hsumc : ∑ i, c i = 0 := by
+    calc
+      ∑ i, c i = (Matrix.vecMul z (∑ i, B i)) b := by
+        simp [c, Matrix.vecMul, Finset.sum_apply, Finset.mul_sum]
+      _ = 0 := by rw [hsumB]; simp
+  have hrewrite :
+      ∀ i : I,
+        (Real.exp (bilinearValue (A i) x z) /
+          (Real.exp (bilinearValue (A i) x z) + (L : ℕ : ℝ))) * c i
+          =
+        c i - (L : ℕ : ℝ) *
+          (c i /
+            (Real.exp (bilinearValue (A i) x z) + (L : ℕ : ℝ))) := by
+    intro i
+    have hden :
+        Real.exp (bilinearValue (A i) x z) + (L : ℕ : ℝ) ≠ 0 := by
+      positivity
+    field_simp [hden]
+    ring
+  have hdecomp :
+      (∑ i,
+        (Real.exp (bilinearValue (A i) x z) /
+          (Real.exp (bilinearValue (A i) x z) + (L : ℕ : ℝ))) * c i)
+        =
+      (∑ i, c i) -
+        (L : ℕ : ℝ) *
+          (∑ i, c i /
+            (Real.exp (bilinearValue (A i) x z) + (L : ℕ : ℝ))) := by
+    calc
+      _ = ∑ i, (c i - (L : ℕ : ℝ) *
+          (c i /
+            (Real.exp (bilinearValue (A i) x z) + (L : ℕ : ℝ))) ) := by
+          apply Finset.sum_congr rfl
+          intro i hi
+          exact hrewrite i
+      _ = _ := by
+          rw [Finset.sum_sub_distrib, Finset.mul_sum]
+  have hweighted :
+      (∑ i,
+        (Real.exp (bilinearValue (A i) x z) /
+          (Real.exp (bilinearValue (A i) x z) + (L : ℕ : ℝ))) * c i) = 0 := by
+    simpa [c] using h0
+  rw [hdecomp, hsumc, zero_sub] at hweighted
+  have hmul :
+      (L : ℕ : ℝ) *
+          (∑ i, c i /
+            (Real.exp (bilinearValue (A i) x z) + (L : ℕ : ℝ))) = 0 :=
+    neg_eq_zero.mp hweighted
+  have hLne : (L : ℕ : ℝ) ≠ 0 := by
+    positivity
+  exact (mul_eq_zero.mp hmul).resolve_left hLne
+
 /-- Tran et al. (2025a), Theorem 3.1, restated as Theorem 27 by
 Nguyen--Montúfar.  It is explicitly external during Stage 1. -/
 class HasTranAttentionIdentifiability : Prop where
