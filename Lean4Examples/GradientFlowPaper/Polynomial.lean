@@ -23,7 +23,7 @@ part of the external input.
 -/
 
 noncomputable section
-open Set Function
+open Set Function MeasureTheory
 open scoped BigOperators Topology InnerProductSpace ContDiff Matrix
 
 namespace GradientFlowPaper
@@ -846,6 +846,171 @@ theorem conserved_gradient_spanned_at_finite
         (Submodule.subset_span ⟨a, rfl⟩)
   exact hle hspan
 
+
+/-- Usevich et al.'s notion of generic finite identifiability, stated in
+the measure-theoretic language used in their paper: outside a Lebesgue-null
+exceptional set, the functional fibre has finitely many equivalence classes.
+Permutations are absorbed into the finite representative set in
+`FiniteToOneAt`; diagonal scalings remain explicit. -/
+def GenericallyFiniteToOne : Prop :=
+  ∀ᵐ p : Param A ∂volume, FiniteToOneAt A p
+
+theorem genericallyFiniteToOne_dense
+    (hfinite : GenericallyFiniteToOne A) :
+    Dense {p : Param A | FiniteToOneAt A p} :=
+  MeasureTheory.dense_of_ae hfinite
+
+/-- Generic finite identifiability is enough for completeness on the entire
+nonzero-bias regular locus.  The finite-fibre argument gives the required
+gradient-span equality almost everywhere.  Both sides vary continuously:
+we orthogonalize the displayed law gradients, write the orthogonal projection
+onto their span explicitly, and extend the a.e. equality across the open
+regular domain using positivity of Lebesgue measure on nonempty open sets. -/
+theorem conserved_gradient_spanned_of_generic_finite
+    {U : Set (Param A)} (hU : IsOpen U)
+    (hregular : ∀ p ∈ U, GenericPoint A p)
+    (hfinite : GenericallyFiniteToOne A)
+    {Y : Type*} (ell : Output A → Y → ℝ)
+    (hsep : SeparatesPredictions ell)
+    (hL : RegularLossOn U (sampleLoss (model A) ell))
+    {V : Set (Param A)} (hV : IsOpen V) (hVU : V ⊆ U)
+    {h : Param A → ℝ} (hh : ContDiffOn ℝ ∞ h V)
+    (hc : IsConservedOn V (sampleLoss (model A) ell) h) :
+    ∀ p ∈ V, gradient h p ∈
+      Submodule.span ℝ
+        (Set.range (fun a : Hidden A => gradient (law A a) p)) := by
+  classical
+  let n := Fintype.card (Hidden A)
+  let e : Fin n ≃ Hidden A := (Fintype.equivFin (Hidden A)).symm
+  let g : Fin n → Field (Param A) :=
+    fun i q => gradient (law A (e i)) q
+  have hgen :
+      ∀ q ∈ U,
+        LinearIndependent ℝ (fun a : Hidden A => generator A a q) := by
+    intro q hq
+    exact generic_generators_independent A (hregular q hq)
+  have hlawind : FunctionallyIndependentOn U (law A) :=
+    independent_laws_of_generators A hgen
+  have hgind :
+      ∀ q ∈ V, LinearIndependent ℝ (fun i : Fin n => g i q) := by
+    intro q hq
+    exact (hlawind q (hVU hq)).comp e e.injective
+  have hgsmooth :
+      ∀ i, ContDiffOn ℝ ∞ (g i) V := by
+    intro i
+    exact (smooth_gradient_on isOpen_univ
+      (law_smooth A (e i)).contDiffOn).mono (Set.subset_univ V)
+  let gs : Fin n → Field (Param A) :=
+    fun i => pointwiseGramSchmidt g i
+  have hgssmooth :
+      ∀ i, ContDiffOn ℝ ∞ (gs i) V := by
+    intro i
+    exact pointwiseGramSchmidt_smooth g hgsmooth hgind i
+  have hgrad : ContDiffOn ℝ ∞ (gradient h) V :=
+    smooth_gradient_on hV hh
+  let coeff : Fin n → Param A → ℝ := fun i q =>
+    ⟪gs i q, gradient h q⟫_ℝ / ⟪gs i q, gs i q⟫_ℝ
+  have hden :
+      ∀ i q, q ∈ V → ⟪gs i q, gs i q⟫_ℝ ≠ 0 := by
+    intro i q hq
+    rw [real_inner_self_eq_norm_sq]
+    exact pow_ne_zero 2 (norm_ne_zero_iff.mpr <| by
+      simpa [gs, pointwiseGramSchmidt] using
+        InnerProductSpace.gramSchmidt_ne_zero i (hgind q hq))
+  have hcoeff :
+      ∀ i, ContDiffOn ℝ ∞ (coeff i) V := by
+    intro i
+    exact ((hgssmooth i).inner ℝ hgrad).div
+      ((hgssmooth i).inner ℝ (hgssmooth i))
+      (fun q hq => hden i q hq)
+  let proj : Field (Param A) :=
+    fun q => ∑ i : Fin n, coeff i q • gs i q
+  have hproj : ContDiffOn ℝ ∞ proj V := by
+    apply ContDiffOn.sum
+    intro i hi
+    exact (hcoeff i).smul (hgssmooth i)
+
+  have hspan_g :
+      ∀ q,
+        Submodule.span ℝ (Set.range (fun i : Fin n => g i q)) =
+          Submodule.span ℝ
+            (Set.range (fun a : Hidden A => gradient (law A a) q)) := by
+    intro q
+    congr 1
+    ext z
+    constructor
+    · rintro ⟨i,rfl⟩
+      exact ⟨e i,rfl⟩
+    · rintro ⟨a,rfl⟩
+      obtain ⟨i,rfl⟩ := e.surjective a
+      exact ⟨i,rfl⟩
+
+  have hproj_eq :
+      ∀ q ∈ V, FiniteToOneAt A q → gradient h q = proj q := by
+    intro q hq hqfinite
+    have hmem :=
+      conserved_gradient_spanned_at_finite A hU hregular
+        ell hsep hL hV hVU hh hc hq hqfinite
+    have hmemg :
+        gradient h q ∈
+          Submodule.span ℝ (Set.range (fun i : Fin n => g i q)) := by
+      rw [hspan_g q]
+      exact hmem
+    have hmemgs :
+        gradient h q ∈
+          Submodule.span ℝ (Set.range (fun i : Fin n => gs i q)) := by
+      rw [show
+        Submodule.span ℝ (Set.range (fun i : Fin n => gs i q)) =
+          Submodule.span ℝ (Set.range (fun i : Fin n => g i q)) by
+            simpa [gs, pointwiseGramSchmidt] using
+              InnerProductSpace.span_gramSchmidt ℝ
+                (fun i : Fin n => g i q)]
+      exact hmemg
+    have hexpand :=
+      eq_sum_inner_div_self_smul_of_mem_span_orthogonal
+        (fun i : Fin n => gs i q)
+        (fun {i j} hij => by
+          simpa [gs, pointwiseGramSchmidt] using
+            InnerProductSpace.gramSchmidt_orthogonal ℝ
+              (fun a : Fin n => g a q) hij)
+        (fun i => by
+          simpa [gs, pointwiseGramSchmidt] using
+            InnerProductSpace.gramSchmidt_ne_zero i (hgind q hq))
+        hmemgs
+    simpa [proj,coeff] using hexpand
+
+  have hae :
+      gradient h =ᵐ[volume.restrict V] proj := by
+    filter_upwards
+      [ae_restrict_of_ae hfinite,
+       ae_restrict_mem hV.measurableSet] with q hqfinite hqV
+    exact hproj_eq q hqV hqfinite
+  have heq : EqOn (gradient h) proj V :=
+    MeasureTheory.eqOn_open_of_ae_eq hae hV
+      hgrad.continuousOn hproj.continuousOn
+
+  intro p hp
+  rw [heq hp]
+  have hprojpgs :
+      proj p ∈
+        Submodule.span ℝ (Set.range (fun i : Fin n => gs i p)) := by
+    dsimp [proj]
+    apply Submodule.sum_mem
+    intro i hi
+    exact Submodule.smul_mem _ _
+      (Submodule.subset_span ⟨i,rfl⟩)
+  have hprojpg :
+      proj p ∈
+        Submodule.span ℝ (Set.range (fun i : Fin n => g i p)) := by
+    rw [← show
+      Submodule.span ℝ (Set.range (fun i : Fin n => gs i p)) =
+        Submodule.span ℝ (Set.range (fun i : Fin n => g i p)) by
+          simpa [gs, pointwiseGramSchmidt] using
+            InnerProductSpace.span_gramSchmidt ℝ
+              (fun i : Fin n => g i p)]
+    exact hprojpgs
+  rw [hspan_g p] at hprojpg
+  exact hprojpg
 
 /-- Proposition 19 at a point of a generic finite-identifiability
 neighborhood, intersected with the explicit dense-open regular locus used by
