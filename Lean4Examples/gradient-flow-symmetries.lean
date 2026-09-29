@@ -6087,6 +6087,63 @@ def FiniteToOneAt (p : Param A) : Prop :=
       ∃ r ∈ R, FunctionalEquiv (model A) p r ∧
         ∃ s : Hidden A → ℝˣ, q = diagonalGauge A s r
 
+/-- A concrete dense-open regular locus sufficient for the differential part
+of Appendix G.2: every hidden bias coordinate is nonzero. Nguyen--Montufar
+leave the word generic informal; the Usevich dependency below remains
+responsible for the finite-to-one architecture statement. -/
+def GenericPoint (p : Param A) : Prop :=
+  ∀ a : Hidden A, bias A p (currentLayer A a) a.2 ≠ 0
+
+def genericSet : Set (Param A) := {p | GenericPoint A p}
+
+theorem genericSet_isOpen : IsOpen (genericSet A) := by
+  change IsOpen (⋂ a : Hidden A,
+    {p : Param A | bias A p (currentLayer A a) a.2 ≠ 0})
+  apply isOpen_iInter_of_finite
+  intro a
+  exact isOpen_compl_singleton.preimage (by fun_prop)
+
+theorem genericSet_dense : Dense (genericSet A) := by
+  change Dense (⋂ a : Hidden A,
+    {p : Param A | bias A p (currentLayer A a) a.2 ≠ 0})
+  apply dense_iInter_of_isOpen
+  · intro a
+    exact isOpen_compl_singleton.preimage (by fun_prop)
+  · intro a
+    let l : Param A →ₗ[ℝ] ℝ :=
+      { toFun := fun p => bias A p (currentLayer A a) a.2
+        map_add' := by intro p q; rfl
+        map_smul' := by intro t p; rfl }
+    have hsurj : Function.Surjective l := by
+      intro z
+      let e : Index A := ⟨currentLayer A a, Sum.inr a.2⟩
+      refine ⟨WithLp.toLp 2 (fun i => if i = e then z else 0), ?_⟩
+      simp [l, bias, e]
+    have hopen : IsOpenMap l :=
+      l.isOpenMap_of_finiteDimensional hsurj
+    have hd : Dense (l ⁻¹' ({0}ᶜ : Set ℝ)) :=
+      (dense_compl_singleton (0 : ℝ)).preimage hopen
+    simpa [l] using hd
+
+theorem generator_bias_coordinate (p : Param A) (a b : Hidden A) :
+    generator A a p ⟨currentLayer A b, Sum.inr b.2⟩ =
+      if a = b then bias A p (currentLayer A a) a.2 else 0 := by
+  unfold generator singleGauge diagonalGauge bias outgoingScale
+  by_cases hab : a = b
+  · subst b
+    simp [hab, Real.deriv_exp]
+  · simp [hab, Real.deriv_exp]
+
+theorem generic_generators_independent {p : Param A}
+    (hp : GenericPoint A p) :
+    LinearIndependent ℝ (fun a : Hidden A => generator A a p) := by
+  rw [Fintype.linearIndependent_iff]
+  intro coeff hsum a
+  have hcoord := congrArg
+    (fun v : Param A => v ⟨currentLayer A a, Sum.inr a.2⟩) hsum
+  simp [Finset.sum_apply, generator_bias_coordinate, hp a] at hcoord
+  exact hcoord
+
 /-! The paper's proof of Proposition 19 uses the finite-to-one identifiability
 result directly; no auxiliary finite evaluation grid is needed here. -/
 
