@@ -2904,17 +2904,22 @@ theorem conserved_gradient_spanned {U : Set (Param A)} (hU : IsOpen U)
     funext a
     exact gradient_law A a p
   rw [heq]
-  exact Submodule.span_mono <| by
+  have hle :
+      Submodule.span ℝ (Set.range (fun a : Hidden A => generator A a p)) ≤
+        Submodule.span ℝ
+          (Set.range (fun a : Hidden A => (2 : ℝ) • generator A a p)) := by
+    apply Submodule.span_le.mpr
     rintro _ ⟨a, rfl⟩
     have htwo : (2 : ℝ) ≠ 0 := by norm_num
-    have :
+    have hrepr :
         generator A a p =
           (2 : ℝ)⁻¹ • ((2 : ℝ) • generator A a p) := by
       simp [htwo]
-    rw [this]
+    rw [hrepr]
     exact (Submodule.span ℝ
       (Set.range (fun a : Hidden A => (2 : ℝ) • generator A a p))).smul_mem _
-        (Submodule.subset_span ⟨a, rfl⟩) hspan
+        (Submodule.subset_span ⟨a, rfl⟩)
+  exact hle hspan
 
 /-- Proposition 19 in the explicit generic regime described above. -/
 theorem proposition19 {Y : Type*} (ell : Output A → Y → ℝ)
