@@ -2594,6 +2594,76 @@ lemma HasLocalSmoothFrame.exists_rank_frame
     refine ⟨hind, ?_⟩
     rw [(hvframe q hq).2, ← hspan]
 
+/-- The canonical splitting determined by a nonzero vector: the first
+coordinate is the component along the vector and the second coordinate is its
+orthogonal complement. -/
+noncomputable def lineOrthogonalEquiv (u : E) (hu : u ≠ 0) :
+    ℝ × (ℝ ∙ u)ᗮ ≃L[ℝ] E := by
+  let den : ℝ := ⟪u, u⟫_ℝ
+  have hden : den ≠ 0 := by
+    dsimp [den]
+    rw [real_inner_self_eq_norm_sq]
+    exact pow_ne_zero 2 (norm_ne_zero_iff.mpr hu)
+  let forward : ℝ × (ℝ ∙ u)ᗮ →ₗ[ℝ] E :=
+    { toFun := fun z => z.1 • u + z.2.1
+      map_add' := by
+        intro x y
+        simp [add_smul, add_assoc, add_left_comm, add_comm]
+      map_smul' := by
+        intro c x
+        simp [smul_add, mul_smul] }
+  let backward : E →ₗ[ℝ] ℝ × (ℝ ∙ u)ᗮ :=
+    { toFun := fun x =>
+        let a := ⟪u, x⟫_ℝ / den
+        (a, ⟨x - a • u, by
+          rw [Submodule.mem_orthogonal']
+          intro y hy
+          rw [Submodule.mem_span_singleton] at hy
+          obtain ⟨c, rfl⟩ := hy
+          simp only [inner_smul_left, inner_sub_right, real_inner_smul_right]
+          field_simp [den, hden]
+          ring⟩)
+      map_add' := by
+        intro x y
+        apply Prod.ext
+        · simp [den, inner_add_right, add_div]
+        · apply Subtype.ext
+          simp [den, inner_add_right, add_div, add_smul, sub_eq_add_neg]
+          abel
+      map_smul' := by
+        intro c x
+        apply Prod.ext
+        · simp [den, real_inner_smul_right, mul_div_assoc]
+        · apply Subtype.ext
+          simp [den, real_inner_smul_right, smul_sub, mul_smul, mul_div_assoc] }
+  let e : ℝ × (ℝ ∙ u)ᗮ ≃ₗ[ℝ] E :=
+    { toLinearMap := forward
+      invFun := backward
+      left_inv := by
+        rintro ⟨a,z⟩
+        apply Prod.ext
+        · have hz : ⟪u, (z : E)⟫_ℝ = 0 := by
+            exact (Submodule.mem_orthogonal' _ _).mp z.2 u
+              (Submodule.mem_span_singleton_self u)
+          simp [forward, backward, den, hz, hden,
+            real_inner_smul_right]
+        · apply Subtype.ext
+          have hz : ⟪u, (z : E)⟫_ℝ = 0 := by
+            exact (Submodule.mem_orthogonal' _ _).mp z.2 u
+              (Submodule.mem_span_singleton_self u)
+          simp [forward, backward, den, hz, hden,
+            real_inner_smul_right]
+      right_inv := by
+        intro x
+        simp [forward, backward, den, hden] }
+  exact e.toContinuousLinearEquiv
+
+@[simp]
+lemma lineOrthogonalEquiv_apply (u : E) (hu : u ≠ 0)
+    (z : ℝ × (ℝ ∙ u)ᗮ) :
+    lineOrthogonalEquiv u hu z = z.1 • u + z.2.1 := by
+  rfl
+
 def InvolutiveOn (Ω : Set E) (D : Distribution E) : Prop :=
   ∀ U : Set E, IsOpen U → U ⊆ Ω →
     ∀ v w : Field E, IsSectionOn U D v → IsSectionOn U D w →
