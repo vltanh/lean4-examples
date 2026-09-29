@@ -386,12 +386,13 @@ lemma tranTest_head_firstRow
   field_simp [hden_ne]
   ring
 
-/-- Sequence length one forces the sum of all value matrices to vanish. -/
+/-- Sequence length one forces the sum of all value matrices to vanish;
+the score matrices disappear because row-wise softmax of a 1×1 matrix is 1. -/
 lemma sum_valueMatrices_eq_zero
     {I : Type*} [Fintype I] [DecidableEq I] {D : ℕ}
-    (B : I → Mat D D)
+    (A B : I → Mat D D)
     (hzero : ∀ (L : ℕ+) (X : Mat (L : ℕ) D),
-      (∑ i, rowSoftmax (X * (0 : Mat D D) * Xᵀ) * X * B i) = 0) :
+      (∑ i, rowSoftmax (X * A i * Xᵀ) * X * B i) = 0) :
     ∑ i, B i = 0 := by
   ext a b
   let X : Mat 1 D := fun _ j => if j = a then 1 else 0
