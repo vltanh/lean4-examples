@@ -416,6 +416,95 @@ lemma lieBracket_normalField_mem_lieCompletion
     (LieWordOn.basic _ ⟨(normalField_smooth D).contDiffOn,
       fun q _ => normalField_mem D q⟩)
 
+
+/-- Canonical dual-column matrix for a full-column-rank matrix.  Its
+columns are dual to the columns of `A`: `Aᵀ * dualMatrix A = I`. -/
+noncomputable def dualMatrix {m r : ℕ} (A : Mat m r)
+    (hA : FullColumnRank A) : Mat m r :=
+  let g : GL r := hA.gram_isUnit.unit
+  A * ((g⁻¹ : GL r) : Mat r r)
+
+lemma transpose_mul_dualMatrix {m r : ℕ} (A : Mat m r)
+    (hA : FullColumnRank A) :
+    Aᵀ * dualMatrix A hA = 1 := by
+  let g : GL r := hA.gram_isUnit.unit
+  have hg : (g : Mat r r) = Aᵀ * A :=
+    hA.gram_isUnit.unit_spec
+  simp [dualMatrix, g, Matrix.mul_assoc, ← hg]
+
+noncomputable def dualColumn {m r : ℕ} (A : Mat m r)
+    (hA : FullColumnRank A) (a : Fin r) : Fin m → ℝ :=
+  fun i => dualMatrix A hA i a
+
+lemma dot_column_dualColumn {m r : ℕ} (A : Mat m r)
+    (hA : FullColumnRank A) (a c : Fin r) :
+    ∑ i, A i c * dualColumn A hA a i = if c = a then 1 else 0 := by
+  have h := congrFun₂ (transpose_mul_dualMatrix A hA) c a
+  simpa [Matrix.mul_apply, Matrix.transpose_apply, dualColumn] using h
+
+lemma dualColumn_ne_zero {m r : ℕ} (A : Mat m r)
+    (hA : FullColumnRank A) (a : Fin r) :
+    dualColumn A hA a ≠ 0 := by
+  intro hz
+  have h := dot_column_dualColumn A hA a a
+  simp [hz] at h
+
+/-- Rank-one normal fields built from dual columns isolate one skew
+coefficient of an infinitesimal gauge matrix. -/
+lemma inner_gaugeGenerator_lieBracket_dual
+    {m n r : ℕ} {p : Param m n r} (hp : p ∈ regular)
+    (A : Mat r r) (a c b : Fin r) :
+    let xₐ := dualColumn (U p) hp.1 a
+    let x_c := dualColumn (U p) hp.1 c
+    let y := dualColumn (V p) hp.2 b
+    let C : Mat m n := Matrix.vecMulVec xₐ y
+    let D : Mat m n := Matrix.vecMulVec x_c y
+    ⟪gaugeGenerator A p,
+      lieBracket (normalField (r := r) C) (normalField D) p⟫_ℝ =
+      (∑ j, y j * y j) * (A c a - A a c) := by
+  dsimp
+  rw [lieBracket_normalField]
+  simp [gaugeGenerator, normalField, pack, U, V, inner,
+    Matrix.vecMulVec, Matrix.mul_apply, Matrix.transpose_apply,
+    Finset.sum_sigma', dot_column_dualColumn]
+  ring
+
+/-- Orthogonality to the Lie closure of the output-gradient distribution
+kills exactly the skew part of the infinitesimal gauge coefficient. -/
+lemma gaugeCoefficient_symmetric_of_lieOrthogonal
+    {m n r : ℕ} (hr : 0 < r) {Ω : Set (Param m n r)}
+    (hΩ : IsOpen Ω) {p : Param m n r} (hpΩ : p ∈ Ω)
+    (hp : p ∈ regular) (A : Mat r r)
+    (horth :
+      gaugeGenerator A p ∈ (lieCompletion Ω normalDistribution p)ᗮ) :
+    Aᵀ = A := by
+  ext a c
+  by_cases hac : a = c
+  · subst c
+    simp
+  · let b : Fin r := ⟨0, hr⟩
+    let xₐ := dualColumn (U p) hp.1 a
+    let x_c := dualColumn (U p) hp.1 c
+    let y := dualColumn (V p) hp.2 b
+    let C : Mat m n := Matrix.vecMulVec xₐ y
+    let D : Mat m n := Matrix.vecMulVec x_c y
+    have hbr :
+        lieBracket (normalField (r := r) C) (normalField D) p ∈
+          lieCompletion Ω normalDistribution p :=
+      lieBracket_normalField_mem_lieCompletion hΩ hpΩ C D
+    have hz :
+        ⟪gaugeGenerator A p,
+          lieBracket (normalField (r := r) C) (normalField D) p⟫_ℝ = 0 :=
+      (Submodule.mem_orthogonal' _ _).mp horth _ hbr
+    rw [inner_gaugeGenerator_lieBracket_dual hp A a c b] at hz
+    have hy : (∑ j, y j * y j) ≠ 0 := by
+      rw [← real_inner_self_eq_norm_sq]
+      exact pow_ne_zero 2
+        (norm_ne_zero_iff.mpr (dualColumn_ne_zero (V p) hp.2 b))
+    have hskew : A c a - A a c = 0 :=
+      (mul_eq_zero.mp hz).resolve_left hy
+    simpa [Matrix.transpose_apply] using hskew.symm
+
 def balance {m n r : ℕ} (p : Param m n r) : Mat r r :=
   (U p)ᵀ * U p - (V p)ᵀ * V p
 
