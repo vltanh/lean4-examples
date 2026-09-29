@@ -2713,6 +2713,67 @@ lemma orderedProductMap_identity_neighborhood
     exact orderedProductMap_mem_generated φ x
   exact ⟨U,hUopen,h1U,hUH⟩
 
+
+lemma exists_generator_basis_subfamily
+    {s : ℕ} (X : Fin s → TangentSpace (𝓘(ℝ, A)) (1 : Γ))
+    (hspan : Submodule.span ℝ (Set.range X) = ⊤) :
+    ∃ (k : ℕ) (e : Fin k ↪ Fin s),
+      LinearIndependent ℝ (fun i => X (e i)) ∧
+      Submodule.span ℝ (Set.range (fun i => X (e i))) = ⊤ := by
+  classical
+  let good : Finset (Fin s) → Prop :=
+    fun T => LinearIndependent ℝ (fun i : {j // j ∈ T} => X i.1)
+  let candidates := Finset.univ.filter good
+  have hnonempty : candidates.Nonempty := by
+    refine ⟨∅, Finset.mem_filter.mpr ⟨Finset.mem_univ _, ?_⟩⟩
+    simpa [good] using linearIndependent_empty_type
+  let T := candidates.max' hnonempty (fun U => U.card)
+  have hTgood : good T := (Finset.mem_filter.mp (candidates.max'_mem _ _)).2
+  have hTmax :
+      ∀ U : Finset (Fin s), good U → T.card ≤ U.card := by
+    intro U hU
+    have hUc : U ∈ candidates := Finset.mem_filter.mpr ⟨Finset.mem_univ _, hU⟩
+    exact Finset.le_max'_of_mem candidates (fun V => V.card) U hUc
+  have hTspan :
+      Submodule.span ℝ (X '' (T : Set (Fin s))) = ⊤ := by
+    apply top_unique
+    rw [← hspan]
+    apply Submodule.span_mono
+    rintro x ⟨i, rfl⟩
+    by_contra hi
+    have hXi :
+        X i ∉ Submodule.span ℝ (X '' (T : Set (Fin s))) := by
+      simpa using hi
+    let U := insert i T
+    have hiT : i ∉ T := by
+      intro hit
+      apply hXi
+      exact Submodule.subset_span ⟨i, hit, rfl⟩
+    have hUgood : good U := by
+      rw [good]
+      exact hTgood.insert
+        (by
+          simpa [Set.range_subtype, U] using hXi)
+    have hcard : T.card < U.card := by
+      simp [U, hiT]
+    exact (not_lt_of_ge (hTmax U hUgood)) hcard
+  let k := T.card
+  let eqv : Fin k ≃ {j // j ∈ T} := (Fintype.equivFin _).symm
+  let e : Fin k ↪ Fin s :=
+    ⟨fun i => (eqv i).1, fun i j hij =>
+      eqv.injective (Subtype.ext hij)⟩
+  refine ⟨k,e,?_,?_⟩
+  · simpa [e] using hTgood.comp eqv.injective
+  · rw [← hTspan]
+    congr 1
+    ext x
+    constructor
+    · rintro ⟨i,rfl⟩
+      exact ⟨e i, ⟨i,rfl⟩, rfl⟩
+    · rintro ⟨i,hi,rfl⟩
+      let j : {j // j ∈ T} := ⟨i,hi⟩
+      exact ⟨eqv.symm j, rfl⟩
+
 /-- Fulton--Harris generation theorem quoted as Theorem 22. This is an
 external background result in Stage 1. -/
 class HasConnectedLieGroupGeneration
