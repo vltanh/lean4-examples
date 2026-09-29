@@ -737,6 +737,50 @@ theorem proposition5 [HasConnectedLieGroupInfinitesimalPrinciple A Γ E]
   HasConnectedLieGroupInfinitesimalPrinciple.invariant_iff
     act hact1 hactmul hactΩ hsmooth hΩ f hf
 
+/-- One-parameter subgroup data used in Appendix C. -/
+def IsOneParameterSubgroup (φ : ℝ → Γ) : Prop :=
+  φ 0 = 1 ∧ (∀ s t, φ (s + t) = φ s * φ t) ∧
+    ContMDiff (𝓘(ℝ, ℝ)) (𝓘(ℝ, A)) ∞ φ
+
+def InfinitesimalGenerator (φ : ℝ → Γ) :
+    TangentSpace (𝓘(ℝ, A)) (1 : Γ) :=
+  (mfderiv (𝓘(ℝ, ℝ)) (𝓘(ℝ, A)) φ 0) 1
+
+def oneParameterProduct (φ : Fin s → ℝ → Γ) :
+    List (Fin s × ℝ) → Γ
+  | [] => 1
+  | (i,t) :: xs => oneParameterProduct φ xs * φ i t
+
+def ProductsGenerate (φ : Fin s → ℝ → Γ) : Prop :=
+  ∀ g : Γ, ∃ xs : List (Fin s × ℝ), oneParameterProduct φ xs = g
+
+/-- Fulton--Harris generation theorem quoted as Theorem 22. This is an
+external background result in Stage 1. -/
+class HasConnectedLieGroupGeneration
+    (A Γ : Type*)
+    [NormedAddCommGroup A] [NormedSpace ℝ A] [FiniteDimensional ℝ A]
+    [Group Γ] [TopologicalSpace Γ] [ChartedSpace A Γ]
+    [LieGroup (𝓘(ℝ, A)) ∞ Γ] [ConnectedSpace Γ] : Prop where
+  generate :
+    ∀ {s : ℕ} (φ : Fin s → ℝ → Γ),
+      (∀ i, IsOneParameterSubgroup (A := A) (Γ := Γ) (φ i)) →
+      Submodule.span ℝ
+        (Set.range (fun i =>
+          InfinitesimalGenerator (A := A) (Γ := Γ) (φ i))) = ⊤ →
+      ProductsGenerate φ
+
+/-- Theorem 22: if the infinitesimal generators of finitely many
+one-parameter subgroups span the Lie algebra of a connected Lie group, finite
+products of those one-parameter subgroups generate the group. -/
+theorem theorem22 [HasConnectedLieGroupGeneration A Γ]
+    {s : ℕ} (φ : Fin s → ℝ → Γ)
+    (hφ : ∀ i, IsOneParameterSubgroup (A := A) (Γ := Γ) (φ i))
+    (hspan : Submodule.span ℝ
+      (Set.range (fun i =>
+        InfinitesimalGenerator (A := A) (Γ := Γ) (φ i))) = ⊤) :
+    ProductsGenerate φ :=
+  HasConnectedLieGroupGeneration.generate φ hφ hspan
+
 end LieGroup
 
 /-! ## Closed vector fields, potentials, and Corollary 10 -/
