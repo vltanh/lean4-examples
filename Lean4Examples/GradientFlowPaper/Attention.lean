@@ -182,6 +182,97 @@ lemma exists_bilinear_separator
     exact hij
   exact hnonzero hzero
 
+
+/-- Common-denominator polynomial for a linear combination of the functions
+`L ↦ 1 / (a i + L)`. -/
+noncomputable def reciprocalCombinationPolynomial
+    {I : Type*} [Fintype I] [DecidableEq I]
+    (a c : I → ℝ) : Polynomial ℝ :=
+  ∑ i, Polynomial.C (c i) *
+    ∏ j in Finset.univ.erase i, (Polynomial.X + Polynomial.C (a j))
+
+lemma eval_reciprocalCombinationPolynomial
+    {I : Type*} [Fintype I] [DecidableEq I]
+    (a c : I → ℝ) (x : ℝ) :
+    (reciprocalCombinationPolynomial a c).eval x =
+      ∑ i, c i * ∏ j in Finset.univ.erase i, (x + a j) := by
+  simp [reciprocalCombinationPolynomial]
+
+/-- Distinct positive poles give linearly independent reciprocal functions
+when sampled at all positive integer offsets.  This is the algebraic core
+needed from Tran et al.'s Appendix Lemma A.4. -/
+lemma reciprocal_functions_independent
+    {I : Type*} [Fintype I] [DecidableEq I]
+    (a c : I → ℝ) (ha : Function.Injective a)
+    (hapos : ∀ i, 0 < a i)
+    (hzero : ∀ L : ℕ+,
+      ∑ i, c i / (a i + (L : ℕ : ℝ)) = 0) :
+    ∀ i, c i = 0 := by
+  classical
+  let P : Polynomial ℝ := reciprocalCombinationPolynomial a c
+  have hroot :
+      ∀ n : ℕ, P.eval (n + 1 : ℝ) = 0 := by
+    intro n
+    let L : ℕ+ := ⟨n + 1, by omega⟩
+    have hL := hzero L
+    have hden : ∀ i : I, a i + (L : ℕ : ℝ) ≠ 0 := by
+      intro i
+      positivity
+    have hmul := congrArg
+      (fun z : ℝ => z * ∏ i : I, (a i + (L : ℕ : ℝ))) hL
+    rw [zero_mul] at hmul
+    have hcleared :
+        (∑ i, c i * ∏ j in Finset.univ.erase i,
+          ((L : ℕ : ℝ) + a j)) = 0 := by
+      calc
+        (∑ i, c i * ∏ j in Finset.univ.erase i,
+            ((L : ℕ : ℝ) + a j))
+            =
+          (∑ i, c i / (a i + (L : ℕ : ℝ))) *
+            ∏ i : I, (a i + (L : ℕ : ℝ)) := by
+              rw [Finset.sum_mul]
+              apply Finset.sum_congr rfl
+              intro i hi
+              rw [Finset.prod_eq_mul_prod_diff_singleton
+                (Finset.mem_univ i)]
+              field_simp [hden i]
+              ring
+        _ = 0 := hmul
+    simpa [P, eval_reciprocalCombinationPolynomial, L, add_comm] using hcleared
+  have hPzero : P = 0 := by
+    apply Polynomial.eq_zero_of_infinite_isRoot
+    have hinf :
+        Set.Infinite (Set.range (fun n : ℕ => (n + 1 : ℝ))) :=
+      Set.infinite_range_of_injective
+        (fun _ _ h => by exact_mod_cast (add_left_cancel h))
+    apply hinf.mono
+    rintro x ⟨n, rfl⟩
+    simpa [Polynomial.IsRoot, hroot n]
+  intro k
+  have heval := congrArg (fun Q : Polynomial ℝ => Q.eval (-a k)) hPzero
+  have hprod_nonzero :
+      ∏ j in Finset.univ.erase k, (-a k + a j) ≠ 0 := by
+    apply Finset.prod_ne_zero_iff.mpr
+    intro j hj
+    have hjk : j ≠ k := Finset.ne_of_mem_erase hj
+    exact sub_ne_zero.mpr (ha.ne hjk).symm
+  have hisolate :
+      P.eval (-a k) =
+        c k * ∏ j in Finset.univ.erase k, (-a k + a j) := by
+    rw [show P.eval (-a k) =
+      ∑ i, c i * ∏ j in Finset.univ.erase i, (-a k + a j) by
+        simp [P, eval_reciprocalCombinationPolynomial]]
+    rw [Finset.sum_eq_single k]
+    · rfl
+    · intro i hi hik
+      have hki : k ∈ Finset.univ.erase i := by
+        simp [hik]
+      rw [Finset.prod_eq_zero hki]
+      simp
+    · simp
+  rw [hisolate, Polynomial.eval_zero] at heval
+  exact (mul_eq_zero.mp heval).resolve_right hprod_nonzero
+
 /-- Tran et al. (2025a), Theorem 3.1, restated as Theorem 27 by
 Nguyen--Montúfar.  It is explicitly external during Stage 1. -/
 class HasTranAttentionIdentifiability : Prop where
