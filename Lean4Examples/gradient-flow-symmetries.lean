@@ -6185,6 +6185,81 @@ lemma gauge_of_biasRatio_on_orbit {p q : Param A}
   obtain ⟨s,rfl⟩ := horbit
   rw [biasRatioGauge_eq_of_gauge A hp rfl]
 
+/-- Exponential coordinates on the connected component of the diagonal
+scaling group. -/
+def expGauge (p : Param A) (x : Hidden A → ℝ) : Param A :=
+  diagonalGauge A
+    (fun a => Units.mk0 (Real.exp (x a)) (Real.exp_ne_zero _)) p
+
+@[simp] lemma expGauge_zero (p : Param A) :
+    expGauge A p 0 = p := by
+  ext z
+  rcases z with ⟨j,z⟩
+  cases z <;> simp [expGauge, diagonalGauge, outgoingScale, incomingScale]
+
+def scalingBasis (a : Hidden A) : Hidden A → ℝ :=
+  fun b => if b = a then 1 else 0
+
+lemma expGauge_scalingBasis_line (p : Param A) (a : Hidden A) (t : ℝ) :
+    expGauge A p (t • scalingBasis A a) = singleGauge A a t p := by
+  unfold expGauge singleGauge
+  congr 2
+  funext b
+  apply Units.ext
+  simp [scalingBasis, mul_boole, eq_comm]
+
+lemma expGauge_differentiableAt (p : Param A) (x : Hidden A → ℝ) :
+    DifferentiableAt ℝ (expGauge A p) x := by
+  unfold expGauge diagonalGauge outgoingScale incomingScale
+  fun_prop
+
+lemma fderiv_expGauge_basis (p : Param A) (a : Hidden A) :
+    (fderiv ℝ (expGauge A p) 0) (scalingBasis A a) =
+      generator A a p := by
+  have hb :
+      HasDerivAt (fun t : ℝ => t • scalingBasis A a)
+        (scalingBasis A a) 0 := by
+    simpa using (hasDerivAt_id (x := 0)).smul_const (scalingBasis A a)
+  have hcomp :=
+    (expGauge_differentiableAt A p 0).hasFDerivAt.comp_hasDerivAt 0 hb
+  have hsingle :
+      HasDerivAt (fun t : ℝ => singleGauge A a t p)
+        (generator A a p) 0 := by
+    have hd :
+        DifferentiableAt ℝ (fun t : ℝ => singleGauge A a t p) 0 := by
+      unfold singleGauge diagonalGauge outgoingScale incomingScale
+      fun_prop
+    simpa [generator] using hd.hasDerivAt
+  have heq :
+      (fun t : ℝ => expGauge A p (t • scalingBasis A a)) =
+        fun t => singleGauge A a t p := by
+    funext t
+    exact expGauge_scalingBasis_line A p a t
+  rw [heq] at hcomp
+  exact hcomp.unique hsingle
+
+lemma fderiv_expGauge_mem_span (p : Param A) (x : Hidden A → ℝ) :
+    (fderiv ℝ (expGauge A p) 0) x ∈
+      Submodule.span ℝ
+        (Set.range (fun a : Hidden A => generator A a p)) := by
+  have hx :
+      x = ∑ a : Hidden A, x a • scalingBasis A a := by
+    ext b
+    simp [scalingBasis]
+  rw [hx, map_sum]
+  apply Submodule.sum_mem
+  intro a ha
+  rw [map_smul, fderiv_expGauge_basis]
+  exact Submodule.smul_mem _ _ (Submodule.subset_span ⟨a,rfl⟩)
+
+/-- Logarithmic bias-ratio coordinates for a differentiable curve through a
+generic point. -/
+def logBiasRatio (p q : Param A) (a : Hidden A) : ℝ :=
+  Real.log
+    (bias A q (currentLayer A a) a.2 /
+      bias A p (currentLayer A a) a.2)
+
+
 /-! The paper's proof of Proposition 19 uses the finite-to-one identifiability
 result directly; no auxiliary finite evaluation grid is needed here. -/
 
