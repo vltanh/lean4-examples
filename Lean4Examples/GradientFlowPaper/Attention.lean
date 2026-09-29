@@ -568,16 +568,6 @@ lemma attention_reciprocal_relation
     positivity
   exact (mul_eq_zero.mp hmul).resolve_left hLne
 
-/-- Tran et al. (2025a), Theorem 3.1, restated as Theorem 27 by
-Nguyen--Montúfar.  It is explicitly external during Stage 1. -/
-class HasTranAttentionIdentifiability : Prop where
-  identifiability :
-    ∀ {H D : ℕ}, 0 < D →
-      ∀ (A B : Fin H → Mat D D), Function.Injective A →
-      (∀ (L : ℕ+) (X : Mat (L : ℕ) D),
-        (∑ i, rowSoftmax (X * A i * Xᵀ) * X * B i) = 0) →
-      ∀ i, B i = 0
-
 /-- Theorem 27 (Tran et al. 2025a, Theorem 3.1), proved directly
 from the special-input reduction in their appendix. -/
 theorem theorem27
@@ -623,7 +613,7 @@ theorem theorem27
     (B i) hZopen hZnonempty (fun z hz => hzB z hz i)
 
 /-- Reindex Theorem 27 by an arbitrary finite head type. -/
-theorem theorem27_fintype [HasTranAttentionIdentifiability]
+theorem theorem27_fintype
     {I : Type*} [Fintype I] [DecidableEq I] {D : ℕ} (hD : 0 < D)
     (A B : I → Mat D D) (hdistinct : Function.Injective A)
     (hzero : ∀ (L : ℕ+) (X : Mat (L : ℕ) D),
@@ -639,7 +629,7 @@ theorem theorem27_fintype [HasTranAttentionIdentifiability]
 
 /-- Grouping lemma used in Appendix G.1, Step 1.  It is the finite
 "combine equal attention matrices" step that is implicit in the prose proof. -/
-theorem theorem27_matching [HasTranAttentionIdentifiability]
+theorem theorem27_matching
     {I : Type*} [Fintype I] [DecidableEq I] {D : ℕ} (hD : 0 < D)
     (A B A' B' : I → Mat D D)
     (hA : Function.Injective A) (hA' : Function.Injective A')
@@ -803,7 +793,7 @@ lemma weightHead_ne_zero (hh : 0 < dh) {p : Param nG k D dh}
 
 /-- A local neighborhood excludes head permutations by keeping distinct
 score matrices in pairwise-disjoint balls (Appendix G.1, Step 1). -/
-theorem local_product_identifiability [HasTranAttentionIdentifiability]
+theorem local_product_identifiability
     (hg : 0 < nG) (hk : 0 < k)
     (hh : 0 < dh) (hd : dh ≤ D)
     {p₀ : Param nG k D dh} (hp₀ : p₀ ∈ regular) :
@@ -1017,7 +1007,7 @@ theorem gauge_of_equal_products (hk : 0 < k)
       simpa [gauge, O] using congrFun₂ (ht_all j i).2 x y
 
 /-- Proposition 18, the full local functional-equivalence characterization. -/
-theorem proposition18_symmetries [HasTranAttentionIdentifiability]
+theorem proposition18_symmetries
     (hg : 0 < nG) (hk : 0 < k)
     (hh : 0 < dh) (hd : dh ≤ D)
     {p₀ : Param nG k D dh} (hp₀ : p₀ ∈ regular) :
@@ -1545,7 +1535,6 @@ theorem completeness_from_product_identifiability
 
 /-- Proposition 18, completeness of the stated conservation laws. -/
 theorem proposition18_laws
-    [HasTranAttentionIdentifiability]
     (hg : 0 < nG) (hk : 0 < k)
     (hh : 0 < dh) (hd : dh ≤ D)
     {Y : Type*} (ell : Tokens D → Y → ℝ) (hsep : SeparatesPredictions ell)
