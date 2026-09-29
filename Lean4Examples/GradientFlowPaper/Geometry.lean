@@ -2669,6 +2669,145 @@ lemma lieCompletion_restrict {D : Distribution E} {U : Set E}
     apply Submodule.subset_span
     exact ⟨W, v, hW, hpW, hWU, word_mono hWV hv, rfl⟩
 
+/-- If the Lie completion has a smooth local frame, then near every
+point it admits a frame consisting of actual local Lie words in the original
+distribution. Finite-dimensionality lets us choose a basis from the germ
+generators at the base point; constant local rank and openness of linear
+independence propagate that basis to a neighborhood. -/
+lemma exists_local_lieWord_frame {D : Distribution E}
+    (hD : HasLocalSmoothFrame Ω (lieCompletion Ω D))
+    {p : E} (hp : p ∈ Ω) :
+    ∃ (U : Set E) (n : ℕ) (v : Fin n → Field E),
+      IsOpen U ∧ p ∈ U ∧ U ⊆ Ω ∧
+      (∀ i, LieWordOn U D (v i)) ∧
+      (∀ q ∈ U,
+        LinearIndependent ℝ (fun i => v i q) ∧
+        lieCompletion Ω D q =
+          Submodule.span ℝ (Set.range (fun i => v i q))) := by
+  obtain ⟨Wf, hWf, hpWf, hWfΩ, m, e, he, heframe⟩ := hD p hp
+  let G : Set E := {a | ∃ (W : Set E) (w : Field E),
+    IsOpen W ∧ p ∈ W ∧ W ⊆ Ω ∧ LieWordOn W D w ∧ w p = a}
+  have hcompletion_p :
+      lieCompletion Ω D p = Submodule.span ℝ G := by
+    rfl
+  obtain ⟨b, hbG, hbspan, hbli⟩ := exists_linearIndependent ℝ G
+  have hbfinite : b.Finite := hbli.set_finite_of_isNoetherian
+  letI : Fintype b := hbfinite.fintype
+  have hwitness :
+      ∀ x : b, ∃ (W : Set E) (w : Field E),
+        IsOpen W ∧ p ∈ W ∧ W ⊆ Ω ∧ LieWordOn W D w ∧ w p = x.1 := by
+    intro x
+    exact hbG x.property
+  choose W w hW hpW hWΩ hw hwp using hwitness
+  let W₀ : Set E := Wf ∩ ⋂ x : b, W x
+  have hW₀ : IsOpen W₀ := by
+    apply hWf.inter
+    apply isOpen_iInter_of_finite
+    exact hW
+  have hpW₀ : p ∈ W₀ := by
+    refine ⟨hpWf, ?_⟩
+    simp only [mem_iInter]
+    exact hpW
+  have hW₀Ω : W₀ ⊆ Ω := fun _ hq => hWfΩ hq.1
+  let eb : Fin (Fintype.card b) ≃ b := (Fintype.equivFin b).symm
+  let g : Fin (Fintype.card b) → Field E := fun i => w (eb i)
+  have hgp :
+      LinearIndependent ℝ (fun i : Fin (Fintype.card b) => g i p) := by
+    have h := hbli.comp eb eb.injective
+    simpa [g, Function.comp_def, hwp] using h
+  have hspanp :
+      Submodule.span ℝ
+          (Set.range (fun i : Fin (Fintype.card b) => g i p)) =
+        lieCompletion Ω D p := by
+    rw [hcompletion_p]
+    have hrange :
+        Set.range (fun i : Fin (Fintype.card b) => g i p) = b := by
+      ext z
+      constructor
+      · rintro ⟨i, rfl⟩
+        simpa [g, hwp] using (eb i).property
+      · intro hz
+        let z' : b := ⟨z, hz⟩
+        obtain ⟨i, rfl⟩ := eb.surjective z'
+        exact ⟨i, by simp [g, hwp]⟩
+    rw [hrange, hbspan]
+  have hcard : Fintype.card b = m := by
+    have hleft :
+        Module.finrank ℝ
+            (Submodule.span ℝ
+              (Set.range (fun i : Fin (Fintype.card b) => g i p))) =
+          Fintype.card b := by
+      simpa using finrank_span_eq_card hgp
+    have hright :
+        Module.finrank ℝ (lieCompletion Ω D p) = m := by
+      rw [(heframe p hpWf).2]
+      simpa using finrank_span_eq_card (heframe p hpWf).1
+    rw [hspanp] at hleft
+    omega
+  have hg_smooth_W₀ :
+      ∀ i, ContDiffOn ℝ ∞ (g i) W₀ := by
+    intro i
+    have hsub : W₀ ⊆ W (eb i) := by
+      intro q hq
+      exact mem_iInter.mp hq.2 (eb i)
+    exact (hw (eb i)).smooth.mono hsub
+  have hg_cont :
+      ContinuousAt
+        (fun q => fun i : Fin (Fintype.card b) => g i q) p := by
+    rw [continuousAt_pi]
+    intro i
+    exact ((hg_smooth_W₀ i p hpW₀).contDiffAt
+      (hW₀.mem_nhds hpW₀)).continuousAt
+  have hg_ind_eventually :
+      ∀ᶠ q in 𝓝 p,
+        LinearIndependent ℝ (fun i : Fin (Fintype.card b) => g i q) :=
+    hg_cont (LinearIndependent.eventually hgp)
+  have hgood :
+      W₀ ∩
+        {q | LinearIndependent ℝ
+          (fun i : Fin (Fintype.card b) => g i q)} ∈ 𝓝 p :=
+    inter_mem (hW₀.mem_nhds hpW₀) hg_ind_eventually
+  obtain ⟨U, hUsub, hU, hpU⟩ := mem_nhds_iff.mp hgood
+  have hUW₀ : U ⊆ W₀ := fun q hq => (hUsub hq).1
+  have hUΩ : U ⊆ Ω := hUW₀.trans hW₀Ω
+  have hg_ind :
+      ∀ q ∈ U, LinearIndependent ℝ
+        (fun i : Fin (Fintype.card b) => g i q) :=
+    fun q hq => (hUsub hq).2
+  have hg_word : ∀ i, LieWordOn U D (g i) := by
+    intro i
+    have hsub : U ⊆ W (eb i) := by
+      intro q hq
+      exact mem_iInter.mp (hUW₀ hq).2 (eb i)
+    exact (hw (eb i)).mono hsub
+  have hg_span :
+      ∀ q ∈ U,
+        lieCompletion Ω D q =
+          Submodule.span ℝ
+            (Set.range (fun i : Fin (Fintype.card b) => g i q)) := by
+    intro q hq
+    have hle :
+        Submodule.span ℝ
+            (Set.range (fun i : Fin (Fintype.card b) => g i q)) ≤
+          lieCompletion Ω D q := by
+      apply Submodule.span_le.mpr
+      rintro z ⟨i, rfl⟩
+      apply Submodule.subset_span
+      exact ⟨U, g i, hU, hq, hUΩ, hg_word i, rfl⟩
+    apply le_antisymm
+    · apply Submodule.eq_of_le_of_finrank_eq hle
+      · rw [finrank_span_eq_card (hg_ind q hq), Fintype.card_fin]
+        have hqWf : q ∈ Wf := (hUW₀ hq).1
+        have hdimq :
+            Module.finrank ℝ (lieCompletion Ω D q) = m := by
+          rw [(heframe q hqWf).2]
+          simpa using finrank_span_eq_card (heframe q hqWf).1
+        simpa [hcard] using hdimq.symm
+      · infer_instance
+    · exact hle
+  exact ⟨U, Fintype.card b, g, hU, hpU, hUΩ, hg_word,
+    fun q hq => ⟨hg_ind q hq, hg_span q hq⟩⟩
+
 lemma lieCompletion_eq_iff {D : Distribution E} (hD : HasLocalSmoothFrame Ω D) :
     (∀ p ∈ Ω, lieCompletion Ω D p = D p) ↔ InvolutiveOn Ω D := by
   constructor
