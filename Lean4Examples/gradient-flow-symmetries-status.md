@@ -60,10 +60,10 @@ Target: Nguyen–Montúfar, *On Parameter Symmetries and Conservation Laws in Gr
 - [x] `PolynomialIdentifiability.conserved_gradient_spanned_by_scalings` — eliminated; canonical bias-ratio gauge chart and tangent-to-orbit argument are now inlined
 
 ### Appendix H spectral algebra
-- [ ] `Matrix.posDef_sq_add_pos_scalar_one`
+- [x] `Matrix.posDef_sq_add_pos_scalar_one` — replaced by a direct PosSemidef + positive scalar identity proof
 - [ ] `Matrix.posDef_half_add_sqrt_sq_add`
 - [ ] `Matrix.sqrt_quadratic_gram_identity`
-- [ ] `Matrix.posDef_transpose_mul_self_of_isUnit`
+- [x] `Matrix.posDef_transpose_mul_self_of_isUnit` — replaced by mathlib's `Matrix.conjTranspose_mul_self` plus injectivity
 - [ ] `Matrix.unique_posDef_solution_sub_sq_smul_inv`
 
 ## Current work queue
@@ -75,3 +75,8 @@ Target: Nguyen–Montúfar, *On Parameter Symmetries and Conservation Laws in Gr
 5. Replace the attention local-product chart helper.
 6. [x] Inline the PNN tangent-to-scaling-orbit completeness step.
 7. Update this checklist after each proof batch.
+
+
+### Latest checkpoint
+
+- [x] Lemma 29 now uses the actual matrix continuous-functional-calculus square root (`CFC.sqrt`) for positive-definite square roots.
