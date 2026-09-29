@@ -4067,7 +4067,8 @@ theorem conserved_gradient_spanned {U : Set (Param A)} (hU : IsOpen U)
   exact hle hspan
 
 /-- Proposition 19 in the explicit generic regime described above. -/
-theorem proposition19 {Y : Type*} (ell : Output A → Y → ℝ)
+theorem proposition19 [HasUsevichLocalScalingOrbit A]
+    {Y : Type*} (ell : Output A → Y → ℝ)
     (hsep : SeparatesPredictions ell)
     (hL : RegularLossOn Set.univ (sampleLoss (model A) ell))
     {p₀ : Param A} (hfinite : FiniteToOneAt A p₀)
