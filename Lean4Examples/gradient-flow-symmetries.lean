@@ -2135,33 +2135,8 @@ theorem card_upper (r : ℕ) : Fintype.card (Upper r) = r * (r + 1) / 2 := by
           simp
           omega
 
-/-- The model-dependent geometric content of the 2×2 example, using a canonical
-separating loss, not arbitrary pointwise gradients of a separating loss. -/
-theorem two_by_two_symmetry_rank {p : Param 2 2 2} (hp : p ∈ regular) :
-    let ell : Mat 2 2 → Mat 2 2 → ℝ :=
-      fun z y => ∑ i, ∑ j, (z i j - y i j)^2
-    Module.finrank ℝ (symmetryDistribution (sampleLoss model ell) p) = 4 := by
-  dsimp
-  have hker :
-      symmetryDistribution (sampleLoss
-        (model : Param 2 2 2 → Unit → Mat 2 2) ell) p =
-        LinearMap.ker
-          (fderiv ℝ (observation : Param 2 2 2 → Mat 2 2) p).toLinearMap := by
-    exact MatrixFactorization.symmetryDistribution_eq_kernel_of_squaredLoss hp
-  rw [hker]
-  have hsurj :
-      Function.Surjective
-        (fderiv ℝ (observation : Param 2 2 2 → Mat 2 2) p) :=
-    MatrixFactorization.fderiv_observation_surjective_of_fullColumnRank hp.1 hp.2
-  have hrange :
-      LinearMap.range
-        (fderiv ℝ (observation : Param 2 2 2 → Mat 2 2) p).toLinearMap = ⊤ :=
-    LinearMap.range_eq_top.mpr hsurj
-  have hdim :=
-    LinearMap.finrank_range_add_finrank_ker
-      (fderiv ℝ (observation : Param 2 2 2 → Mat 2 2) p).toLinearMap
-  simp [hrange, Param, Index, Mat] at hdim ⊢
-  omega
+/-! The paper's Section 2.3 uses the cited matrix-factorization completeness
+result directly; no separate squared-loss rank lemma is required here. -/
 
 example : Fintype.card (Upper 2) = 3 := by decide
 example : Module.finrank ℝ (Param 2 2 2) = 8 := by
