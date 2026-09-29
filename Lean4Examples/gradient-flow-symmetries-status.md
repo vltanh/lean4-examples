@@ -48,8 +48,8 @@ Target: Nguyen–Montúfar, *On Parameter Symmetries and Conservation Laws in Gr
 ### Matrix factorization / attention
 - [ ] `Matrix.fullColumnRank_factorization_unique`
 - [ ] `MatrixFactorization.complete_balance_laws` — paper cites Marcotte et al. (2023)
-- [ ] `MatrixFactorization.symmetryDistribution_eq_kernel_of_squaredLoss`
-- [ ] `MatrixFactorization.fderiv_observation_surjective_of_fullColumnRank`
+- [x] `MatrixFactorization.symmetryDistribution_eq_kernel_of_squaredLoss` — eliminated with the non-paper squared-loss rank detour
+- [x] `MatrixFactorization.fderiv_observation_surjective_of_fullColumnRank` — eliminated with the non-paper squared-loss rank detour
 - [ ] `TranEtAl2025.attention_head_identifiability` — paper's Theorem 27
 - [ ] `AttentionIdentifiability.exists_local_product_chart`
 - [ ] `AttentionIdentifiability.complete_laws_from_factor_blocks`
@@ -70,6 +70,6 @@ Target: Nguyen–Montúfar, *On Parameter Symmetries and Conservation Laws in Gr
 
 1. Inline the easy linear-algebra helper `Matrix.fullColumnRank_factorization_unique`.
 2. [x] Remove the auxiliary one-neuron PNN flow and derive conservation directly from the explicit scaling symmetry.
-3. Replace matrix-factorization kernel/surjectivity helpers with direct differential calculations.
+3. [x] Remove the non-paper squared-loss rank detour; its two provisional helpers are no longer needed.
 4. Inline the full-column-rank factorization uniqueness lemma.
 5. Update this checklist after each proof batch.
