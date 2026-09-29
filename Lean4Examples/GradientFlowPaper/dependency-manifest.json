@@ -42,21 +42,6 @@
       "note": "Integrable⇒involutive, Lie-completion involutivity, exact-rank reduction, and smooth orthogonal-complement frames are now proved internally; only the hard local first-integral existence direction remains external."
     },
     {
-      "lean_class": "GradientFlowPaper.Attention.HasTranAttentionIdentifiability",
-      "kind": "literature",
-      "status": "open",
-      "source": "Tran et al. (2025), Theorem 3.1 / Appendix Theorem A.1",
-      "source_url": "https://arxiv.org/abs/2410.04209",
-      "consumers": [
-        "GradientFlowPaper.Attention.theorem27",
-        "GradientFlowPaper.Attention.proposition18_symmetries",
-        "GradientFlowPaper.Attention.proposition18_laws"
-      ],
-      "obligations": [
-        "identifiability"
-      ]
-    },
-    {
       "lean_declaration": "GradientFlowPaper.PolynomialNetwork.GenericFiniteToOneAt",
       "kind": "literature-adapter",
       "status": "open",
@@ -84,7 +69,8 @@
     "smooth orthogonal-complement frame construction",
     "Lie-completion involutivity",
     "Marcotte matrix-factorization completeness (Lemma 28)",
-    "PNN finite-fibre local scaling-orbit isolation"
+    "PNN finite-fibre local scaling-orbit isolation",
+    "Tran et al. attention-head identifiability (Theorem 27)"
   ],
   "numbered_declarations": {
     "Proposition 1": "GradientFlowPaper.proposition1",
