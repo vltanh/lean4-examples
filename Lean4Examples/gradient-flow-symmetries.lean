@@ -1707,6 +1707,21 @@ abbrev Upper (r : ℕ) := {a : Fin r × Fin r // a.1 ≤ a.2}
 def FullColumnRank {m r : ℕ} (A : Mat m r) : Prop :=
   LinearIndependent ℝ (fun j : Fin r => fun i : Fin m => A i j)
 
+/-- A full-column-rank matrix is left cancellable for matrix multiplication.
+This elementary lemma is used repeatedly when shared K/V factors force the
+per-head changes of basis in Appendix G.1 to coincide. -/
+lemma FullColumnRank.mul_right_cancel {m r n : ℕ} {A : Mat m r}
+    (hA : FullColumnRank A) {B C : Mat r n} (h : A * B = A * C) : B = C := by
+  ext i j
+  have hcol : (fun k : Fin r => B k j - C k j) = 0 := by
+    apply Fintype.linearIndependent_iff.mp hA
+    ext a
+    have ha := congrFun₂ h a j
+    simp [Matrix.mul_apply] at ha ⊢
+    linarith
+  have hij := congrFun hcol i
+  simpa using hij
+
 lemma mul_invTranspose_invariant {m n r : ℕ}
     (U : Mat m r) (V : Mat n r) (s : GL r) :
     (U * (s : Mat r r)) * (V * ((s⁻¹ : GL r) : Mat r r)ᵀ)ᵀ = U * Vᵀ := by
@@ -2066,8 +2081,87 @@ theorem gauge_of_equal_products (hk : 0 < k)
     {p q : Param nG k D dh} (hp : p ∈ regular) (hq : q ∈ regular)
     (he : ∀ j i, score p j i = score q j i ∧ weight p j i = weight q j i) :
     ∃ s t : Fin nG → GL dh, q = gauge s t p := by
-  exact AttentionIdentifiability.shared_gauge_of_equal_products
-    hk hp hq he Factorization.fullRank_fiber
+  let i₀ : Fin k := ⟨0, hk⟩
+  have hQK : ∀ j i, ∃ s : GL dh,
+      Q q j i = Q p j i * (s : Mat dh dh) ∧
+      K q j = K p j * ((s⁻¹ : GL dh) : Mat dh dh)ᵀ := by
+    intro j i
+    let pp : Factorization.Param D D dh :=
+      Factorization.pack (Q p j i) (K p j)
+    let qq : Factorization.Param D D dh :=
+      Factorization.pack (Q q j i) (K q j)
+    have hpp : pp ∈ Factorization.regular :=
+      ⟨(hp.1 j i).1, (hp.1 j i).2.1⟩
+    have hqq : qq ∈ Factorization.regular :=
+      ⟨(hq.1 j i).1, (hq.1 j i).2.1⟩
+    have hobs : Factorization.observation pp = Factorization.observation qq := by
+      simpa [pp, qq, Factorization.observation, score] using (he j i).1
+    obtain ⟨s, hs⟩ := (Factorization.fullRank_fiber hpp hqq).mp hobs
+    refine ⟨s, ?_, ?_⟩
+    · have := congrArg Factorization.U hs
+      simpa [pp, qq, Factorization.gauge] using this
+    · have := congrArg Factorization.V hs
+      simpa [pp, qq, Factorization.gauge] using this
+  have hVO : ∀ j i, ∃ t : GL dh,
+      V q j = V p j * (t : Mat dh dh) ∧
+      O q j i = O p j i * ((t⁻¹ : GL dh) : Mat dh dh)ᵀ := by
+    intro j i
+    let pp : Factorization.Param D D dh :=
+      Factorization.pack (V p j) (O p j i)
+    let qq : Factorization.Param D D dh :=
+      Factorization.pack (V q j) (O q j i)
+    have hpp : pp ∈ Factorization.regular :=
+      ⟨(hp.1 j i).2.2.1, (hp.1 j i).2.2.2⟩
+    have hqq : qq ∈ Factorization.regular :=
+      ⟨(hq.1 j i).2.2.1, (hq.1 j i).2.2.2⟩
+    have hobs : Factorization.observation pp = Factorization.observation qq := by
+      simpa [pp, qq, Factorization.observation, weight] using (he j i).2
+    obtain ⟨t, ht⟩ := (Factorization.fullRank_fiber hpp hqq).mp hobs
+    refine ⟨t, ?_, ?_⟩
+    · have := congrArg Factorization.U ht
+      simpa [pp, qq, Factorization.gauge] using this
+    · have := congrArg Factorization.V ht
+      simpa [pp, qq, Factorization.gauge] using this
+  choose s hsQ hsK using fun j => hQK j i₀
+  choose t htV htO using fun j => hVO j i₀
+  have hs_all : ∀ j i,
+      Q q j i = Q p j i * (s j : Mat dh dh) ∧
+      K q j = K p j * (((s j)⁻¹ : GL dh) : Mat dh dh)ᵀ := by
+    intro j i
+    obtain ⟨s', hQ', hK'⟩ := hQK j i
+    have hcancel :
+        (((s'⁻¹ : GL dh) : Mat dh dh)ᵀ) =
+          (((s j)⁻¹ : GL dh) : Mat dh dh)ᵀ :=
+      (hp.1 j i).2.1.mul_right_cancel (hK'.symm.trans (hsK j))
+    have hs' : s' = s j := by
+      apply inv_injective
+      apply Units.ext
+      have := congrArg Matrix.transpose hcancel
+      simpa using this
+    subst s'
+    exact ⟨hQ', hK'⟩
+  have ht_all : ∀ j i,
+      V q j = V p j * (t j : Mat dh dh) ∧
+      O q j i = O p j i * (((t j)⁻¹ : GL dh) : Mat dh dh)ᵀ := by
+    intro j i
+    obtain ⟨t', hV', hO'⟩ := hVO j i
+    have hcancel : (t' : Mat dh dh) = (t j : Mat dh dh) :=
+      (hp.1 j i).2.2.1.mul_right_cancel (hV'.symm.trans (htV j))
+    have ht' : t' = t j := Units.ext hcancel
+    subst t'
+    exact ⟨hV', hO'⟩
+  refine ⟨s, t, ?_⟩
+  ext a
+  rcases a with ⟨j, slot, x, y⟩
+  cases slot with
+  | query i =>
+      simpa [gauge, Q] using congrFun₂ (hs_all j i).1 x y
+  | key =>
+      simpa [gauge, K] using congrFun₂ (hsK j) x y
+  | value =>
+      simpa [gauge, V] using congrFun₂ (htV j) x y
+  | output i =>
+      simpa [gauge, O] using congrFun₂ (ht_all j i).2 x y
 
 /-- Proposition 18, the full local functional-equivalence characterization. -/
 theorem proposition18_symmetries (hg : 0 < nG) (hk : 0 < k)
