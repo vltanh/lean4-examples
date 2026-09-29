@@ -2280,6 +2280,180 @@ def oneParameterProduct (φ : Fin s → ℝ → Γ) :
 def ProductsGenerate (φ : Fin s → ℝ → Γ) : Prop :=
   ∀ g : Γ, ∃ xs : List (Fin s × ℝ), oneParameterProduct φ xs = g
 
+
+def orderedOneParameterProduct
+    {s : ℕ} (φ : Fin s → ℝ → Γ) :
+    List (Fin s) → (Fin s → ℝ) → Γ
+  | [], _ => 1
+  | i :: is, x => orderedOneParameterProduct φ is x * φ i (x i)
+
+def orderedProductMap {s : ℕ} (φ : Fin s → ℝ → Γ)
+    (x : Fin s → ℝ) : Γ :=
+  orderedOneParameterProduct φ (List.ofFn id) x
+
+lemma orderedOneParameterProduct_zero
+    {s : ℕ} (φ : Fin s → ℝ → Γ)
+    (hφ : ∀ i, IsOneParameterSubgroup (A := A) (Γ := Γ) (φ i)) :
+    ∀ is : List (Fin s),
+      orderedOneParameterProduct φ is 0 = 1 := by
+  intro is
+  induction is with
+  | nil => rfl
+  | cons i is ih =>
+      simp [orderedOneParameterProduct, ih, (hφ i).1]
+
+lemma orderedProductMap_zero
+    {s : ℕ} (φ : Fin s → ℝ → Γ)
+    (hφ : ∀ i, IsOneParameterSubgroup (A := A) (Γ := Γ) (φ i)) :
+    orderedProductMap φ 0 = 1 := by
+  exact orderedOneParameterProduct_zero φ hφ _
+
+lemma orderedOneParameterProduct_contMDiff
+    {s : ℕ} (φ : Fin s → ℝ → Γ)
+    (hφ : ∀ i, IsOneParameterSubgroup (A := A) (Γ := Γ) (φ i)) :
+    ∀ is : List (Fin s),
+      ContMDiff (𝓘(ℝ, Fin s → ℝ)) (𝓘(ℝ, A)) ∞
+        (orderedOneParameterProduct φ is) := by
+  intro is
+  induction is with
+  | nil =>
+      simpa [orderedOneParameterProduct] using
+        (contMDiff_const :
+          ContMDiff (𝓘(ℝ, Fin s → ℝ)) (𝓘(ℝ, A)) ∞
+            (fun _ : Fin s → ℝ => (1 : Γ)))
+  | cons i is ih =>
+      have hcoord :
+          ContMDiff (𝓘(ℝ, Fin s → ℝ)) (𝓘(ℝ, ℝ)) ∞
+            (fun x : Fin s → ℝ => x i) := by
+        rw [contMDiff_iff_contDiff]
+        fun_prop
+      have hφi :
+          ContMDiff (𝓘(ℝ, Fin s → ℝ)) (𝓘(ℝ, A)) ∞
+            (fun x => φ i (x i)) :=
+        (hφ i).2.2.comp _ hcoord
+      simpa [orderedOneParameterProduct] using ih.mul hφi
+
+lemma orderedProductMap_contMDiff
+    {s : ℕ} (φ : Fin s → ℝ → Γ)
+    (hφ : ∀ i, IsOneParameterSubgroup (A := A) (Γ := Γ) (φ i)) :
+    ContMDiff (𝓘(ℝ, Fin s → ℝ)) (𝓘(ℝ, A)) ∞
+      (orderedProductMap φ) :=
+  orderedOneParameterProduct_contMDiff φ hφ _
+
+def generatorSynthesis {s : ℕ} (φ : Fin s → ℝ → Γ) :
+    (Fin s → ℝ) →ₗ[ℝ] TangentSpace (𝓘(ℝ, A)) (1 : Γ) where
+  toFun x := ∑ i, x i •
+    InfinitesimalGenerator (A := A) (Γ := Γ) (φ i)
+  map_add' := by
+    intro x y
+    simp [add_smul, Finset.sum_add_distrib]
+  map_smul' := by
+    intro a x
+    simp [mul_smul, Finset.smul_sum]
+
+lemma generatorSynthesis_apply {s : ℕ}
+    (φ : Fin s → ℝ → Γ) (x : Fin s → ℝ) :
+    generatorSynthesis (A := A) (Γ := Γ) φ x =
+      ∑ i, x i • InfinitesimalGenerator (A := A) (Γ := Γ) (φ i) :=
+  rfl
+
+lemma mfderiv_orderedOneParameterProduct_zero
+    {s : ℕ} (φ : Fin s → ℝ → Γ)
+    (hφ : ∀ i, IsOneParameterSubgroup (A := A) (Γ := Γ) (φ i)) :
+    ∀ is : List (Fin s), ∀ u : Fin s → ℝ,
+      mfderiv (𝓘(ℝ, Fin s → ℝ)) (𝓘(ℝ, A))
+        (orderedOneParameterProduct φ is) 0 u =
+        ∑ i in is.toFinset, u i •
+          InfinitesimalGenerator (A := A) (Γ := Γ) (φ i) := by
+  intro is
+  induction is with
+  | nil =>
+      intro u
+      simp [orderedOneParameterProduct, mfderiv_const]
+  | cons i is ih =>
+      intro u
+      let f₁ := orderedOneParameterProduct φ is
+      let f₂ : (Fin s → ℝ) → Γ := fun x => φ i (x i)
+      have hf₁ :
+          MDiffAt (𝓘(ℝ, Fin s → ℝ)) (𝓘(ℝ, A)) f₁ 0 :=
+        (orderedOneParameterProduct_contMDiff φ hφ is)
+          |>.mdifferentiableAt (by simp)
+      have hcoord :
+          MDiffAt (𝓘(ℝ, Fin s → ℝ)) (𝓘(ℝ, ℝ))
+            (fun x : Fin s → ℝ => x i) 0 := by
+        rw [mdifferentiableAt_iff_differentiableAt]
+        fun_prop
+      have hf₂ :
+          MDiffAt (𝓘(ℝ, Fin s → ℝ)) (𝓘(ℝ, A)) f₂ 0 :=
+        ((hφ i).2.2.mdifferentiableAt (by simp)).comp 0 hcoord
+      have hz₁ : f₁ 0 = 1 :=
+        orderedOneParameterProduct_zero φ hφ is
+      have hz₂ : f₂ 0 = 1 := by
+        simp [f₂, (hφ i).1]
+      have hmul :
+          MDiffAt (𝓘(ℝ, A).prod 𝓘(ℝ, A)) (𝓘(ℝ, A))
+            (fun z : Γ × Γ => z.1 * z.2) (1,1) :=
+        (contMDiff_mul (𝓘(ℝ, A)) ∞).mdifferentiableAt (by simp)
+      have hpair :
+          mfderiv (𝓘(ℝ, Fin s → ℝ)) (𝓘(ℝ, A).prod 𝓘(ℝ, A))
+            (fun x => (f₁ x, f₂ x)) 0 u =
+            (mfderiv (𝓘(ℝ, Fin s → ℝ)) (𝓘(ℝ, A)) f₁ 0 u,
+             mfderiv (𝓘(ℝ, Fin s → ℝ)) (𝓘(ℝ, A)) f₂ 0 u) := by
+        simp [mfderiv_prod]
+      have hprod := mfderiv_comp
+        (I := 𝓘(ℝ, Fin s → ℝ))
+        (I' := 𝓘(ℝ, A).prod 𝓘(ℝ, A))
+        (I'' := 𝓘(ℝ, A)) 0 hmul (hf₁.prod hf₂)
+      have hmuladd :
+          mfderiv (𝓘(ℝ, A).prod 𝓘(ℝ, A)) (𝓘(ℝ, A))
+            (fun z : Γ × Γ => z.1 * z.2) (1,1)
+            (mfderiv (𝓘(ℝ, Fin s → ℝ)) (𝓘(ℝ, A)) f₁ 0 u,
+             mfderiv (𝓘(ℝ, Fin s → ℝ)) (𝓘(ℝ, A)) f₂ 0 u)
+          =
+          mfderiv (𝓘(ℝ, Fin s → ℝ)) (𝓘(ℝ, A)) f₁ 0 u +
+          mfderiv (𝓘(ℝ, Fin s → ℝ)) (𝓘(ℝ, A)) f₂ 0 u := by
+        rw [mfderiv_prod_eq_add_apply hmul]
+        simp [hz₁, hz₂, mfderiv_id]
+      have hφcoord :
+          mfderiv (𝓘(ℝ, Fin s → ℝ)) (𝓘(ℝ, A)) f₂ 0 u =
+            u i • InfinitesimalGenerator (A := A) (Γ := Γ) (φ i) := by
+        have hchain := mfderiv_comp
+          (I := 𝓘(ℝ, Fin s → ℝ)) (I' := 𝓘(ℝ, ℝ))
+          (I'' := 𝓘(ℝ, A)) 0
+          ((hφ i).2.2.mdifferentiableAt (by simp)) hcoord
+        have hcoordDer :
+            mfderiv (𝓘(ℝ, Fin s → ℝ)) (𝓘(ℝ, ℝ))
+              (fun x : Fin s → ℝ => x i) 0 u = u i := by
+          simpa [mfderiv_eq_fderiv] using
+            (ContinuousLinearMap.apply ℝ (Fin s → ℝ) i).hasFDerivAt.fderiv_apply u
+        rw [hchain, hcoordDer, ContinuousLinearMap.comp_apply]
+        change
+          (mfderiv (𝓘(ℝ, ℝ)) (𝓘(ℝ, A)) (φ i) 0) (u i) =
+            u i •
+              (mfderiv (𝓘(ℝ, ℝ)) (𝓘(ℝ, A)) (φ i) 0) 1
+        simpa using
+          (mfderiv (𝓘(ℝ, ℝ)) (𝓘(ℝ, A)) (φ i) 0).map_smul
+            (u i) (1 : ℝ)
+      rw [show orderedOneParameterProduct φ (i::is) =
+        fun x => f₁ x * f₂ x by rfl]
+      rw [hprod, hpair, hmuladd, ih u, hφcoord]
+      by_cases hii : i ∈ is.toFinset
+      · simp [List.toFinset_cons, hii]
+        rw [Finset.sum_eq_add_sum_diff_singleton hii]
+        module
+      · simp [List.toFinset_cons, hii]
+
+lemma mfderiv_orderedProductMap_zero
+    {s : ℕ} (φ : Fin s → ℝ → Γ)
+    (hφ : ∀ i, IsOneParameterSubgroup (A := A) (Γ := Γ) (φ i))
+    (u : Fin s → ℝ) :
+    mfderiv (𝓘(ℝ, Fin s → ℝ)) (𝓘(ℝ, A))
+      (orderedProductMap φ) 0 u =
+      generatorSynthesis (A := A) (Γ := Γ) φ u := by
+  rw [orderedProductMap,
+    mfderiv_orderedOneParameterProduct_zero φ hφ]
+  simp [generatorSynthesis]
+
 /-- Fulton--Harris generation theorem quoted as Theorem 22. This is an
 external background result in Stage 1. -/
 class HasConnectedLieGroupGeneration
