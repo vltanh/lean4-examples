@@ -115,7 +115,7 @@ For each external field:
 
 ## 2B. Standard geometry / ODE dependencies
 
-- [ ] Prove/adapt local submersion factorization.
+- [x] Prove/adapt local submersion factorization — discharged from Mathlib's finite-dimensional implicit-function theorem.
 - [ ] Prove/adapt maximal local-flow existence and uniqueness.
 - [ ] Prove/adapt connected Lie-group infinitesimal invariance.
 - [ ] Prove the needed Poincaré lemma.
@@ -204,3 +204,14 @@ For each external field:
   - [x] positive-definite solution uniqueness proved;
   - [x] `lemma29` and `lemma29_roots_exist` no longer quantify over the spectral dependency class.
 - [ ] Next: discharge a standard geometry/ODE dependency from Mathlib.
+
+
+### Stage-2 geometry checkpoint
+
+- [x] Proposition 4 no longer depends on `HasLocalSubmersionFactorization`.
+  - [x] independent gradients imply surjectivity of the derivative of the bundled map;
+  - [x] the span condition annihilates the kernel of that derivative;
+  - [x] Mathlib's implicit-function chart supplies local product coordinates;
+  - [x] the observable is constant on vertical fibres;
+  - [x] the two directions of Proposition 4 are now proved directly.
+- [ ] Next dependency target: star-shaped Poincaré lemma.
