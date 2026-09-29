@@ -57,18 +57,19 @@
       ]
     },
     {
-      "lean_class": "GradientFlowPaper.PolynomialNetwork.HasPNNGenericRegime",
-      "kind": "literature",
-      "status": "needs-refactor",
-      "source": "Usevich et al. (2025), generic finite identifiability for deep polynomial neural networks",
+      "lean_declaration": "GradientFlowPaper.PolynomialNetwork.GenericFiniteToOneAt",
+      "kind": "literature-adapter",
+      "status": "open",
+      "source": "Usevich et al. (2025/2026), generic identifiability of deep polynomial neural networks with biases",
+      "source_url": "https://arxiv.org/abs/2506.17093",
       "consumers": [
         "GradientFlowPaper.PolynomialNetwork.proposition19"
       ],
       "obligations": [
-        "replace local_regime with a source-facing finite-identifiability/generic hypothesis",
-        "prove local scaling-orbit isolation internally"
+        "construct an open finite-to-one neighborhood at a generic identifiable parameter",
+        "match Usevich scaling/permutation equivalence to PolynomialNetwork.FiniteToOneAt"
       ],
-      "note": "AUDIT: `local_regime` is stronger than the cited finite-identifiability statement: it directly assumes the local functional fibre is the diagonal-scaling orbit. This is the conclusion Appendix G.2 needs to derive, so the current class is provisional and must be removed. The nonzero-bias dense-open locus, generator independence, canonical scaling coordinates, and tangent-space proof are already internal."
+      "note": "The local fibre/orbit conclusion is no longer external. `finiteToOneAt_local_scaling_orbit` proves that a finite fibre modulo scaling has an isolated scaling orbit at every nonzero-bias point; `conserved_gradient_spanned` uses that fixed-fibre theorem pointwise."
     }
   ],
   "discharged_dependencies": [
@@ -81,7 +82,9 @@
     "full-rank matrix-factorization fibre uniqueness",
     "Marcotte et al. matrix-factorization completeness (Lemma 28)",
     "smooth orthogonal-complement frame construction",
-    "Lie-completion involutivity"
+    "Lie-completion involutivity",
+    "Marcotte matrix-factorization completeness (Lemma 28)",
+    "PNN finite-fibre local scaling-orbit isolation"
   ],
   "numbered_declarations": {
     "Proposition 1": "GradientFlowPaper.proposition1",
@@ -146,12 +149,17 @@
   "audit_findings": [
     {
       "id": "PNN-LOCAL-ORBIT-HIDDEN-OBLIGATION",
-      "severity": "blocking",
+      "severity": "resolved",
       "introduced_by": "41269cc95d62eeb7548ed8f5424599e44bc68ff1",
       "surfaced_at_checkpoint": "285acda5f533588d1f6c0bf05fc3e8b7c12a8f18",
       "module": "Lean4Examples.GradientFlowPaper.Polynomial",
       "finding": "The local functional-fibre/diagonal-scaling-orbit statement was moved behind `HasPNNGenericRegime.local_regime` and then counted as a completed paper-internal proof.",
-      "remedy": "Restore the finite-observation/constant-rank slice route (or an equivalent proof) in Polynomial.lean; keep only the actual literature identifiability result external."
+      "remedy": "Implemented: canonical bias-normalization slice, fixed-fibre orbit isolation, and pointwise completeness proof.",
+      "resolved_by": [
+        "7b14eaa0290a74c9333863072097b19d9d82d9a7",
+        "f5eea2d55b78ca9cd70cf911f705f60f7b5bc872",
+        "71b7062d901c413227bf4af96e52b6788a4680b5"
+      ]
     }
   ]
 }
