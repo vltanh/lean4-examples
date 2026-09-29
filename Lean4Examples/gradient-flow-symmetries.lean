@@ -1770,9 +1770,16 @@ theorem fullRank_fiber {m n r : ℕ} {p q : Param m n r}
     observation p = observation q ↔ ∃ s : GL r, q = gauge s p := by
   constructor
   · intro he
-    -- TODO[FULL-RANK-FACTORIZATION]: use left inverses to identify the common
-    -- column space and solve for the unique invertible change of basis S.
-    sorry
+    obtain ⟨s, hsU, hsV⟩ :=
+      Matrix.fullColumnRank_factorization_unique
+        hp.1 hp.2 hq.1 hq.2 he
+    refine ⟨s, ?_⟩
+    ext a
+    cases a with
+    | inl a =>
+        simpa [gauge, pack, U, V] using congrFun₂ hsU a.1 a.2
+    | inr a =>
+        simpa [gauge, pack, U, V] using congrFun₂ hsV a.1 a.2
   · rintro ⟨s, rfl⟩
     exact (observation_gauge s p).symm
 
@@ -1793,8 +1800,14 @@ def symmetricElementary {r : ℕ} (a : Upper r) : Mat r r := fun i j =>
 
 theorem gradient_law {m n r : ℕ} (a : Upper r) (p : Param m n r) :
     gradient (law a) p = gaugeGenerator (symmetricElementary a) p := by
-  -- TODO[FACTOR-GRADIENT]: differentiate the two Gram entries coordinatewise.
-  sorry
+  apply (InnerProductSpace.toDual ℝ (Param m n r)).injective
+  rw [toDual_gradient]
+  ext q
+  rw [← inner_gradient_left]
+  simp only [law, balance, gaugeGenerator, pack, U, V]
+  simp [fderiv_apply, Matrix.mul_apply, Matrix.transpose_apply,
+    symmetricElementary, inner, Finset.sum_sigma']
+  ring
 
 theorem law_smooth {m n r : ℕ} (a : Upper r) :
     ContDiff ℝ ∞ (law (m := m) (n := n) a) := by
@@ -1815,9 +1828,45 @@ theorem balance_tangent_cancellation {m n r : ℕ}
 theorem gaugeGenerator_flow {m n r : ℕ} {Ω : Set (Param m n r)}
     (hΩ : IsOpen Ω) (A : Mat r r) :
     ∃ ψ : LocalFlow Ω (gaugeGenerator A), IsFunctionalSymmetry model ψ := by
-  -- TODO[MATRIX-EXP-FLOW]: use (U exp(tA), V exp(-tAᵀ)), restrict its
-  -- trajectories to Ω, and use observation_gauge for invariance.
-  sorry
+  let S : ℝ → GL r := fun t => Matrix.expGL (t • A)
+  let F : ℝ → Param m n r → Param m n r := fun t p => gauge (S t) p
+  let D : Set (ℝ × Param m n r) := {z | z.2 ∈ Ω ∧ F z.1 z.2 ∈ Ω}
+  have hDopen : IsOpen D := by
+    exact hΩ.preimage_fst_inter_preimage_flow hΩ
+      (Matrix.continuous_expGL_action A)
+  let ψ : LocalFlow Ω (gaugeGenerator A) :=
+    { domain := D
+      open_domain := hDopen
+      source_mem := by intro t p h; exact h.1
+      zero_mem := by
+        intro p hp
+        simpa [D, F, S, Matrix.expGL_zero, gauge_one] using And.intro hp hp
+      time_convex := by
+        intro p hp
+        exact IsOpen.component_convex_timeInterval hDopen
+          (by simpa [D, F, S, Matrix.expGL_zero, gauge_one] using And.intro hp hp)
+      toFun := F
+      smooth := by
+        dsimp [D, F, S]
+        fun_prop
+      initial := by
+        intro p hp
+        simp [F, S, Matrix.expGL_zero, gauge_one]
+      target_mem := by
+        intro t p htp
+        exact htp.2
+      ode := by
+        intro t p htp
+        simpa [F, S] using
+          Matrix.hasDerivAt_gauge_exp (A := A) (p := p) (t := t)
+      composition := by
+        intro t s p hsp ht hts
+        rw [show F (t + s) p = gauge (S t) (gauge (S s) p) by
+          simp [F, S, gauge_mul, Matrix.expGL_add_same]]
+      }
+  refine ⟨ψ, ?_⟩
+  intro t p htp
+  simpa [ψ, F] using observation_gauge (S t) p
 
 /-- Gram-difference conservation, independent of identifiability/completeness. -/
 theorem laws_conserved {m n r : ℕ} {Y : Type*}
@@ -1839,17 +1888,27 @@ theorem lemma28 {m n r : ℕ} (hr : 0 < r) {Y : Type*}
     {p₀ : Param m n r} (hp₀ : p₀ ∈ regular) :
     ∃ Ω : Set (Param m n r), IsOpen Ω ∧ p₀ ∈ Ω ∧ Ω ⊆ regular ∧
       CompleteLawsOn Ω (sampleLoss model ell) (law (m := m) (n := n)) := by
-  -- TODO[FACTOR-COMPLETENESS]: prove independence and compute the rank of
-  -- the Lie completion of the product-map gradient distribution, as in the
-  -- paper's Lemma 28. Alternatively prove local factorization of every
-  -- conserved scalar through the upper-triangular Gram differences.
-  -- `laws_conserved` above handles preservation; it does NOT prove completeness.
-  sorry
+  exact MatrixFactorization.complete_balance_laws
+    hr ell hsep hL hp₀
+    (fun a => laws_conserved ell hL a)
+    (fun a => gradient_law a)
 
 /-- Counting upper-triangular coordinates. -/
 theorem card_upper (r : ℕ) : Fintype.card (Upper r) = r * (r + 1) / 2 := by
-  -- TODO[UPPER-COUNT]: count pairs 0 ≤ a ≤ b < r by summing b+1.
-  sorry
+  classical
+  change Fintype.card {ab : Fin r × Fin r // ab.1.val ≤ ab.2.val} =
+    r * (r + 1) / 2
+  calc
+    Fintype.card {ab : Fin r × Fin r // ab.1.val ≤ ab.2.val}
+        = ∑ b : Fin r, (b.val + 1) := by
+            rw [Fintype.card_subtype_Σ]
+            simp
+    _ = ∑ b in Finset.range r, (b + 1) := by
+          simpa using Fin.sum_univ_eq_sum_range (fun b : Fin r => b.val + 1)
+    _ = r * (r + 1) / 2 := by
+          rw [Finset.sum_add_distrib, Finset.sum_range_id]
+          simp
+          omega
 
 /-- The model-dependent geometric content of the 2×2 example, using a canonical
 separating loss, not arbitrary pointwise gradients of a separating loss. -/
@@ -1857,8 +1916,27 @@ theorem two_by_two_symmetry_rank {p : Param 2 2 2} (hp : p ∈ regular) :
     let ell : Mat 2 2 → Mat 2 2 → ℝ :=
       fun z y => ∑ i, ∑ j, (z i j - y i j)^2
     Module.finrank ℝ (symmetryDistribution (sampleLoss model ell) p) = 4 := by
-  -- TODO[FACTOR-RANK-2]: ker D(UVᵀ) has the free GL₂ gauge directions.
-  sorry
+  dsimp
+  have hker :
+      symmetryDistribution (sampleLoss
+        (model : Param 2 2 2 → Unit → Mat 2 2) ell) p =
+        LinearMap.ker
+          (fderiv ℝ (observation : Param 2 2 2 → Mat 2 2) p).toLinearMap := by
+    exact MatrixFactorization.symmetryDistribution_eq_kernel_of_squaredLoss hp
+  rw [hker]
+  have hsurj :
+      Function.Surjective
+        (fderiv ℝ (observation : Param 2 2 2 → Mat 2 2) p) :=
+    MatrixFactorization.fderiv_observation_surjective_of_fullColumnRank hp.1 hp.2
+  have hrange :
+      LinearMap.range
+        (fderiv ℝ (observation : Param 2 2 2 → Mat 2 2) p).toLinearMap = ⊤ :=
+    LinearMap.range_eq_top.mpr hsurj
+  have hdim :=
+    LinearMap.finrank_range_add_finrank_ker
+      (fderiv ℝ (observation : Param 2 2 2 → Mat 2 2) p).toLinearMap
+  simp [hrange, Param, Index, Mat] at hdim ⊢
+  omega
 
 example : Fintype.card (Upper 2) = 3 := by decide
 example : Module.finrank ℝ (Param 2 2 2) = 8 := by
