@@ -1799,6 +1799,138 @@ theorem exists_glued_smooth_localFlow
       composition := hFcomp }
   exact ⟨ψ, trivial⟩
 
+
+namespace LocalFlow
+
+theorem exists_common_extension {v : Field E}
+    (hΩ : IsOpen Ω) (hv : ContDiffOn ℝ ∞ v Ω)
+    (C : Set (LocalFlow Ω v)) (hC : C.Nonempty) :
+    ∃ Ψ : LocalFlow Ω v, ∀ ψ ∈ C, Ψ.Extends ψ := by
+  classical
+  let D : Set (ℝ × E) := ⋃ ψ ∈ C, ψ.domain
+  let Value : ℝ × E → E → Prop := fun z y =>
+    ∃ ψ ∈ C, z ∈ ψ.domain ∧ y = ψ.toFun z.1 z.2
+  have hvalue : ∀ z ∈ D, ∃! y, Value z y := by
+    intro z hz
+    simp only [D, Set.mem_iUnion] at hz
+    obtain ⟨ψ, hψC, hzψ⟩ := hz
+    refine ⟨ψ.toFun z.1 z.2, ⟨ψ,hψC,hzψ,rfl⟩, ?_⟩
+    intro y hy
+    obtain ⟨φ,hφC,hzφ,rfl⟩ := hy
+    have hp : z.2 ∈ Ω := ψ.source_mem hzψ
+    exact (eqOn_domain_inter hΩ hv ψ φ z.2 hp ⟨hzψ,hzφ⟩).symm
+  let F : ℝ → E → E := fun t p =>
+    if hz : (t,p) ∈ D then Classical.choose (hvalue (t,p) hz) else p
+  have hF_eq :
+      ∀ {ψ : LocalFlow Ω v}, ψ ∈ C →
+      ∀ {t p}, (t,p) ∈ ψ.domain → F t p = ψ.toFun t p := by
+    intro ψ hψC t p htp
+    have hz : (t,p) ∈ D := by
+      simp [D]
+      exact ⟨ψ,hψC,htp⟩
+    have hs := Classical.choose_spec (hvalue (t,p) hz)
+    rw [show F t p = Classical.choose (hvalue (t,p) hz) by simp [F, hz]]
+    exact (hvalue (t,p) hz).unique hs ⟨ψ,hψC,htp,rfl⟩
+  have hDopen : IsOpen D :=
+    isOpen_iUnion fun ψ => isOpen_iUnion fun _ : ψ ∈ C => ψ.open_domain
+  have hsource : ∀ {t p}, (t,p) ∈ D → p ∈ Ω := by
+    intro t p htp
+    simp only [D, Set.mem_iUnion] at htp
+    obtain ⟨ψ,hψC,htp⟩ := htp
+    exact ψ.source_mem htp
+  have hzero : ∀ p ∈ Ω, (0,p) ∈ D := by
+    intro p hp
+    obtain ⟨ψ,hψC⟩ := hC
+    simp [D]
+    exact ⟨ψ,hψC,ψ.zero_mem p hp⟩
+  have htime : ∀ p ∈ Ω, Convex ℝ {t | (t,p) ∈ D} := by
+    intro p hp
+    let fam : Set (Set ℝ) :=
+      {I | ∃ ψ ∈ C, I = {t : ℝ | (t,p) ∈ ψ.domain}}
+    have hcommon : ∀ I ∈ fam, (0:ℝ) ∈ I := by
+      intro I hI
+      obtain ⟨ψ,hψC,rfl⟩ := hI
+      exact ψ.zero_mem p hp
+    have hpre : ∀ I ∈ fam, IsPreconnected I := by
+      intro I hI
+      obtain ⟨ψ,hψC,rfl⟩ := hI
+      exact (convex_iff_isPreconnected).mp (ψ.time_convex p hp)
+    have hsun : IsPreconnected (⋃₀ fam) :=
+      isPreconnected_sUnion 0 fam hcommon hpre
+    apply (convex_iff_isPreconnected).mpr
+    simpa [fam, D] using hsun
+  have hsmooth : ContDiffOn ℝ ∞ (fun z : ℝ × E => F z.1 z.2) D := by
+    intro z hz
+    simp only [D, Set.mem_iUnion] at hz
+    obtain ⟨ψ,hψC,hzψ⟩ := hz
+    have heq :
+        (fun y : ℝ × E => F y.1 y.2) =ᶠ[𝓝 z]
+          (fun y : ℝ × E => ψ.toFun y.1 y.2) := by
+      filter_upwards [ψ.open_domain.mem_nhds hzψ] with y hy
+      exact hF_eq hψC hy
+    exact ((ψ.smooth z hzψ).contDiffAt
+      (ψ.open_domain.mem_nhds hzψ)).congr_of_eventuallyEq heq
+      |>.contDiffWithinAt
+  have hinitial : ∀ p ∈ Ω, F 0 p = p := by
+    intro p hp
+    obtain ⟨ψ,hψC⟩ := hC
+    rw [hF_eq hψC (ψ.zero_mem p hp)]
+    exact ψ.initial p hp
+  have htarget : ∀ {t p}, (t,p) ∈ D → F t p ∈ Ω := by
+    intro t p htp
+    simp only [D, Set.mem_iUnion] at htp
+    obtain ⟨ψ,hψC,htp⟩ := htp
+    rw [hF_eq hψC htp]
+    exact ψ.target_mem htp
+  have hode : ∀ {t p}, (t,p) ∈ D →
+      HasDerivAt (fun s => F s p) (v (F t p)) t := by
+    intro t p htp
+    simp only [D, Set.mem_iUnion] at htp
+    obtain ⟨ψ,hψC,htp⟩ := htp
+    have heq : (fun s => F s p) =ᶠ[𝓝 t] (fun s => ψ.toFun s p) := by
+      filter_upwards [(ψ.open_times p).mem_nhds htp] with s hs
+      exact hF_eq hψC hs
+    have hval : F t p = ψ.toFun t p := hF_eq hψC htp
+    simpa [hval] using (ψ.ode htp).congr_of_eventuallyEq heq
+  have hcomp : ∀ {t s p}, (s,p) ∈ D →
+      (t,F s p) ∈ D → (t+s,p) ∈ D →
+      F (t+s) p = F t (F s p) := by
+    intro t s p hsp htq hts
+    have hp : p ∈ Ω := hsource hsp
+    let q := F s p
+    have hq : q ∈ Ω := htarget hsp
+    let I : Set ℝ := {u | (s+u,p) ∈ D} ∩ {u | (u,q) ∈ D}
+    have hIopen : IsOpen I := by
+      exact (hDopen.preimage
+        (continuous_const.add continuous_id |>.prodMk continuous_const)).inter
+        (hDopen.preimage (continuous_id.prodMk continuous_const))
+    have hIconv : Convex ℝ I := by
+      exact ((htime p hp).preimage (1 : ℝ →ₗ[ℝ] ℝ) s).inter (htime q hq)
+    have h0I : (0:ℝ) ∈ I := ⟨by simpa using hsp, hzero q hq⟩
+    have htI : t ∈ I := ⟨by simpa [add_comm] using hts, htq⟩
+    have huniq := smooth_ode_solution_unique_on_open_convex
+      (Ω := Ω) hIopen hIconv hΩ hv h0I
+      (γ := fun u => F (s+u) p) (η := fun u => F u q)
+      (fun u hu => htarget hu.1) (fun u hu => htarget hu.2)
+      (fun u hu => by
+        simpa using (hode hu.1).scomp u ((hasDerivAt_id u).const_add s))
+      (fun u hu => hode hu.2) (by simp [q])
+    exact huniq t htI
+  let Ψ : LocalFlow Ω v :=
+    { domain := D, open_domain := hDopen, source_mem := hsource,
+      zero_mem := hzero, time_convex := htime, toFun := F, smooth := hsmooth,
+      initial := hinitial, target_mem := htarget, ode := hode, composition := hcomp }
+  refine ⟨Ψ, ?_⟩
+  intro ψ hψC
+  refine ⟨?_, ?_⟩
+  · intro z hz
+    simp [Ψ, D]
+    exact ⟨ψ,hψC,hz⟩
+  · intro t p htp
+    exact hF_eq hψC htp
+
+end LocalFlow
+
 /-- Standard autonomous-ODE background used by Proposition 9.  This is an
 explicit Stage-1 dependency, not an assumed theorem constant. -/
 class HasMaximalSmoothLocalFlows : Prop where
