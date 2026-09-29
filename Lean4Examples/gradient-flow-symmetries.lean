@@ -1127,6 +1127,17 @@ lemma CompleteLawsOn.mono {ι : Type*} {L : S → E → ℝ} {h : ι → E → �
   · intro V hV hVU f hf hfc p hp
     exact hc.2.2.2 V hV (hVU.trans hUΩ) f hf hfc p hp
 
+lemma CompleteLawsOn.reindex {ι κ : Type*} (e : κ ≃ ι)
+    {L : S → E → ℝ} {h : ι → E → ℝ}
+    (hc : CompleteLawsOn Ω L h) :
+    CompleteLawsOn Ω L (fun k => h (e k)) := by
+  refine ⟨fun k => hc.1 (e k), fun k => hc.2.1 (e k), ?_, ?_⟩
+  · intro p hp
+    exact (hc.2.2.1 p hp).comp e.injective
+  · intro V hV hVU f hf hfc p hp
+    have hs := hc.2.2.2 V hV hVU f hf hfc p hp
+    simpa only [Set.range_comp, e.surjective.range_comp] using hs
+
 section IsometryTransport
 
 variable {F : Type*} [NormedAddCommGroup F] [InnerProductSpace ℝ F]
