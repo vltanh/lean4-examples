@@ -56,7 +56,7 @@ Target: Nguyen–Montúfar, *On Parameter Symmetries and Conservation Laws in Gr
 
 ### Polynomial network
 - [ ] `PolynomialIdentifiability.local_scaling_orbit_chart`
-- [ ] `PolynomialNetwork.singleGauge_gradient_localFlow`
+- [x] `PolynomialNetwork.singleGauge_gradient_localFlow` — eliminated; conservation now differentiates the explicit scaling symmetry directly
 - [ ] `PolynomialIdentifiability.conserved_gradient_spanned_by_scalings`
 
 ### Appendix H spectral algebra
@@ -69,6 +69,7 @@ Target: Nguyen–Montúfar, *On Parameter Symmetries and Conservation Laws in Gr
 ## Current work queue
 
 1. Inline the easy linear-algebra helper `Matrix.fullColumnRank_factorization_unique`.
-2. Inline the one-neuron PNN flow.
+2. [x] Remove the auxiliary one-neuron PNN flow and derive conservation directly from the explicit scaling symmetry.
 3. Replace matrix-factorization kernel/surjectivity helpers with direct differential calculations.
-4. Update this checklist after each proof batch.
+4. Inline the full-column-rank factorization uniqueness lemma.
+5. Update this checklist after each proof batch.
