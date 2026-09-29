@@ -273,6 +273,132 @@ lemma reciprocal_functions_independent
   rw [hisolate, Polynomial.eval_zero] at heval
   exact (mul_eq_zero.mp heval).resolve_right hprod_nonzero
 
+
+/-- Tran et al.'s special input: the first token is `x`, and the remaining
+`L` tokens are all `x-z`. -/
+def tranTestInput {D : ℕ} (L : ℕ+) (x z : Fin D → ℝ) :
+    Mat ((L : ℕ) + 1) D :=
+  fun i a => if i = 0 then x a else x a - z a
+
+@[simp] lemma tranTestInput_zero {D : ℕ} (L : ℕ+)
+    (x z : Fin D → ℝ) :
+    tranTestInput L x z 0 = x := by
+  ext a
+  simp [tranTestInput]
+
+@[simp] lemma tranTestInput_succ {D : ℕ} (L : ℕ+)
+    (x z : Fin D → ℝ) (i : Fin (L : ℕ)) :
+    tranTestInput L x z i.succ = x - z := by
+  ext a
+  simp [tranTestInput]
+
+lemma tranTest_score_zero_zero {D : ℕ} (L : ℕ+)
+    (A : Mat D D) (x z : Fin D → ℝ) :
+    (tranTestInput L x z * A * (tranTestInput L x z)ᵀ) 0 0 =
+      bilinearValue A x x := by
+  simp [tranTestInput, bilinearValue, inner, Matrix.mul_apply,
+    Matrix.transpose_apply, Matrix.vecMul]
+
+lemma tranTest_score_zero_succ {D : ℕ} (L : ℕ+)
+    (A : Mat D D) (x z : Fin D → ℝ) (i : Fin (L : ℕ)) :
+    (tranTestInput L x z * A * (tranTestInput L x z)ᵀ) 0 i.succ =
+      bilinearValue A x (x - z) := by
+  simp [tranTestInput, bilinearValue, inner, Matrix.mul_apply,
+    Matrix.transpose_apply, Matrix.vecMul]
+
+lemma bilinearValue_sub_right {D : ℕ} (A : Mat D D)
+    (x z : Fin D → ℝ) :
+    bilinearValue A x (x - z) =
+      bilinearValue A x x - bilinearValue A x z := by
+  simp [bilinearValue, inner_sub_right]
+
+/-- First row of one attention head on `tranTestInput`.  After factoring
+the common exponential, the coefficient of the displacement `z` is
+`exp(xAz)/(exp(xAz)+L)`. -/
+lemma tranTest_head_firstRow
+    {D : ℕ} (L : ℕ+) (A B : Mat D D)
+    (x z : Fin D → ℝ) (b : Fin D) :
+    (rowSoftmax
+        (tranTestInput L x z * A * (tranTestInput L x z)ᵀ) *
+      tranTestInput L x z * B) 0 b
+      =
+    (Matrix.vecMul (x - z) B) b +
+      (Real.exp (bilinearValue A x z) /
+        (Real.exp (bilinearValue A x z) + (L : ℕ : ℝ))) *
+        (Matrix.vecMul z B) b := by
+  let X := tranTestInput L x z
+  let q := bilinearValue A x x
+  let d := bilinearValue A x z
+  have hden :
+      (∑ a : Fin ((L : ℕ) + 1),
+        Real.exp ((X * A * Xᵀ) 0 a))
+        =
+      Real.exp (q - d) *
+        (Real.exp d + (L : ℕ : ℝ)) := by
+    rw [Fin.sum_univ_succ]
+    simp only [X, tranTest_score_zero_zero, tranTest_score_zero_succ]
+    rw [bilinearValue_sub_right]
+    simp [q, d, Real.exp_sub, Finset.sum_const, Nat.smul_one_eq_cast]
+    field_simp [Real.exp_ne_zero]
+    ring
+  have hden_ne :
+      Real.exp d + (L : ℕ : ℝ) ≠ 0 := by
+    positivity
+  rw [show
+      (rowSoftmax (X * A * Xᵀ) * X * B) 0 b =
+        ∑ i : Fin ((L : ℕ) + 1),
+          rowSoftmax (X * A * Xᵀ) 0 i * (X * B) i b by
+      simp [Matrix.mul_apply, Matrix.mul_assoc]]
+  rw [Fin.sum_univ_succ]
+  simp only [X, tranTestInput_zero, tranTestInput_succ]
+  rw [show (X * B) 0 b = Matrix.vecMul x B b by
+    simp [X, Matrix.mul_apply, Matrix.vecMul]]
+  have hsucc :
+      ∀ i : Fin (L : ℕ),
+        rowSoftmax (X * A * Xᵀ) 0 i.succ =
+          1 / (Real.exp d + (L : ℕ : ℝ)) := by
+    intro i
+    rw [rowSoftmax, hden]
+    rw [tranTest_score_zero_succ]
+    rw [bilinearValue_sub_right]
+    simp [q, d, Real.exp_sub]
+    field_simp [Real.exp_ne_zero, hden_ne]
+  have hzeroWeight :
+      rowSoftmax (X * A * Xᵀ) 0 0 =
+        Real.exp d / (Real.exp d + (L : ℕ : ℝ)) := by
+    rw [rowSoftmax, hden, tranTest_score_zero_zero]
+    simp [q, d, Real.exp_sub]
+    field_simp [Real.exp_ne_zero, hden_ne]
+  rw [hzeroWeight]
+  simp_rw [hsucc]
+  have hXB :
+      ∀ i : Fin (L : ℕ),
+        (X * B) i.succ b = Matrix.vecMul (x - z) B b := by
+    intro i
+    simp [X, Matrix.mul_apply, Matrix.vecMul]
+  simp_rw [hXB]
+  simp [Finset.sum_const, Nat.smul_eq_mul]
+  have hvec :
+      Matrix.vecMul x B b =
+        Matrix.vecMul (x - z) B b + Matrix.vecMul z B b := by
+    simp [Matrix.vecMul, sub_add_cancel]
+  rw [hvec]
+  field_simp [hden_ne]
+  ring
+
+/-- Sequence length one forces the sum of all value matrices to vanish. -/
+lemma sum_valueMatrices_eq_zero
+    {I : Type*} [Fintype I] [DecidableEq I] {D : ℕ}
+    (B : I → Mat D D)
+    (hzero : ∀ (L : ℕ+) (X : Mat (L : ℕ) D),
+      (∑ i, rowSoftmax (X * (0 : Mat D D) * Xᵀ) * X * B i) = 0) :
+    ∑ i, B i = 0 := by
+  ext a b
+  let X : Mat 1 D := fun _ j => if j = a then 1 else 0
+  have h := congrFun₂ (hzero 1 X) 0 b
+  simp [rowSoftmax, X, Matrix.mul_apply, Finset.sum_apply] at h
+  simpa using h
+
 /-- Tran et al. (2025a), Theorem 3.1, restated as Theorem 27 by
 Nguyen--Montúfar.  It is explicitly external during Stage 1. -/
 class HasTranAttentionIdentifiability : Prop where
