@@ -2710,23 +2710,31 @@ lemma bias_diagonalGauge_hidden (s : Hidden A → ℝˣ) (p : Param A)
 
 /-- Canonical scaling coordinates on the open chart where hidden biases are
 nonzero.  This is the local slice used implicitly in Appendix G.2. -/
-def biasRatioGauge (p q : Param A) (hp : GenericPoint A p)
-    (hq : GenericPoint A q) : Hidden A → ℝˣ :=
-  fun a => Units.mk0
-    (bias A q (currentLayer A a) a.2 /
-      bias A p (currentLayer A a) a.2)
-    (div_ne_zero (hq a) (hp a))
+def biasRatioGauge (p q : Param A) (hp : GenericPoint A p) :
+    Hidden A → ℝˣ :=
+  fun a =>
+    if hq : bias A q (currentLayer A a) a.2 ≠ 0 then
+      Units.mk0
+        (bias A q (currentLayer A a) a.2 /
+          bias A p (currentLayer A a) a.2)
+        (div_ne_zero hq (hp a))
+    else 1
 
 lemma biasRatioGauge_eq_of_gauge {p q : Param A}
-    (hp : GenericPoint A p) (hq : GenericPoint A q)
+    (hp : GenericPoint A p)
     {s : Hidden A → ℝˣ} (hqp : q = diagonalGauge A s p) :
-    biasRatioGauge A p q hp hq = s := by
+    biasRatioGauge A p q hp = s := by
   funext a
+  have hq : bias A q (currentLayer A a) a.2 ≠ 0 := by
+    rw [show bias A q (currentLayer A a) a.2 =
+      (s a : ℝ) * bias A p (currentLayer A a) a.2 by
+        simpa [hqp] using bias_diagonalGauge_hidden A s p a]
+    exact mul_ne_zero (Units.ne_zero _) (hp a)
   apply Units.ext
   rw [show bias A q (currentLayer A a) a.2 =
     (s a : ℝ) * bias A p (currentLayer A a) a.2 by
       simpa [hqp] using bias_diagonalGauge_hidden A s p a]
-  simp [biasRatioGauge, hp a]
+  simp [biasRatioGauge, hp a, hq]
 
 /-- Tangent space of the diagonal-scaling orbit at a generic point.  The
 coefficients are read off from the hidden-bias coordinates. -/
@@ -2744,13 +2752,13 @@ lemma tangent_mem_span_generators_of_local_gauge_orbit
       bias A p (currentLayer A a) a.2
   have hcanonical : ∀ᶠ t in 𝓝 0,
       γ t = diagonalGauge A
-        (biasRatioGauge A p (γ t) hp (hgeneric.self_of_nhds)) p := by
+        (biasRatioGauge A p (γ t) hp) p := by
     filter_upwards [hgeneric, horbit] with t hgt ⟨s, hs⟩
-    rw [hs, biasRatioGauge_eq_of_gauge A hp hgt hs]
+    rw [hs, biasRatioGauge_eq_of_gauge A hp hs]
   have hder :
       HasDerivAt
         (fun t => diagonalGauge A
-          (biasRatioGauge A p (γ t) hp (hgeneric.self_of_nhds)) p)
+          (biasRatioGauge A p (γ t) hp) p)
         (∑ a : Hidden A, coeff a • generator A a p) 0 := by
     -- Differentiate each coordinate of the diagonal action.  For the current
     -- row/bias the logarithmic derivative is coeff a; for an incoming column
@@ -2771,7 +2779,7 @@ lemma tangent_mem_span_generators_of_local_gauge_orbit
   have hsame :
       HasDerivAt
         (fun t => diagonalGauge A
-          (biasRatioGauge A p (γ t) hp (hgeneric.self_of_nhds)) p) v 0 :=
+          (biasRatioGauge A p (γ t) hp) p) v 0 :=
     hγ.congr_of_eventuallyEq hcanonical
   have hvsum := hder.unique hsame
   rw [← hvsum]
