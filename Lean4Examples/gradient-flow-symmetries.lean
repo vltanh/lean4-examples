@@ -3147,7 +3147,7 @@ theorem proposition8_local
   exact corollary10_reverse hL hv ψ hψ hclosed hp
 
 /-- Proposition 8 on a star-shaped domain; the potential is explicit. -/
-theorem proposition8_star [HasStarPoincareLemma E]
+theorem proposition8_star
     {L : S → E → ℝ}
     (hL : RegularLossOn Ω L) {v : Field E}
     (hv : ContDiffOn ℝ ∞ v Ω) (hclosed : IsClosedFieldOn Ω v)
@@ -6383,45 +6383,25 @@ theorem tangent_mem_span_scaling_orbit
 /-! The paper's proof of Proposition 19 uses the finite-to-one identifiability
 result directly; no auxiliary finite evaluation grid is needed here. -/
 
-/-- The paper deliberately leaves “generic” implicit.  Stage 1 therefore
-keeps it as an abstract predicate rather than identifying it with an
-invented coordinate condition.  The interface records exactly the two
-consequences of genericity/finite-to-one used in Appendix G.2:
-(1) local functional fibres are diagonal-scaling orbits after discrete
-branches are excluded, and (2) the scaling generators are independent on
-the chosen neighborhood. -/
+/-- The paper deliberately leaves “generic” implicit. Stage 1 therefore
+keeps its identifiability content as an abstract predicate. The concrete
+`GenericPoint` locus above is a separate dense-open regularity condition used
+only for the differential argument. Proposition 19 works on the intersection
+of these two loci rather than identifying them. -/
 class HasPNNGenericRegime
     (A : Architecture) (Generic : Param A → Prop) : Prop where
   local_regime :
     ∀ {p₀ : Param A}, FiniteToOneAt A p₀ → Generic p₀ →
       ∃ U : Set (Param A), IsOpen U ∧ p₀ ∈ U ∧
-        (∀ p ∈ U,
-          LinearIndependent ℝ (fun a : Hidden A => generator A a p)) ∧
         (∀ p ∈ U, ∀ q ∈ U,
           FunctionalEquiv (model A) p q ↔
             ∃ s : Hidden A → ℝˣ, q = diagonalGauge A s p)
-
-/-- Standard tangent-space fact for the regular diagonal-scaling orbit.  It
-is implicit in the dimension argument in Appendix G.2 and is kept explicit
-as Stage-1 differential-geometric background. -/
-class HasPNNScalingOrbitTangent (A : Architecture) : Prop where
-  tangent_mem_span :
-    ∀ {p : Param A},
-      LinearIndependent ℝ (fun a : Hidden A => generator A a p) →
-      ∀ {γ : ℝ → Param A} {v : Param A},
-        HasDerivAt γ v 0 → γ 0 = p →
-        (∀ᶠ t in 𝓝 0,
-          ∃ s : Hidden A → ℝˣ, γ t = diagonalGauge A s p) →
-        v ∈ Submodule.span ℝ
-          (Set.range (fun a : Hidden A => generator A a p))
 
 theorem local_scaling_identifiability
     {Generic : Param A → Prop} [HasPNNGenericRegime A Generic]
     {p₀ : Param A}
     (hfinite : FiniteToOneAt A p₀) (hgeneric : Generic p₀) :
     ∃ U : Set (Param A), IsOpen U ∧ p₀ ∈ U ∧
-      (∀ p ∈ U,
-        LinearIndependent ℝ (fun a : Hidden A => generator A a p)) ∧
       (∀ p ∈ U, ∀ q ∈ U,
         FunctionalEquiv (model A) p q ↔
           ∃ s : Hidden A → ℝˣ, q = diagonalGauge A s p) :=
@@ -6497,10 +6477,9 @@ theorem laws_conserved {U : Set (Param A)} {Y : Type*}
 
 /-- The completeness step uses the local fibre description, not merely the
 observation that the displayed quantities are conserved. -/
-theorem conserved_gradient_spanned [HasPNNScalingOrbitTangent A]
+theorem conserved_gradient_spanned
     {U : Set (Param A)} (hU : IsOpen U)
-    (hind : ∀ p ∈ U,
-      LinearIndependent ℝ (fun a : Hidden A => generator A a p))
+    (hregular : ∀ p ∈ U, GenericPoint A p)
     (hident : ∀ p ∈ U, ∀ q ∈ U, FunctionalEquiv (model A) p q ↔
       ∃ s : Hidden A → ℝˣ, q = diagonalGauge A s p)
     {Y : Type*} (ell : Output A → Y → ℝ) (hsep : SeparatesPredictions ell)
@@ -6527,8 +6506,7 @@ theorem conserved_gradient_spanned [HasPNNScalingOrbitTangent A]
     apply (hident _ (hVU (ψ.target_mem ht)) p (hVU hp)).mp
     exact hψfun t p ht
   have hspan :=
-    HasPNNScalingOrbitTangent.tangent_mem_span
-      (hind p (hVU hp)) hγ hγ0 horbit
+    tangent_mem_span_scaling_orbit A (hregular p (hVU hp)) hγ hγ0 horbit
   have heq :
       (fun a : Hidden A => gradient (law A a) p) =
         fun a => (2 : ℝ) • generator A a p := by
@@ -6552,25 +6530,42 @@ theorem conserved_gradient_spanned [HasPNNScalingOrbitTangent A]
         (Submodule.subset_span ⟨a, rfl⟩)
   exact hle hspan
 
-/-- Proposition 19 in the explicit generic regime described above. -/
+/-- Proposition 19 on the intersection of the paper's abstract
+identifiability-generic regime and the concrete dense-open regular locus used
+for the differential argument. No identification of the two notions is made. -/
 theorem proposition19
     {Generic : Param A → Prop}
-    [HasPNNGenericRegime A Generic] [HasPNNScalingOrbitTangent A]
+    [HasPNNGenericRegime A Generic]
     {Y : Type*} (ell : Output A → Y → ℝ)
     (hsep : SeparatesPredictions ell)
     (hL : RegularLossOn Set.univ (sampleLoss (model A) ell))
     {p₀ : Param A} (hfinite : FiniteToOneAt A p₀)
-    (hgeneric : Generic p₀) :
+    (hgeneric : Generic p₀) (hregular : GenericPoint A p₀) :
     ∃ U : Set (Param A), IsOpen U ∧ p₀ ∈ U ∧
       CompleteLawsOn U (sampleLoss (model A) ell) (law A) := by
-  obtain ⟨U, hU, hpU, hind, hident⟩ :=
+  obtain ⟨U₀, hU₀, hpU₀, hident₀⟩ :=
     local_scaling_identifiability A hfinite hgeneric
+  let U := U₀ ∩ genericSet A
+  have hU : IsOpen U := hU₀.inter (genericSet_isOpen A)
+  have hpU : p₀ ∈ U := ⟨hpU₀, hregular⟩
+  have hregularU : ∀ p ∈ U, GenericPoint A p := by
+    intro p hp
+    exact hp.2
+  have hind : ∀ p ∈ U,
+      LinearIndependent ℝ (fun a : Hidden A => generator A a p) := by
+    intro p hp
+    exact generic_generators_independent A hp.2
+  have hident : ∀ p ∈ U, ∀ q ∈ U,
+      FunctionalEquiv (model A) p q ↔
+        ∃ s : Hidden A → ℝˣ, q = diagonalGauge A s p := by
+    intro p hp q hq
+    exact hident₀ p hp.1 q hq.1
   have hreg := hL.mono hU (Set.subset_univ U)
   refine ⟨U, hU, hpU, (fun a => (law_smooth A a).contDiffOn),
     (fun a => laws_conserved A ell hreg a),
     independent_laws_of_generators A hind, ?_⟩
   intro V hV hVU h hh hc p hp
-  exact conserved_gradient_spanned A hU hind hident
+  exact conserved_gradient_spanned A hU hregularU hident
     ell hsep hreg hV hVU hh hc p hp
 
 theorem number_of_laws :
