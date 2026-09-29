@@ -3360,6 +3360,45 @@ def blockLaw :
   | (_, false) => Factorization.law
   | (_, true) => Factorization.law
 
+def blockRegular :
+    ∀ b : FactorBlock nG,
+      Set (Vec (factorIndex (nG := nG) k D dh b))
+  | (_, false) => Factorization.regular
+  | (_, true) => Factorization.regular
+
+lemma blockLoss_separates (b : FactorBlock nG) :
+    SeparatesPredictions
+      (blockLoss (nG := nG) (k := k) (D := D) (dh := dh) b) := by
+  rcases b with ⟨j,b⟩
+  cases b <;> exact Factorization.separates_entrySquaredLoss
+
+lemma blockLoss_regular (b : FactorBlock nG) :
+    RegularLossOn
+      (blockRegular (nG := nG) (k := k) (D := D) (dh := dh) b)
+      (sampleLoss
+        (blockModel (nG := nG) (k := k) (D := D) (dh := dh) b)
+        (blockLoss (nG := nG) (k := k) (D := D) (dh := dh) b)) := by
+  rcases b with ⟨j,b⟩
+  cases b <;> exact Factorization.squaredLoss_regular
+
+lemma reblock_mem_blockRegular (hk : 0 < k)
+    {p : Param nG k D dh} (hp : p ∈ regular)
+    (b : FactorBlock nG) :
+    Blocks.block (factorIndex (nG := nG) k D dh) b
+      (reblockEquiv (nG := nG) (k := k) (D := D) (dh := dh) p)
+      ∈ blockRegular (nG := nG) (k := k) (D := D) (dh := dh) b := by
+  rcases b with ⟨j,b⟩
+  cases b
+  · simpa [blockRegular, qkBlock] using qkBlock_regular hk hp j
+  · simpa [blockRegular, voBlock] using voBlock_regular hk hp j
+
+def lawIndexEquiv :
+    LawIndex nG dh ≃ Sigma (fun _ : FactorBlock nG => Upper dh) where
+  toFun a := ⟨(a.1, a.2.1), a.2.2⟩
+  invFun a := (a.1.1, a.1.2, a.2)
+  left_inv := by rintro ⟨j,b,a⟩; rfl
+  right_inv := by rintro ⟨⟨j,b⟩,a⟩; rfl
+
 lemma blockLaw_reblock (b : FactorBlock nG) (a : Upper dh)
     (p : Param nG k D dh) :
     blockLaw (nG := nG) (k := k) (D := D) (dh := dh) b a
