@@ -1582,25 +1582,14 @@ lemma poincare_star_mathlib
     (contDiffOn_infty_iff_fderiv_of_isOpen hΩ).2 ⟨hdiff, hfder⟩
   exact ⟨hsmooth, hpot⟩
 
-/-- Star-shaped Poincaré lemma in exactly the form used by the paper. -/
-class HasStarPoincareLemma
-    (E : Type*) [NormedAddCommGroup E] [InnerProductSpace ℝ E]
-    [FiniteDimensional ℝ E] [CompleteSpace E] : Prop where
-  radial_potential :
-    ∀ {Ω : Set E} {v : Field E}, IsOpen Ω →
-      ContDiffOn ℝ ∞ v Ω → IsClosedFieldOn Ω v →
-      ∀ {a : E}, a ∈ Ω → StarConvex ℝ a Ω →
-        ContDiffOn ℝ ∞ (radialPotential v a) Ω ∧
-          IsPotentialOn Ω v (radialPotential v a)
-
 /-- Global Poincaré lemma on a star-shaped domain. -/
-theorem poincare_star [HasStarPoincareLemma E]
+theorem poincare_star
     (hΩ : IsOpen Ω) {v : Field E}
     (hv : ContDiffOn ℝ ∞ v Ω) (hclosed : IsClosedFieldOn Ω v)
     {a : E} (ha : a ∈ Ω) (hstar : StarConvex ℝ a Ω) :
     ContDiffOn ℝ ∞ (radialPotential v a) Ω ∧
       IsPotentialOn Ω v (radialPotential v a) :=
-  HasStarPoincareLemma.radial_potential hΩ hv hclosed ha hstar
+  poincare_star_mathlib hΩ hv hclosed ha hstar
 
 /-- Local Poincaré lemma, with a connected ball and uniqueness modulo constants. -/
 theorem poincare_local (hΩ : IsOpen Ω) {v : Field E}
