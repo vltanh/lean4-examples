@@ -116,7 +116,7 @@ For each external field:
 ## 2B. Standard geometry / ODE dependencies
 
 - [x] Prove/adapt local submersion factorization — discharged from Mathlib's finite-dimensional implicit-function theorem.
-- [ ] Prove/adapt maximal local-flow existence and uniqueness.
+- [x] Prove/adapt maximal local-flow existence and uniqueness — vendored the Apache-2.0 TauCeti smooth-dependence proof over Mathlib, then glued all local flow patches and took their common extension.
 - [ ] Prove/adapt connected Lie-group infinitesimal invariance.
 - [x] Prove the needed Poincaré lemma — discharged using Mathlib curve integrals and convex Poincaré on local triangles inside a star-shaped domain.
 - [ ] Prove/adapt Frobenius/local first integrals.
@@ -225,3 +225,15 @@ For each external field:
 - [x] Local triangle relation proved using Mathlib's convex Poincare theorem.
 - [x] Derivative of the radial potential proved to be the associated one-form.
 - [x] Smoothness bootstrapped from the smooth derivative.
+
+
+### Stage-2 ODE checkpoint
+
+- [x] `HasMaximalSmoothLocalFlows` removed.
+- [x] Vendored the minimal Apache-2.0 TauCeti model-space smooth-flow proof chain, pinned to source commit `b56249442e554651432debd903d53f228e7f5a6f`.
+- [x] Smooth local flow germs shrunk to symmetric product patches inside the paper domain.
+- [x] Smooth ODE uniqueness propagated across arbitrary open convex time intervals.
+- [x] Local flow patches glued by uniqueness.
+- [x] Arbitrary nonempty families of local flows have a common smooth extension.
+- [x] The common extension of all local flows is maximal.
+- [ ] Next: eliminate the remaining Lie generation / Frobenius / Marcotte / Tran / PNN interfaces.
