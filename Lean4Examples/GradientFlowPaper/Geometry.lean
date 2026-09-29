@@ -2676,17 +2676,6 @@ class HasFrobeniusBackground
     ∀ {Ω : Set E} {D : Distribution E},
       HasLocalSmoothFrame Ω (lieCompletion Ω D) →
       InvolutiveOn Ω (lieCompletion Ω D)
-  firstIntegrals :
-    ∀ {Ω : Set E} {D : Distribution E} {r : ℕ},
-      IsOpen Ω → HasLocalSmoothFrame Ω D →
-      ConstantRankOn Ω D r → InvolutiveOn Ω D →
-      ∀ {p : E}, p ∈ Ω →
-        ∃ (U : Set E) (h : Fin (Module.finrank ℝ E - r) → E → ℝ),
-          IsOpen U ∧ p ∈ U ∧ U ⊆ Ω ∧
-          (∀ i, ContDiffOn ℝ ∞ (h i) U) ∧
-          FunctionallyIndependentOn U h ∧
-          (∀ q ∈ U,
-            Submodule.span ℝ (Set.range (fun i => gradient (h i) q)) = (D q)ᗮ)
   orthogonalFrame :
     ∀ {Ω : Set E} {D : Distribution E} {r : ℕ},
       IsOpen Ω → HasLocalSmoothFrame Ω D →
@@ -2867,8 +2856,27 @@ theorem theorem21_frobenius [HasFrobeniusBackground E]
       IsOpen U ∧ p ∈ U ∧ U ⊆ Ω ∧
       (∀ i, ContDiffOn ℝ ∞ (h i) U) ∧
       FunctionallyIndependentOn U h ∧
-      (∀ q ∈ U, Submodule.span ℝ (Set.range (fun i => gradient (h i) q)) = (D q)ᗮ) :=
-  HasFrobeniusBackground.firstIntegrals hΩ hframe hrank hinv hp
+      (∀ q ∈ U, Submodule.span ℝ (Set.range (fun i => gradient (h i) q)) = (D q)ᗮ) := by
+  obtain ⟨U, m, h, hU, hpU, hUΩ, hh, hbasis⟩ :=
+    ((theorem21 hΩ hframe hrank).mpr hinv) p hp
+  have hm : m = Module.finrank ℝ E - r := by
+    have hind := (hbasis p hpU).1
+    have hspan := (hbasis p hpU).2
+    calc
+      m = Module.finrank ℝ
+          (Submodule.span ℝ (Set.range (fun i => gradient (h i) p))) :=
+        (finrank_span_eq_card hind).symm
+      _ = Module.finrank ℝ (D p)ᗮ := by rw [hspan]
+      _ = Module.finrank ℝ E - r := by
+        have hsum := (D p).finrank_add_finrank_orthogonal
+        rw [hrank p (hUΩ hpU)] at hsum
+        omega
+  subst m
+  refine ⟨U, h, hU, hpU, hUΩ, hh, ?_, ?_⟩
+  · intro q hq
+    exact (hbasis q hq).1
+  · intro q hq
+    exact (hbasis q hq).2
 
 /-- Local/germ completeness, as actually used by Propositions 4 and 16--17.
 This is stronger than a merely maximal family of globally defined functions. -/
