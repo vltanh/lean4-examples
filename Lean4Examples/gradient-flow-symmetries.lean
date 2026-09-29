@@ -4764,6 +4764,59 @@ lemma gramCandidate_posDef_mathlib
   exact hPsem.posDef_iff_isUnit.mpr
     (Matrix.mulVec_injective_iff_isUnit.mp hinj)
 
+lemma gramCandidate_quadratic_identity
+    (H : Mat 2 2) (hH : Hᵀ = H) (α : ℝ) (hα : α ≠ 0)
+    (R : Mat 2 2)
+    (hR : PositiveSquareRoot
+      (H * H + (4 * α^2) • (1 : Mat 2 2)) R) :
+    (gramCandidate H R - H) * gramCandidate H R =
+      α^2 • (1 : Mat 2 2) := by
+  have hcomm := positiveSquareRoot_commutes_with_base H hH α hα R hR
+  have hleft :
+      gramCandidate H R - H = (1 / 2 : ℝ) • (R - H) := by
+    unfold gramCandidate
+    module
+  rw [hleft]
+  unfold gramCandidate
+  calc
+    ((1 / 2 : ℝ) • (R - H)) * ((1 / 2 : ℝ) • (H + R))
+        = (1 / 4 : ℝ) • ((R - H) * (H + R)) := by
+            simp [Algebra.smul_mul_assoc, Algebra.mul_smul_comm, smul_smul]
+            ring
+    _ = (1 / 4 : ℝ) • (R * R - H * H) := by
+          congr 1
+          rw [sub_mul, mul_add, mul_add, hcomm.eq]
+          abel
+    _ = (1 / 4 : ℝ) • ((4 * α^2) • (1 : Mat 2 2)) := by
+          rw [hR.2, add_sub_cancel_left]
+    _ = α^2 • (1 : Mat 2 2) := by
+          rw [smul_smul]
+          ring_nf
+
+lemma gramCandidate_identity_mathlib
+    (H : Mat 2 2) (hH : Hᵀ = H) (α : ℝ) (hα : α ≠ 0)
+    (R : Mat 2 2)
+    (hR : PositiveSquareRoot
+      (H * H + (4 * α^2) • (1 : Mat 2 2)) R) :
+    gramCandidate H R - α^2 • (gramCandidate H R)⁻¹ = H := by
+  let P := gramCandidate H R
+  have hPpos : Matrix.PosDef P := by
+    dsimp [P]
+    exact gramCandidate_posDef_mathlib H hH α hα R hR
+  have hPunit : IsUnit P := hPpos.isUnit
+  have hquad : (P - H) * P = α^2 • (1 : Mat 2 2) := by
+    simpa [P] using gramCandidate_quadratic_identity H hH α hα R hR
+  have hright : P - H = α^2 • P⁻¹ := by
+    calc
+      P - H = (P - H) * 1 := by simp
+      _ = (P - H) * (P * P⁻¹) := by simp [hPunit]
+      _ = ((P - H) * P) * P⁻¹ := by rw [Matrix.mul_assoc]
+      _ = (α^2 • (1 : Mat 2 2)) * P⁻¹ := by rw [hquad]
+      _ = α^2 • P⁻¹ := by
+            simp [Algebra.smul_mul_assoc]
+  dsimp [P] at hright ⊢
+  abel
+
 /-- Standard spectral-algebra facts used in Appendix H.  Nguyen--Montúfar
 invoke the spectral theorem here; Stage 1 keeps the exact consequences
 explicit and Stage 2 discharges them from Mathlib CFC/spectral theory. -/
