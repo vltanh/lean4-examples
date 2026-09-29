@@ -1,30 +1,74 @@
-# Gradient-flow paper formalization status
+# Gradient-flow paper formalization — live checklist
 
 Target: Nguyen–Montúfar, *On Parameter Symmetries and Conservation Laws in Gradient Flow* (arXiv:2609.34549v1).
 
-## Current branch state
+## Branch invariants
 
-- Single Lean source: `Lean4Examples/gradient-flow-symmetries.lean`.
-- No occurrences of `sorry`, `admit`, or custom `axiom` declarations.
-- The source is intentionally uncompiled. Proof scripts still need elaboration/API repair against this repository's Lean 4.26 / mathlib 4.26 pin.
-- Proposition 19 now uses an explicit `GenericPoint` predicate rather than the earlier `GenericWitnessAt` regular-rank surrogate.
-- The chosen generic locus is the set where every hidden bias is nonzero; the source states and proves that this locus is open and dense and uses it only for the two roles genericity plays in Appendix G.2: a local diagonal-scaling slice and linear independence of the scaling generators.
+- [x] Work on `formalize-gradient-flow-paper`.
+- [x] Draft PR opened: #1.
+- [x] No `sorry`.
+- [x] No `admit`.
+- [x] No custom `axiom` declarations.
+- [x] Repository pin corrected to Lean 4.26 / mathlib 4.26 in the source commentary.
+- [ ] All provisional theorem/interface names eliminated.
+- [ ] Source elaborated against the repository pin.
+- [ ] Draft PR converted to ready only after the previous two items.
 
-## External mathematical inputs used by the paper
+## Paper sections
 
-The paper itself invokes several results rather than reproving them. The Lean draft keeps these as named interfaces to be connected to formal libraries or vendored formalizations during compilation repair:
+- [x] Section 2 core definitions and Proposition 2 proof bodies.
+- [x] Proposition 1 global-gradient-flow proof body.
+- [x] Proposition 4 statement and proof body.
+- [x] Proposition 5 / Corollaries 6–7 statement and proof body.
+- [x] Propositions 8–9 / Corollary 10 statement and proof body.
+- [x] Lie completion definitions and first-integral induction.
+- [x] Theorem 12 assembly and gap arithmetic.
+- [x] Proposition 14.
+- [x] Proposition 15.
+- [x] Proposition 16 reflection/slicing argument inlined.
+- [x] Theorem 17.
+- [x] Matrix-factorization algebra and conserved Gram laws.
+- [x] GQA gauge-sharing argument inlined.
+- [x] PNN generic locus made explicit and proved open/dense.
+- [x] Deep-linear gauge and product-fibre argument inlined.
+- [x] Appendix H scalar and 2×2 proof bodies.
 
-1. Submersion/local factorization theorem used in Proposition 4.
-2. Maximal smooth local-flow existence and uniqueness.
-3. Poincaré lemma on star-shaped domains.
-4. Frobenius theorem.
-5. Full-rank matrix-factorization uniqueness (Piziak–Odell).
-6. Matrix-factorization conservation-law completeness from Marcotte et al. (2023), Lemma 28 in the paper.
-7. Attention-head identifiability from Tran et al. (2025a), Theorem 27 in the paper.
-8. Spectral theorem / positive matrix square roots and polar decomposition used in Lemma 29.
+## Provisional interfaces still to eliminate
 
-These are distinguished from the paper's own inheritance, attention, polynomial-network, and deep-linear arguments.
+### Differential geometry / ODE
+- [ ] `LocalSubmersion.factorization_iff_gradient_mem_span`
+- [ ] `ODE.exists_unique_maximal_smooth_localFlow`
+- [ ] `LieGroup.connected_invariant_iff_infinitesimal`
+- [ ] `Poincare.radialPotential_contDiffOn`
+- [ ] `Poincare.gradient_radialPotential_eq`
+- [ ] `LieClosure.involutive_of_hasLocalSmoothFrame`
+- [ ] `Frobenius.exists_local_firstIntegrals`
+- [ ] `SmoothDistribution.exists_orthogonal_localFrame`
 
-## Next repair pass
+### Matrix factorization / attention
+- [ ] `Matrix.fullColumnRank_factorization_unique`
+- [ ] `MatrixFactorization.complete_balance_laws` — paper cites Marcotte et al. (2023)
+- [ ] `MatrixFactorization.symmetryDistribution_eq_kernel_of_squaredLoss`
+- [ ] `MatrixFactorization.fderiv_observation_surjective_of_fullColumnRank`
+- [ ] `TranEtAl2025.attention_head_identifiability` — paper's Theorem 27
+- [ ] `AttentionIdentifiability.exists_local_product_chart`
+- [ ] `AttentionIdentifiability.complete_laws_from_factor_blocks`
 
-The next pass should eliminate provisional interface names for results proved inside the paper, then map the genuinely external inputs above to concrete library declarations or vendored proofs. Compilation can then be used only for API/typing repair; it should not reintroduce mathematical assumptions.
+### Polynomial network
+- [ ] `PolynomialIdentifiability.local_scaling_orbit_chart`
+- [ ] `PolynomialNetwork.singleGauge_gradient_localFlow`
+- [ ] `PolynomialIdentifiability.conserved_gradient_spanned_by_scalings`
+
+### Appendix H spectral algebra
+- [ ] `Matrix.posDef_sq_add_pos_scalar_one`
+- [ ] `Matrix.posDef_half_add_sqrt_sq_add`
+- [ ] `Matrix.sqrt_quadratic_gram_identity`
+- [ ] `Matrix.posDef_transpose_mul_self_of_isUnit`
+- [ ] `Matrix.unique_posDef_solution_sub_sq_smul_inv`
+
+## Current work queue
+
+1. Inline the easy linear-algebra helper `Matrix.fullColumnRank_factorization_unique`.
+2. Inline the one-neuron PNN flow.
+3. Replace matrix-factorization kernel/surjectivity helpers with direct differential calculations.
+4. Update this checklist after each proof batch.
