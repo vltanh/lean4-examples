@@ -399,8 +399,8 @@ lemma continuousAt_sliceNormalize {p : Param A} (hp : GenericPoint A p) :
   fun_prop (disch := aesop)
 
 /-- A finite functional fibre modulo scaling has an isolated scaling orbit at
-every regular point.  This is the local-neighborhood deduction that was
-previously (and incorrectly) hidden inside `HasPNNGenericRegime.local_regime`.
+every regular point.  This is the local-neighborhood deduction that an earlier
+draft incorrectly treated as an external input.
 
 The normalization sends every regular point in one scaling orbit to the same
 slice point.  The fibre of `p` has only finitely many scaling orbits, so
@@ -695,10 +695,10 @@ theorem tangent_mem_span_scaling_orbit
   exact fderiv_expGauge_mem_span A p (logBiasVelocity A p v)
 
 
-/-! The paper's proof of Proposition 19 uses finite-to-one
-identifiability in a generic neighborhood.  The local scaling-orbit
-conclusion is **not** part of the external hypothesis: it is the theorem
-`finiteToOneAt_local_scaling_orbit` proved above. -/
+/-! Proposition 19 uses generic finite-to-one identifiability in the literal
+measure-theoretic sense of the cited source. The local scaling-orbit conclusion
+is not an assumption: it is the theorem `finiteToOneAt_local_scaling_orbit`
+proved above, and the a.e. pointwise result is extended by continuity. -/
 
 theorem law_smooth (a : Hidden A) : ContDiff ℝ ∞ (law A a) := by
   unfold law W bias
