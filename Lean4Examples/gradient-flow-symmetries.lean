@@ -2592,6 +2592,36 @@ def productPrefix (p : Param L D) : (j : ℕ) → j ≤ L → Mat D D
 
 def product (p : Param L D) : Mat D D := productPrefix p L le_rfl
 
+lemma W_contDiff (j : Fin L) : ContDiff ℝ ∞ (fun p : Param L D => W p j) := by
+  unfold W
+  fun_prop
+
+/-- Every prefix is invertible on the full-rank stratum.  The proof descends
+from the total product using multiplicativity of the determinant. -/
+lemma productPrefix_isUnit_of_regular (hL : 0 < L) {p : Param L D}
+    (hp : p ∈ regular) (j : ℕ) (hj : j ≤ L) :
+    IsUnit (productPrefix p j hj) := by
+  have htop : IsUnit (productPrefix p L le_rfl) := hp
+  have hdetTop : IsUnit (Matrix.det (productPrefix p L le_rfl)) := by
+    exact (Matrix.isUnit_iff_isUnit_det _).mp htop
+  have descend : ∀ n ≤ L, IsUnit (Matrix.det (productPrefix p n (by omega))) := by
+    intro n hn
+    induction hgap : L - n using Nat.strong_induction_on generalizing n with
+    | h d ih =>
+        by_cases hEq : n = L
+        · subst n
+          simpa using hdetTop
+        · have hnlt : n < L := lt_of_le_of_ne hn hEq
+          have hnext :
+              IsUnit (Matrix.det (productPrefix p (n + 1) (by omega))) :=
+            ih (L - (n + 1)) (by omega) (n + 1) (by omega) rfl
+          rw [productPrefix, Matrix.det_mul] at hnext
+          exact ((Commute.all
+            (Matrix.det (W p ⟨n, by omega⟩))
+            (Matrix.det (productPrefix p n (by omega)))).isUnit_mul_iff.mp hnext).2
+  apply (Matrix.isUnit_iff_isUnit_det _).mpr
+  convert descend j hj
+
 def model (p : Param L D) (x : Vec (Fin D)) : Vec (Fin D) :=
   WithLp.toLp 2 ((product p).mulVec x.ofLp)
 
@@ -2647,8 +2677,71 @@ theorem fullRank_fiber (hL : 0 < L) {p q : Param L D}
   · intro he
     have hprod : product p = product q :=
       (functionalEquiv_iff_product p q).mp he
-    exact DeepLinear.exists_gauge_of_equal_product_fullRank
-      hL hp hq hprod
+    let T : (j : ℕ) → j ≤ L → Mat D D :=
+      fun j hj =>
+        productPrefix q j hj * (productPrefix p j hj)⁻¹
+    have hTunit : ∀ j (hj : j ≤ L), IsUnit (T j hj) := by
+      intro j hj
+      exact (productPrefix_isUnit_of_regular hL hq j hj).mul
+        (productPrefix_isUnit_of_regular hL hp j hj).inv
+    have hTzero : T 0 (by omega) = 1 := by
+      simp [T, productPrefix]
+    have hTtop : T L le_rfl = 1 := by
+      have hpunit := productPrefix_isUnit_of_regular hL hp L le_rfl
+      simp [T, product, hprod, hpunit]
+    have hlayer : ∀ j (hj : j < L),
+        W q ⟨j, hj⟩ =
+          T (j + 1) (by omega) * W p ⟨j, hj⟩ *
+            (T j (by omega))⁻¹ := by
+      intro j hj
+      have hprefp := productPrefix_isUnit_of_regular hL hp j (by omega)
+      have hprefq := productPrefix_isUnit_of_regular hL hq j (by omega)
+      have hWp :
+          IsUnit (W p ⟨j, hj⟩) := by
+        have hnext := productPrefix_isUnit_of_regular hL hp (j + 1) (by omega)
+        rw [productPrefix] at hnext
+        exact (Matrix.isUnit_iff_isUnit_det _).mpr <| by
+          rw [Matrix.isUnit_iff_isUnit_det] at hnext
+          rw [Matrix.det_mul] at hnext
+          exact ((Commute.all _ _).isUnit_mul_iff.mp hnext).1
+      simp only [T, productPrefix]
+      calc
+        W q ⟨j, hj⟩
+            = (W q ⟨j, hj⟩ * productPrefix q j (by omega)) *
+                (productPrefix q j (by omega))⁻¹ := by
+                  simp [Matrix.mul_assoc, hprefq]
+        _ = ((W q ⟨j, hj⟩ * productPrefix q j (by omega)) *
+                (W p ⟨j, hj⟩ * productPrefix p j (by omega))⁻¹) *
+              W p ⟨j, hj⟩ *
+              (productPrefix q j (by omega) *
+                (productPrefix p j (by omega))⁻¹)⁻¹ := by
+                  simp [Matrix.mul_assoc, hprefp, hprefq, hWp]
+        _ = T (j + 1) (by omega) * W p ⟨j, hj⟩ *
+              (T j (by omega))⁻¹ := by rfl
+    have hSint : ∀ a : Fin (L - 1), IsUnit (T (a.val + 1) (by omega)) :=
+      fun a => hTunit _ _
+    choose s hs using hSint
+    refine ⟨s, ?_⟩
+    ext a
+    rcases a with ⟨j, x, y⟩
+    have hj : j.val < L := j.isLt
+    have hleft :
+        (boundaryGauge s (j.val + 1) (by omega) : Mat D D) =
+          T (j.val + 1) (by omega) := by
+      by_cases htop : j.val + 1 = L
+      · simp [boundaryGauge, htop, hTtop]
+      · have hpos : j.val + 1 ≠ 0 := by omega
+        simp [boundaryGauge, htop, hpos, hs]
+    have hright :
+        ((boundaryGauge s j.val (by omega))⁻¹ : GL D).val =
+          (T j.val (by omega))⁻¹ := by
+      by_cases hzero : j.val = 0
+      · simp [boundaryGauge, hzero, hTzero]
+      · have hnotTop : j.val ≠ L := by omega
+        simp [boundaryGauge, hzero, hnotTop, hs]
+    have hmat := hlayer j.val hj
+    rw [hleft, hright] at *
+    simpa [gauge, W] using congrFun₂ hmat x y
   · rintro ⟨s, rfl⟩
     exact (functionalEquiv_iff_product p (gauge s p)).mpr (product_gauge s p).symm
 
@@ -2669,7 +2762,7 @@ theorem product_smooth : ContDiff ℝ ∞ (product (L := L) (D := D)) := by
         intro hj
         have hj' : j ≤ L := by omega
         simpa [productPrefix] using
-          (DeepLinear.contDiff_W (L := L) (D := D) ⟨j, by omega⟩).mul
+          (W_contDiff (L := L) (D := D) ⟨j, by omega⟩).mul
             (ih hj')
   exact hprefix L le_rfl
 
@@ -2688,15 +2781,51 @@ theorem product_derivative_surjective (hL : 0 < L) {p : Param L D}
     Function.Surjective (fderiv ℝ (product (L := L) (D := D)) p) := by
   have hinv :
       IsUnit (productPrefix p (L - 1) (by omega)) :=
-    DeepLinear.prefix_isUnit_of_product_isUnit hL hp
+    productPrefix_isUnit_of_regular hL hp _ (by omega)
   intro Y
-  let R : Mat D D := (productPrefix p (L - 1) (by omega))⁻¹
+  let P : Mat D D := productPrefix p (L - 1) (by omega)
   let δ : Param L D :=
     WithLp.toLp 2 (fun a =>
-      if h : a.1.val = L - 1 then (Y * R) a.2.1 a.2.2 else 0)
-  refine ⟨δ, ?_⟩
-  rw [DeepLinear.fderiv_product_apply_last hL p δ]
-  simp [δ, R, hinv]
+      if h : a.1.val = L - 1 then (Y * P⁻¹) a.2.1 a.2.2 else 0)
+  have hprefix_const : ∀ t : ℝ,
+      productPrefix (p + t • δ) (L - 1) (by omega) = P := by
+    intro t
+    induction L with
+    | zero => omega
+    | succ L ih =>
+        simp only [P]
+        apply productPrefix_congr
+        intro j hj
+        ext a b
+        simp [W, δ]
+        have : j.val ≠ L := by omega
+        simp [this]
+  have hline : ∀ t : ℝ,
+      product (p + t • δ) = product p + t • Y := by
+    intro t
+    rw [show product (p + t • δ) =
+      W (p + t • δ) ⟨L - 1, by omega⟩ *
+        productPrefix (p + t • δ) (L - 1) (by omega) by
+          simp [product, productPrefix, hL]]
+    rw [hprefix_const]
+    rw [show W (p + t • δ) ⟨L - 1, by omega⟩ =
+      W p ⟨L - 1, by omega⟩ + t • (Y * P⁻¹) by
+        ext a b
+        simp [W, δ]]
+    simp [Matrix.add_mul, Matrix.smul_mul, Matrix.mul_assoc, P, hinv]
+  have hcurve :
+      HasDerivAt (fun t : ℝ => product (p + t • δ)) Y 0 := by
+    convert (hasDerivAt_id (x := 0)).smul_const Y |>.const_add (product p) using 1
+    · ext t
+      simpa [add_comm] using hline t
+    · simp
+  have hparam :
+      HasDerivAt (fun t : ℝ => p + t • δ) δ 0 := by
+    simpa using (hasDerivAt_id (x := 0)).smul_const δ |>.const_add p
+  have hchain :=
+    (product_smooth (L := L) (D := D)).differentiable
+      (by simp) p |>.hasFDerivAt.comp_hasDerivAt 0 hparam
+  exact ⟨δ, hchain.unique hcurve⟩
 
 theorem vertical_rank (hL : 0 < L) {p : Param L D} (hp : p ∈ regular) :
     Module.finrank ℝ (vertical p) = (L - 1) * D^2 := by
