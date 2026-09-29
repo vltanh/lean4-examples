@@ -30,18 +30,16 @@
       "lean_class": "GradientFlowPaper.HasFrobeniusBackground",
       "kind": "standard-background",
       "status": "open",
-      "source": "Frobenius/local first-integral theorem and smooth orthogonal-complement frame construction",
+      "source": "Finite-dimensional smooth Frobenius theorem: local first-integral construction for an involutive constant-rank distribution",
       "consumers": [
         "GradientFlowPaper.theorem21",
         "GradientFlowPaper.theorem21_frobenius",
         "GradientFlowPaper.theorem12"
       ],
       "obligations": [
-        "frobenius_iff",
-        "lieClosure_involutive",
-        "orthogonalFrame"
+        "firstIntegrals"
       ],
-      "note": "The exact-rank first-integral family is now derived internally from frobenius_iff and finite-dimensional orthogonal-complement rank arithmetic."
+      "note": "The integrable⇒involutive direction, Lie-completion involutivity, exact-rank bookkeeping, and smooth orthogonal-complement frames have been moved into proof code. The remaining field is the local Frobenius existence direction."
     },
     {
       "lean_class": "GradientFlowPaper.HasMarcotteMatrixFactorizationCompleteness",
@@ -74,15 +72,16 @@
     {
       "lean_class": "GradientFlowPaper.PolynomialNetwork.HasPNNGenericRegime",
       "kind": "literature",
-      "status": "open",
-      "source": "Usevich et al. (2025), generic finite-to-one identifiability for deep polynomial neural networks",
+      "status": "needs-refactor",
+      "source": "Usevich et al. (2025), generic finite identifiability for deep polynomial neural networks",
       "consumers": [
         "GradientFlowPaper.PolynomialNetwork.proposition19"
       ],
       "obligations": [
-        "local_regime"
+        "replace local_regime with a source-facing finite-identifiability/generic hypothesis",
+        "prove local scaling-orbit isolation internally"
       ],
-      "note": "The paper/Usevich generic predicate is kept separate from the proved dense-open nonzero-hidden-bias regular locus."
+      "note": "AUDIT: `local_regime` is stronger than the cited finite-identifiability statement: it directly assumes the local functional fibre is the diagonal-scaling orbit. This is the conclusion Appendix G.2 needs to derive, so the current class is provisional and must be removed. The nonzero-bias dense-open locus, generator independence, canonical scaling coordinates, and tangent-space proof are already internal."
     }
   ],
   "discharged_dependencies": [
@@ -153,5 +152,16 @@
       "GradientFlowPaper.LearningToScale.lemma29_roots_exist",
       "GradientFlowPaper.LearningToScale.lemma29"
     ]
-  }
+  },
+  "audit_findings": [
+    {
+      "id": "PNN-LOCAL-ORBIT-HIDDEN-OBLIGATION",
+      "severity": "blocking",
+      "introduced_by": "41269cc95d62eeb7548ed8f5424599e44bc68ff1",
+      "surfaced_at_checkpoint": "285acda5f533588d1f6c0bf05fc3e8b7c12a8f18",
+      "module": "Lean4Examples.GradientFlowPaper.Polynomial",
+      "finding": "The local functional-fibre/diagonal-scaling-orbit statement was moved behind `HasPNNGenericRegime.local_regime` and then counted as a completed paper-internal proof.",
+      "remedy": "Restore the finite-observation/constant-rank slice route (or an equivalent proof) in Polynomial.lean; keep only the actual literature identifiability result external."
+    }
+  ]
 }
