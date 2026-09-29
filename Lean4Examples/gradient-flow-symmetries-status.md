@@ -86,15 +86,15 @@ These are proved by Nguyen–Montúfar from the external inputs above, so they m
 - [x] PNN tangent-to-scaling-orbit completeness step.
 - [x] GQA local product-identifiability deduction from Theorem 27.
 - [x] GQA factor-block completeness deduction from Lemma 28 + Theorem 17.
-- [x] PNN local-neighborhood step is routed through the exact Stage-1 generic-regime dependency, with the subsequent tangent/completeness argument formalized.
-- [x] Remaining helpers have been classified; paper-internal GQA, PNN, inheritance, and deep-linear deductions are inlined.
+- [ ] PNN local-neighborhood deduction is **not** discharged: the former `HasPNNGenericRegime.local_regime` packaged the desired local fibre/orbit conclusion itself. The split audit identified this as a hidden paper-internal obligation; `Polynomial.lean` must derive the local orbit chart from finite identifiability plus a source-faithful generic/regular witness.
+- [ ] Remaining helpers are classified, but the PNN local-fibre isolation argument still has to be inlined. GQA, inheritance, deep-linear, and the PNN tangent-to-scaling-orbit argument are inlined.
 
 ## 1D. Stage-1 completion criterion
 
 Stage 1 is complete only when:
 
 - [x] every numbered theorem/proposition/corollary/lemma selected from Nguyen–Montúfar has a Lean statement, including Theorems 21–22, Propositions 23–25, and Lemma 26;
-- [x] every paper-internal proof step currently in scope is represented by Lean proof code;
+- [ ] every paper-internal proof step currently in scope is represented by Lean proof code; **open:** Appendix G.2 local isolation of the scaling orbit from the finite-identifiability hypothesis;
 - [x] every result not proved in Nguyen–Montúfar is visibly routed through a named external dependency class;
 - [x] no provisional namespace such as `AttentionIdentifiability` or `PolynomialIdentifiability` hides an unclassified obligation;
 - [ ] the paper layer compiles assuming an arbitrary value of the external-results interface;
@@ -186,9 +186,9 @@ For each external field:
 
 ## Current Stage-1 checkpoint
 
-- [x] Paper-facing source coverage complete.
+- [x] Paper-facing statement coverage complete.
 - [x] GQA Steps 1–3 are inlined from the explicit Tran/Marcotte dependencies and Theorem 17.
-- [x] PNN genericity is no longer silently identified with a convenient coordinate condition; the paper's implicit “generic” regime is explicit as a parameterized dependency.
+- [ ] PNN genericity no longer uses the old `GenericWitnessAt` as the paper's definition, but the current local-orbit interface is still too strong. It must be replaced by a source-facing finite-identifiability/generic witness plus an internal local-isolation proof.
 - [x] Appendix numbered results Theorem 21, Theorem 22, Propositions 23–25, and Lemma 26 are present.
 - [x] Source scan: zero `sorry`, zero `admit`, zero custom `axiom`.
 - [ ] Final Stage-1 gate: elaborate/compile the paper layer against the pinned toolchain with the external dependency interfaces left abstract. Historical CI reached Lake but failed before elaboration because the package root `Lean4Examples.lean` was missing; that root has now been added.
@@ -242,8 +242,8 @@ For each external field:
 - [x] The common extension of all local flows is maximal.
 - [x] Connected Lie-group generation interface eliminated.
 - [x] PNN `HasPNNScalingOrbitTangent` interface eliminated; `tangent_mem_span_scaling_orbit` is used directly.
-- [x] The Usevich-facing `HasPNNGenericRegime` interface now contains only the local functional-fibre / diagonal-scaling-orbit statement; generator independence is derived internally on `genericSet`.
-- [ ] Next: eliminate the remaining Frobenius / Marcotte / Tran / Usevich interfaces.
+- [ ] `HasPNNGenericRegime` is an audit failure, not a completed Usevich adapter: its `local_regime` field is the local functional-fibre / diagonal-scaling-orbit conclusion that Appendix G.2 needs to derive. Generator independence and the tangent-space argument are genuinely internal; local fibre isolation is not yet.
+- [ ] Next: finish the source-level Frobenius construction already underway, then replace the PNN local-orbit interface by the observation-map/constant-rank slice proof; Marcotte and Tran remain literature formalizations.
 
 
 ### Stage-3 packaging checkpoint
