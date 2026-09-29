@@ -493,15 +493,31 @@ def LocallyFactorsOn {k : ℕ} (r : ℕ∞ω) (Ω : Set E)
     IsOpen V ∧ p ∈ V ∧ V ⊆ Ω ∧ IsOpen U ∧ H p ∈ U ∧
     MapsTo H V U ∧ ContDiffOn ℝ r f U ∧ EqOn h (f ∘ H) V
 
-theorem proposition4 {k : ℕ} {r : ℕ∞ω} (hr : 1 ≤ r)
+/-- Standard finite-dimensional constant-rank/submersion factorization
+principle used in Proposition 4.  Nguyen--Montúfar treat this as differential
+geometry background rather than proving it. Stage 2 will instantiate this
+interface from Mathlib or a proved adapter theorem. -/
+class HasLocalSubmersionFactorization
+    (E : Type*) [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+    [FiniteDimensional ℝ E] [CompleteSpace E] : Prop where
+  factorization_iff :
+    ∀ {k : ℕ} {r : ℕ∞ω} (hr : 1 ≤ r) {Ω : Set E}
+      (hΩ : IsOpen Ω) (H : Fin k → E → ℝ) (h : E → ℝ)
+      (hH : ∀ i, ContDiffOn ℝ r (H i) Ω) (hh : ContDiffOn ℝ r h Ω)
+      (hind : FunctionallyIndependentOn Ω H),
+      (∀ p ∈ Ω, gradient h p ∈
+        Submodule.span ℝ (Set.range (fun i => gradient (H i) p))) ↔
+        LocallyFactorsOn r Ω h (bundleFunctions H)
+
+theorem proposition4 [HasLocalSubmersionFactorization E]
+    {k : ℕ} {r : ℕ∞ω} (hr : 1 ≤ r)
     (hΩ : IsOpen Ω) (H : Fin k → E → ℝ) (h : E → ℝ)
     (hH : ∀ i, ContDiffOn ℝ r (H i) Ω) (hh : ContDiffOn ℝ r h Ω)
     (hind : FunctionallyIndependentOn Ω H) :
     (∀ p ∈ Ω, gradient h p ∈
       Submodule.span ℝ (Set.range (fun i => gradient (H i) p))) ↔
-      LocallyFactorsOn r Ω h (bundleFunctions H) := by
-  exact LocalSubmersion.factorization_iff_gradient_mem_span
-    hΩ hr H h hH hh hind
+      LocallyFactorsOn r Ω h (bundleFunctions H) :=
+  HasLocalSubmersionFactorization.factorization_iff hr hΩ H h hH hh hind
 
 /-! ## Local flows and infinitesimal invariance -/
 
@@ -556,11 +572,20 @@ lemma open_times (ψ : LocalFlow Ω v) (p : E) :
 
 end LocalFlow
 
+/-- Standard autonomous-ODE background used by Proposition 9.  This is an
+explicit Stage-1 dependency, not an assumed theorem constant. -/
+class HasMaximalSmoothLocalFlows
+    (E : Type*) [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+    [FiniteDimensional ℝ E] [CompleteSpace E] : Prop where
+  exists_maximal :
+    ∀ {Ω : Set E} {v : Field E}, IsOpen Ω → ContDiffOn ℝ ∞ v Ω →
+      ∃ ψ : LocalFlow Ω v, ψ.IsMaximal
+
 /-- Standard ODE/local-flow background required by Proposition 9. -/
-theorem exists_maximal_localFlow (hΩ : IsOpen Ω) {v : Field E}
+theorem exists_maximal_localFlow [HasMaximalSmoothLocalFlows E] (hΩ : IsOpen Ω) {v : Field E}
     (hv : ContDiffOn ℝ ∞ v Ω) :
-    ∃ ψ : LocalFlow Ω v, ψ.IsMaximal := by
-  exact ODE.exists_unique_maximal_smooth_localFlow hΩ hv
+    ∃ ψ : LocalFlow Ω v, ψ.IsMaximal :=
+  HasMaximalSmoothLocalFlows.exists_maximal hΩ hv
 
 def FieldCompleteOn (Ω : Set E) (v : Field E) : Prop :=
   ∃ ψ : LocalFlow Ω v, ψ.IsGlobal
@@ -623,7 +648,8 @@ theorem corollary7 {L : S → E → ℝ} (hL : RegularLossOn Ω L)
     exact (mem_symmetryDistribution_iff L p (v p)).mp (hv p hp) s
 
 /-- Proposition 9, existence plus invariance. -/
-theorem proposition9 {L : S → E → ℝ} (hL : RegularLossOn Ω L)
+theorem proposition9 [HasMaximalSmoothLocalFlows E]
+    {L : S → E → ℝ} (hL : RegularLossOn Ω L)
     {v : Field E} (hv : ContDiffOn ℝ ∞ v Ω)
     (hvorth : ∀ p ∈ Ω, v p ∈ symmetryDistribution L p) :
     ∃ ψ : LocalFlow Ω v, ψ.IsMaximal ∧ IsLossSymmetry L ψ := by
@@ -644,9 +670,32 @@ variable {A Γ : Type*} [NormedAddCommGroup A] [NormedSpace ℝ A]
   [FiniteDimensional ℝ A] [Group Γ] [TopologicalSpace Γ]
   [ChartedSpace A Γ] [LieGroup (𝓘(ℝ, A)) ∞ Γ] [ConnectedSpace Γ]
 
+/-- Connected-Lie-group infinitesimal invariance principle used in
+Proposition 5. The paper treats this as standard Lie theory. -/
+class HasConnectedLieGroupInfinitesimalPrinciple
+    (A Γ E : Type*)
+    [NormedAddCommGroup A] [NormedSpace ℝ A] [FiniteDimensional ℝ A]
+    [Group Γ] [TopologicalSpace Γ] [ChartedSpace A Γ]
+    [LieGroup (𝓘(ℝ, A)) ∞ Γ] [ConnectedSpace Γ]
+    [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+    [FiniteDimensional ℝ E] [CompleteSpace E] : Prop where
+  invariant_iff :
+    ∀ {Ω : Set E} (act : Γ → E → E)
+      (hact1 : ∀ p, act 1 p = p)
+      (hactmul : ∀ g h p, act (g * h) p = act g (act h p))
+      (hactΩ : ∀ g p, p ∈ Ω → act g p ∈ Ω)
+      (hsmooth : ∀ p ∈ Ω,
+        ContMDiff (𝓘(ℝ, A)) (𝓘(ℝ, E)) ∞ (fun g => act g p))
+      (hΩ : IsOpen Ω) (f : E → ℝ) (hf : ContDiffOn ℝ 1 f Ω),
+      (∀ g p, p ∈ Ω → f (act g p) = f p) ↔
+        (∀ p ∈ Ω, ∀ a : TangentSpace (𝓘(ℝ, A)) (1 : Γ),
+          (fderiv ℝ f p)
+            ((mfderiv (𝓘(ℝ, A)) (𝓘(ℝ, E)) (fun g => act g p) 1) a) = 0)
+
 /-- Equation (5) written without an adjoint: every tangent direction at the
 identity annihilates the loss. This is equivalent to the transposed equation. -/
-theorem proposition5 (act : Γ → E → E)
+theorem proposition5 [HasConnectedLieGroupInfinitesimalPrinciple A Γ E]
+    (act : Γ → E → E)
     (hact1 : ∀ p, act 1 p = p)
     (hactmul : ∀ g h p, act (g * h) p = act g (act h p))
     (hactΩ : ∀ g p, p ∈ Ω → act g p ∈ Ω)
@@ -656,8 +705,8 @@ theorem proposition5 (act : Γ → E → E)
     (∀ g p, p ∈ Ω → f (act g p) = f p) ↔
       (∀ p ∈ Ω, ∀ a : TangentSpace (𝓘(ℝ, A)) (1 : Γ),
         (fderiv ℝ f p)
-          ((mfderiv (𝓘(ℝ, A)) (𝓘(ℝ, E)) (fun g => act g p) 1) a) = 0) := by
-  exact LieGroup.connected_invariant_iff_infinitesimal
+          ((mfderiv (𝓘(ℝ, A)) (𝓘(ℝ, E)) (fun g => act g p) 1) a) = 0) :=
+  HasConnectedLieGroupInfinitesimalPrinciple.invariant_iff
     act hact1 hactmul hactΩ hsmooth hΩ f hf
 
 end LieGroup
@@ -671,6 +720,17 @@ def IsClosedFieldOn (Ω : Set E) (v : Field E) : Prop :=
 
 def IsPotentialOn (Ω : Set E) (v : Field E) (h : E → ℝ) : Prop :=
   ∀ p ∈ Ω, gradient h p = v p
+
+/-- Star-shaped Poincaré lemma in exactly the form used by the paper. -/
+class HasStarPoincareLemma
+    (E : Type*) [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+    [FiniteDimensional ℝ E] [CompleteSpace E] : Prop where
+  radial_potential :
+    ∀ {Ω : Set E} {v : Field E}, IsOpen Ω →
+      ContDiffOn ℝ ∞ v Ω → IsClosedFieldOn Ω v →
+      ∀ {a : E}, a ∈ Ω → StarConvex ℝ a Ω →
+        ContDiffOn ℝ ∞ (radialPotential v a) Ω ∧
+          IsPotentialOn Ω v (radialPotential v a)
 
 theorem gradient_isClosed (hΩ : IsOpen Ω) {h : E → ℝ}
     (hh : ContDiffOn ℝ 2 h Ω) : IsClosedFieldOn Ω (gradient h) := by
@@ -698,20 +758,16 @@ def radialPotential (v : Field E) (a p : E) : ℝ :=
   ∫ t in (0 : ℝ)..1, ⟪v (a + t • (p - a)), p - a⟫_ℝ
 
 /-- Global Poincaré lemma on a star-shaped domain. -/
-theorem poincare_star (hΩ : IsOpen Ω) {v : Field E}
+theorem poincare_star [HasStarPoincareLemma E]
+    (hΩ : IsOpen Ω) {v : Field E}
     (hv : ContDiffOn ℝ ∞ v Ω) (hclosed : IsClosedFieldOn Ω v)
     {a : E} (ha : a ∈ Ω) (hstar : StarConvex ℝ a Ω) :
     ContDiffOn ℝ ∞ (radialPotential v a) Ω ∧
-      IsPotentialOn Ω v (radialPotential v a) := by
-  have hsmooth : ContDiffOn ℝ ∞ (radialPotential v a) Ω :=
-    Poincare.radialPotential_contDiffOn hΩ hv ha hstar
-  refine ⟨hsmooth, ?_⟩
-  intro p hp
-  exact Poincare.gradient_radialPotential_eq
-    hΩ hv hclosed ha hstar hp
+      IsPotentialOn Ω v (radialPotential v a) :=
+  HasStarPoincareLemma.radial_potential hΩ hv hclosed ha hstar
 
 /-- Local Poincaré lemma, with a connected ball and uniqueness modulo constants. -/
-theorem poincare_local (hΩ : IsOpen Ω) {v : Field E}
+theorem poincare_local [HasStarPoincareLemma E] (hΩ : IsOpen Ω) {v : Field E}
     (hv : ContDiffOn ℝ ∞ v Ω) (hclosed : IsClosedFieldOn Ω v)
     {p : E} (hp : p ∈ Ω) :
     ∃ (U : Set E) (h : E → ℝ),
@@ -746,7 +802,8 @@ theorem proposition8_forward {L : S → E → ℝ}
 
 /-- Corollary 10: a smooth conserved potential generates a unique maximal
 partial symmetry. Arbitrary restrictions of that flow are not claimed unique. -/
-theorem corollary10_forward {L : S → E → ℝ}
+theorem corollary10_forward [HasMaximalSmoothLocalFlows E]
+    {L : S → E → ℝ}
     (hL : RegularLossOn Ω L) {h : E → ℝ}
     (hh : ContDiffOn ℝ ∞ h Ω)
     (hc : IsConservedOn Ω L h) :
@@ -766,7 +823,8 @@ lemma RegularLossOn.mono {L : S → E → ℝ} (hL : RegularLossOn Ω L)
   exact ⟨U ∩ V, hU.inter hV, ⟨hp, hpV⟩, Set.inter_subset_left,
     K, hK.mono Set.inter_subset_right⟩
 
-theorem corollary10_reverse {L : S → E → ℝ}
+theorem corollary10_reverse [HasStarPoincareLemma E]
+    {L : S → E → ℝ}
     (hL : RegularLossOn Ω L) {v : Field E}
     (hv : ContDiffOn ℝ ∞ v Ω) (ψ : LocalFlow Ω v)
     (hsym : IsLossSymmetry L ψ) (hclosed : IsClosedFieldOn Ω v)
@@ -782,7 +840,8 @@ theorem corollary10_reverse {L : S → E → ℝ}
   exact (corollary7 hL ψ).mp hsym q (hsub hq)
 
 /-- Proposition 8, local reverse direction, directly from a closed field. -/
-theorem proposition8_local {L : S → E → ℝ}
+theorem proposition8_local [HasMaximalSmoothLocalFlows E] [HasStarPoincareLemma E]
+    {L : S → E → ℝ}
     (hL : RegularLossOn Ω L) {v : Field E}
     (hv : ContDiffOn ℝ ∞ v Ω) (hclosed : IsClosedFieldOn Ω v)
     (horth : ∀ p ∈ Ω, v p ∈ symmetryDistribution L p)
@@ -793,7 +852,8 @@ theorem proposition8_local {L : S → E → ℝ}
   exact corollary10_reverse hL hv ψ hψ hclosed hp
 
 /-- Proposition 8 on a star-shaped domain; the potential is explicit. -/
-theorem proposition8_star {L : S → E → ℝ}
+theorem proposition8_star [HasStarPoincareLemma E]
+    {L : S → E → ℝ}
     (hL : RegularLossOn Ω L) {v : Field E}
     (hv : ContDiffOn ℝ ∞ v Ω) (hclosed : IsClosedFieldOn Ω v)
     (horth : ∀ p ∈ Ω, v p ∈ symmetryDistribution L p)
@@ -923,10 +983,11 @@ lemma lieCompletion_eq_iff {D : Distribution E} (hD : HasLocalSmoothFrame Ω D) 
       exact (word_section hv).2 p hpU
     · exact le_lieCompletion hD hp
 
-lemma lieCompletion_involutive {D : Distribution E}
+lemma lieCompletion_involutive [HasFrobeniusBackground E]
+    {D : Distribution E}
     (hD : HasLocalSmoothFrame Ω (lieCompletion Ω D)) :
-    InvolutiveOn Ω (lieCompletion Ω D) := by
-  exact LieClosure.involutive_of_hasLocalSmoothFrame hD
+    InvolutiveOn Ω (lieCompletion Ω D) :=
+  HasFrobeniusBackground.lieClosure_involutive hD
 
 lemma firstIntegral_lieCompletion {D : Distribution E} {h : E → ℝ}
     (hΩ : IsOpen Ω) (hh : ContDiffOn ℝ ∞ h Ω)
@@ -998,8 +1059,39 @@ lemma firstIntegral_lieCompletion {D : Distribution E} {h : E → ℝ}
   | smul a x hx ih =>
       simp [inner_smul_right, ih]
 
+/-- Differential-geometric background used by Theorem 12: involutivity of
+the Lie closure, Frobenius first integrals, and smooth orthogonal frames. -/
+class HasFrobeniusBackground
+    (E : Type*) [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+    [FiniteDimensional ℝ E] [CompleteSpace E] : Prop where
+  lieClosure_involutive :
+    ∀ {Ω : Set E} {D : Distribution E},
+      HasLocalSmoothFrame Ω (lieCompletion Ω D) →
+      InvolutiveOn Ω (lieCompletion Ω D)
+  firstIntegrals :
+    ∀ {Ω : Set E} {D : Distribution E} {r : ℕ},
+      IsOpen Ω → HasLocalSmoothFrame Ω D →
+      ConstantRankOn Ω D r → InvolutiveOn Ω D →
+      ∀ {p : E}, p ∈ Ω →
+        ∃ (U : Set E) (h : Fin (Module.finrank ℝ E - r) → E → ℝ),
+          IsOpen U ∧ p ∈ U ∧ U ⊆ Ω ∧
+          (∀ i, ContDiffOn ℝ ∞ (h i) U) ∧
+          FunctionallyIndependentOn U h ∧
+          (∀ q ∈ U,
+            Submodule.span ℝ (Set.range (fun i => gradient (h i) q)) = (D q)ᗮ)
+  orthogonalFrame :
+    ∀ {Ω : Set E} {D : Distribution E} {r : ℕ},
+      IsOpen Ω → HasLocalSmoothFrame Ω D →
+      ConstantRankOn Ω D r → ∀ {p : E}, p ∈ Ω →
+        ∃ (U : Set E) (v : Fin (Module.finrank ℝ E - r) → Field E),
+          IsOpen U ∧ p ∈ U ∧ U ⊆ Ω ∧
+          (∀ i, ContDiffOn ℝ ∞ (v i) U) ∧
+          (∀ q ∈ U, LinearIndependent ℝ (fun i => v i q) ∧
+            Submodule.span ℝ (Set.range (fun i => v i q)) = (D q)ᗮ)
+
 /-- Local Frobenius theorem in exactly the form used in Appendix E.8. -/
-theorem theorem21_frobenius {D : Distribution E} {r : ℕ}
+theorem theorem21_frobenius [HasFrobeniusBackground E]
+    {D : Distribution E} {r : ℕ}
     (hΩ : IsOpen Ω) (hframe : HasLocalSmoothFrame Ω D)
     (hrank : ConstantRankOn Ω D r) (hinv : InvolutiveOn Ω D)
     {p : E} (hp : p ∈ Ω) :
@@ -1007,9 +1099,8 @@ theorem theorem21_frobenius {D : Distribution E} {r : ℕ}
       IsOpen U ∧ p ∈ U ∧ U ⊆ Ω ∧
       (∀ i, ContDiffOn ℝ ∞ (h i) U) ∧
       FunctionallyIndependentOn U h ∧
-      (∀ q ∈ U, Submodule.span ℝ (Set.range (fun i => gradient (h i) q)) = (D q)ᗮ) := by
-  exact Frobenius.exists_local_firstIntegrals
-    hΩ hframe hrank hinv hp
+      (∀ q ∈ U, Submodule.span ℝ (Set.range (fun i => gradient (h i) q)) = (D q)ᗮ) :=
+  HasFrobeniusBackground.firstIntegrals hΩ hframe hrank hinv hp
 
 /-- Local/germ completeness, as actually used by Propositions 4 and 16--17.
 This is stronger than a merely maximal family of globally defined functions. -/
@@ -1038,19 +1129,20 @@ def CompleteSymmetriesOn {ι : Type*} (Ω : Set E) (L : S → E → ℝ)
     Submodule.span ℝ (Set.range (fun i => (ψ i).generator p)) =
       symmetryDistribution L p
 
-lemma orthogonal_local_frame {D : Distribution E} {r : ℕ}
+lemma orthogonal_local_frame [HasFrobeniusBackground E]
+    {D : Distribution E} {r : ℕ}
     (hΩ : IsOpen Ω) (hframe : HasLocalSmoothFrame Ω D)
     (hrank : ConstantRankOn Ω D r) {p : E} (hp : p ∈ Ω) :
     ∃ (U : Set E) (v : Fin (Module.finrank ℝ E - r) → Field E),
       IsOpen U ∧ p ∈ U ∧ U ⊆ Ω ∧
       (∀ i, ContDiffOn ℝ ∞ (v i) U) ∧
       (∀ q ∈ U, LinearIndependent ℝ (fun i => v i q) ∧
-        Submodule.span ℝ (Set.range (fun i => v i q)) = (D q)ᗮ) := by
-  exact SmoothDistribution.exists_orthogonal_localFrame
-    hΩ hframe hrank hp
+        Submodule.span ℝ (Set.range (fun i => v i q)) = (D q)ᗮ) :=
+  HasFrobeniusBackground.orthogonalFrame hΩ hframe hrank hp
 
 /-- Theorem 12(i)--(ii). `rLie` is the paper's barred r, distinct from r. -/
-theorem theorem12 {L : S → E → ℝ} (hL : SmoothLossOn Ω L)
+theorem theorem12 [HasMaximalSmoothLocalFlows E] [HasFrobeniusBackground E]
+    {L : S → E → ℝ} (hL : SmoothLossOn Ω L)
     {r rLie : ℕ}
     (hW : HasLocalSmoothFrame Ω (gradientDistribution L))
     (hr : ConstantRankOn Ω (gradientDistribution L) r)
