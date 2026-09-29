@@ -18,8 +18,8 @@ The Stage 1 boundary is strict: an imported result may remain external, but it m
 - [x] No custom `axiom` declarations.
 - [x] Repository commentary targets Lean 4.26 / Mathlib 4.26.
 - [ ] Source elaborates against the repository pin.
-- [ ] Every remaining dependency is classified as either **paper-internal** or **external**.
-- [ ] No anonymous/provisional interface names remain.
+- [x] Every remaining dependency is classified as either **paper-internal** or **external**.
+- [x] No anonymous/provisional interface names remain.
 - [ ] Final dependency audit shows only accepted Lean/Mathlib foundational axioms.
 
 # Stage 1 — Completely formalize the paper
@@ -51,26 +51,26 @@ These should be gathered into a dedicated typed interface, e.g. `GradientFlowPap
 
 ### Standard background used by the paper
 
-- [ ] Local submersion/factorization theorem needed for Proposition 4.
-- [ ] Maximal smooth local-flow existence/uniqueness needed for Proposition 9.
-- [ ] Connected Lie-group infinitesimal-invariance theorem needed for Proposition 5.
-- [ ] Poincaré lemma in the star-shaped/local form used by Propositions 8–10.
-- [ ] Frobenius/local-first-integral theorem used by Theorem 12.
-- [ ] Smooth local orthogonal-complement frame construction.
-- [ ] Lie-completion involutivity closure theorem.
+- [x] Local submersion/factorization theorem needed for Proposition 4. — represented as an explicit Stage-1 external dependency
+- [x] Maximal smooth local-flow existence/uniqueness needed for Proposition 9. — represented as an explicit Stage-1 external dependency
+- [x] Connected Lie-group infinitesimal-invariance theorem needed for Proposition 5. — represented as an explicit Stage-1 external dependency
+- [x] Poincaré lemma in the star-shaped/local form used by Propositions 8–10. — represented as an explicit Stage-1 external dependency
+- [x] Frobenius/local-first-integral theorem used by Theorem 12. — represented as an explicit Stage-1 external dependency
+- [x] Smooth local orthogonal-complement frame construction. — represented as an explicit Stage-1 external dependency
+- [x] Lie-completion involutivity closure theorem. — represented as an explicit Stage-1 external dependency
 
 ### Literature results explicitly imported by the paper
 
-- [ ] **Tran et al. (2025a), Theorem 3.1 / paper Theorem 27:** attention-head identifiability.
-- [ ] **Marcotte et al. (2023), Section 4.1 / paper Lemma 28:** completeness of the upper-triangular entries of `UᵀU - VᵀV` for full-rank matrix factorization.
-- [ ] **Usevich et al. (2025):** exact finite-to-one/generic PNN identifiability result needed to justify the local diagonal-scaling orbit description.
+- [x] **Tran et al. (2025a), Theorem 3.1 / paper Theorem 27:** attention-head identifiability. — represented as an explicit Stage-1 external dependency
+- [x] **Marcotte et al. (2023), Section 4.1 / paper Lemma 28:** completeness of the upper-triangular entries of `UᵀU - VᵀV` for full-rank matrix factorization. — represented as an explicit Stage-1 external dependency
+- [x] **Usevich et al. (2025):** exact finite-to-one/generic PNN identifiability result needed to justify the local diagonal-scaling orbit description. — represented as an explicit Stage-1 external dependency
 - [x] Piziak–Odell full-rank matrix-factorization uniqueness — proof inlined; no longer external.
 
 ### Standard spectral/matrix facts used in Appendix H
 
-- [ ] Positive-definiteness of the half-plus-square-root matrix.
-- [ ] Quadratic Gram identity.
-- [ ] Uniqueness of the positive-definite solution.
+- [x] Positive-definiteness of the half-plus-square-root matrix. — represented as an explicit Stage-1 external dependency
+- [x] Quadratic Gram identity. — represented as an explicit Stage-1 external dependency
+- [x] Uniqueness of the positive-definite solution. — represented as an explicit Stage-1 external dependency
 - [x] Positive-definiteness of `H₀² + 4 α² I` handled directly.
 - [x] Positive-definiteness of `UᵀU` for invertible `U` reduced to Mathlib.
 - [x] Positive square root represented with Mathlib continuous functional calculus.
@@ -84,8 +84,8 @@ These are proved by Nguyen–Montúfar from the external inputs above, so they m
 - [x] Shared GQA gauge parameters inside each group.
 - [x] PNN conservation from the explicit scaling symmetry.
 - [x] PNN tangent-to-scaling-orbit completeness step.
-- [ ] GQA local product-identifiability deduction from Theorem 27.
-- [ ] GQA factor-block completeness deduction from Lemma 28 + Theorem 17.
+- [x] GQA local product-identifiability deduction from Theorem 27.
+- [x] GQA factor-block completeness deduction from Lemma 28 + Theorem 17.
 - [ ] PNN local-neighborhood deduction from the exact Usevich finite-to-one/generic result.
 - [ ] Replace any remaining helper with a proof if its content is actually proved in Nguyen–Montúfar rather than merely cited.
 
@@ -174,11 +174,11 @@ For each external field:
 
 # Current priority queue
 
-1. **Stage 1:** introduce the explicit external-results interface and replace current provisional names with fields of that interface.
-2. **Stage 1:** inline the GQA local-identifiability deduction from Theorem 27.
-3. **Stage 1:** inline the GQA completeness deduction from Lemma 28 + Theorem 17.
-4. **Stage 1:** express the PNN local-scaling step as a deduction from an explicitly stated Usevich-style dependency.
-5. **Stage 1:** classify the remaining geometry and spectral helpers as exact external dependencies versus paper-internal arguments.
-6. Compile the Stage-1 paper layer with external results supplied abstractly.
-7. Freeze Stage 1.
+1. [x] Classify standard geometry, literature, and spectral inputs as explicit Stage-1 dependencies.
+2. [x] Inline GQA Step 1 from Theorem 27.
+3. [x] Inline GQA Steps 2–3 from Lemma 28 + Theorem 17.
+4. **Stage 1:** make the PNN “generic point” exactly source-faithful: do not identify it with nonzero biases unless the cited Usevich result proves that.
+5. **Stage 1:** add the remaining numbered appendix-facing statements (Lemma 26 audit is the last substantial one).
+6. **Stage 1:** add/update the external dependency manifest and run a source-level coverage audit.
+7. Freeze Stage 1 at source level. Elaboration/compilation remains a later repair stage, per the requested uncompiled workflow.
 8. Begin Stage 2.
