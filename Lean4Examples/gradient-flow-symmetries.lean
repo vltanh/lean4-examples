@@ -3249,25 +3249,6 @@ lemma weightStackFin_eq_iff (p q : Param nG k D dh) (j : Fin nG) :
     let ib := finProdFinEquiv.symm b
     simpa [weightStackFin, ib] using congrFun₂ (h ib.1) a ib.2
 
-lemma blockFunctionalEquiv_reblock
-    (p q : Param nG k D dh) (b : FactorBlock nG) :
-    FunctionalEquiv
-      (blockModel (nG := nG) (k := k) (D := D) (dh := dh) b)
-      (Blocks.block (factorIndex (nG := nG) k D dh) b
-        (reblockEquiv (nG := nG) (k := k) (D := D) (dh := dh) p))
-      (Blocks.block (factorIndex (nG := nG) k D dh) b
-        (reblockEquiv (nG := nG) (k := k) (D := D) (dh := dh) q))
-      ↔
-      if b.2 then
-        ∀ i, weight p b.1 i = weight q b.1 i
-      else
-        ∀ i, score p b.1 i = score q b.1 i := by
-  rcases b with ⟨j,b⟩
-  cases b
-  · simp [blockModel, FunctionalEquiv, Factorization.model,
-      qkBlock, qkBlock_observation, scoreStackFin_eq_iff]
-  · simp [blockModel, FunctionalEquiv, Factorization.model,
-      voBlock, voBlock_observation, weightStackFin_eq_iff]
 
 lemma stackedQFin_gram (p : Param nG k D dh) (j : Fin nG) :
     (stackedQFin p j)ᵀ * stackedQFin p j =
@@ -3340,6 +3321,27 @@ def blockLoss :
        | true => Mat D (k * D)) → ℝ
   | (_, false) => Factorization.entrySquaredLoss
   | (_, true) => Factorization.entrySquaredLoss
+
+lemma blockFunctionalEquiv_reblock
+    (p q : Param nG k D dh) (b : FactorBlock nG) :
+    FunctionalEquiv
+      (blockModel (nG := nG) (k := k) (D := D) (dh := dh) b)
+      (Blocks.block (factorIndex (nG := nG) k D dh) b
+        (reblockEquiv (nG := nG) (k := k) (D := D) (dh := dh) p))
+      (Blocks.block (factorIndex (nG := nG) k D dh) b
+        (reblockEquiv (nG := nG) (k := k) (D := D) (dh := dh) q))
+      ↔
+      if b.2 then
+        ∀ i, weight p b.1 i = weight q b.1 i
+      else
+        ∀ i, score p b.1 i = score q b.1 i := by
+  rcases b with ⟨j,b⟩
+  cases b
+  · simp [blockModel, FunctionalEquiv, Factorization.model,
+      qkBlock, qkBlock_observation, scoreStackFin_eq_iff]
+  · simp [blockModel, FunctionalEquiv, Factorization.model,
+      voBlock, voBlock_observation, weightStackFin_eq_iff]
+
 
 def blockLaw :
     ∀ b : FactorBlock nG, Upper dh →
