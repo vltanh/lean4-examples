@@ -3108,6 +3108,187 @@ lemma stackedO_gram (p : Param nG k D dh) (j : Fin nG) :
   ext a b
   simp [stackedO, Matrix.mul_apply, Fintype.sum_prod_type]
 
+/-! ### Orthogonal regrouping into the 2*nG factorization blocks of Appendix G.1 -/
+
+abbrev FactorBlock (nG : ℕ) := Fin nG × Bool
+
+def factorIndex (k D dh : ℕ) : FactorBlock nG → Type
+  | (_, false) => Factorization.Index (k * D) D dh
+  | (_, true) => Factorization.Index D (k * D) dh
+
+def attentionIndexEquiv :
+    Index nG k D dh ≃ Sigma (factorIndex (nG := nG) k D dh) where
+  toFun a :=
+    match a.2.1 with
+    | Slot.query i =>
+        ⟨(a.1, false), Sum.inl (finProdFinEquiv (i, a.2.2.1), a.2.2.2)⟩
+    | Slot.key =>
+        ⟨(a.1, false), Sum.inr (a.2.2.1, a.2.2.2)⟩
+    | Slot.value =>
+        ⟨(a.1, true), Sum.inl (a.2.2.1, a.2.2.2)⟩
+    | Slot.output i =>
+        ⟨(a.1, true), Sum.inr (finProdFinEquiv (i, a.2.2.1), a.2.2.2)⟩
+  invFun z :=
+    match z.1.2, z.2 with
+    | false, Sum.inl rb =>
+        let ia := finProdFinEquiv.symm rb.1
+        (z.1.1, Slot.query ia.1, ia.2, rb.2)
+    | false, Sum.inr rb =>
+        (z.1.1, Slot.key, rb.1, rb.2)
+    | true, Sum.inl rb =>
+        (z.1.1, Slot.value, rb.1, rb.2)
+    | true, Sum.inr rb =>
+        let ia := finProdFinEquiv.symm rb.1
+        (z.1.1, Slot.output ia.1, ia.2, rb.2)
+  left_inv := by
+    rintro ⟨j, s, a, b⟩
+    cases s <;> simp [factorIndex]
+  right_inv := by
+    rintro ⟨⟨j, b⟩, z⟩
+    cases b <;> cases z <;>
+      simp [factorIndex]
+
+def reblockEquiv :
+    Param nG k D dh ≃ₗᵢ[ℝ]
+      Blocks.Total (factorIndex (nG := nG) k D dh) :=
+  LinearIsometryEquiv.piLpCongrLeft
+    (p := 2) (𝕜 := ℝ) (E := ℝ)
+    (attentionIndexEquiv (nG := nG) (k := k) (D := D) (dh := dh))
+
+def stackedQFin (p : Param nG k D dh) (j : Fin nG) : Mat (k * D) dh :=
+  fun a b =>
+    let ia := finProdFinEquiv.symm a
+    Q p j ia.1 ia.2 b
+
+def stackedOFin (p : Param nG k D dh) (j : Fin nG) : Mat (k * D) dh :=
+  fun a b =>
+    let ia := finProdFinEquiv.symm a
+    O p j ia.1 ia.2 b
+
+def qkBlock (p : Param nG k D dh) (j : Fin nG) :
+    Factorization.Param (k * D) D dh :=
+  Blocks.block (factorIndex (nG := nG) k D dh) (j, false)
+    (reblockEquiv (nG := nG) (k := k) (D := D) (dh := dh) p)
+
+def voBlock (p : Param nG k D dh) (j : Fin nG) :
+    Factorization.Param D (k * D) dh :=
+  Blocks.block (factorIndex (nG := nG) k D dh) (j, true)
+    (reblockEquiv (nG := nG) (k := k) (D := D) (dh := dh) p)
+
+@[simp] lemma qkBlock_U (p : Param nG k D dh) (j : Fin nG) :
+    Factorization.U (qkBlock p j) = stackedQFin p j := by
+  ext a b
+  simp [qkBlock, reblockEquiv, stackedQFin, Blocks.block,
+    attentionIndexEquiv, factorIndex]
+
+@[simp] lemma qkBlock_V (p : Param nG k D dh) (j : Fin nG) :
+    Factorization.V (qkBlock p j) = K p j := by
+  ext a b
+  simp [qkBlock, reblockEquiv, Blocks.block, attentionIndexEquiv, factorIndex, K]
+
+@[simp] lemma voBlock_U (p : Param nG k D dh) (j : Fin nG) :
+    Factorization.U (voBlock p j) = V p j := by
+  ext a b
+  simp [voBlock, reblockEquiv, Blocks.block, attentionIndexEquiv, factorIndex, V]
+
+@[simp] lemma voBlock_V (p : Param nG k D dh) (j : Fin nG) :
+    Factorization.V (voBlock p j) = stackedOFin p j := by
+  ext a b
+  simp [voBlock, reblockEquiv, stackedOFin, Blocks.block,
+    attentionIndexEquiv, factorIndex]
+
+lemma stackedQFin_gram (p : Param nG k D dh) (j : Fin nG) :
+    (stackedQFin p j)ᵀ * stackedQFin p j =
+      ∑ i, (Q p j i)ᵀ * Q p j i := by
+  ext a b
+  simpa [stackedQFin, Matrix.mul_apply, finProdFinEquiv,
+    Fintype.sum_prod_type] using congrFun₂ (stackedQ_gram p j) a b
+
+lemma stackedOFin_gram (p : Param nG k D dh) (j : Fin nG) :
+    (stackedOFin p j)ᵀ * stackedOFin p j =
+      ∑ i, (O p j i)ᵀ * O p j i := by
+  ext a b
+  simpa [stackedOFin, Matrix.mul_apply, finProdFinEquiv,
+    Fintype.sum_prod_type] using congrFun₂ (stackedO_gram p j) a b
+
+lemma stackedQFin_fullColumnRank (hk : 0 < k) {p : Param nG k D dh}
+    (hp : p ∈ regular) (j : Fin nG) :
+    FullColumnRank (stackedQFin p j) := by
+  rw [Fintype.linearIndependent_iff]
+  intro c hc b
+  let i0 : Fin k := ⟨0, hk⟩
+  have hrow := congrArg
+    (fun v : Fin (k * D) → ℝ => fun a : Fin D =>
+      v (finProdFinEquiv (i0, a))) hc
+  have hQ : (∑ x, c x • fun a : Fin D => Q p j i0 a x) = 0 := by
+    ext a
+    simpa [stackedQFin, Finset.sum_apply] using congrFun hrow a
+  exact (Fintype.linearIndependent_iff.mp (hp.1 j i0).1 c hQ) b
+
+lemma stackedOFin_fullColumnRank (hk : 0 < k) {p : Param nG k D dh}
+    (hp : p ∈ regular) (j : Fin nG) :
+    FullColumnRank (stackedOFin p j) := by
+  rw [Fintype.linearIndependent_iff]
+  intro c hc b
+  let i0 : Fin k := ⟨0, hk⟩
+  have hrow := congrArg
+    (fun v : Fin (k * D) → ℝ => fun a : Fin D =>
+      v (finProdFinEquiv (i0, a))) hc
+  have hO : (∑ x, c x • fun a : Fin D => O p j i0 a x) = 0 := by
+    ext a
+    simpa [stackedOFin, Finset.sum_apply] using congrFun hrow a
+  exact (Fintype.linearIndependent_iff.mp (hp.1 j i0).2.2.2 c hO) b
+
+lemma qkBlock_regular (hk : 0 < k) {p : Param nG k D dh}
+    (hp : p ∈ regular) (j : Fin nG) :
+    qkBlock p j ∈ Factorization.regular :=
+  ⟨stackedQFin_fullColumnRank hk hp j, (hp.1 j ⟨0, hk⟩).2.1⟩
+
+lemma voBlock_regular (hk : 0 < k) {p : Param nG k D dh}
+    (hp : p ∈ regular) (j : Fin nG) :
+    voBlock p j ∈ Factorization.regular :=
+  ⟨(hp.1 j ⟨0, hk⟩).2.2.1, stackedOFin_fullColumnRank hk hp j⟩
+
+def blockModel :
+    ∀ b : FactorBlock nG,
+      Vec (factorIndex (nG := nG) k D dh b) → Unit →
+        (match b.2 with
+         | false => Mat (k * D) D
+         | true => Mat D (k * D))
+  | (_, false) => Factorization.model
+  | (_, true) => Factorization.model
+
+def blockLoss :
+    ∀ b : FactorBlock nG,
+      (match b.2 with
+       | false => Mat (k * D) D
+       | true => Mat D (k * D)) →
+      (match b.2 with
+       | false => Mat (k * D) D
+       | true => Mat D (k * D)) → ℝ
+  | (_, false) => Factorization.entrySquaredLoss
+  | (_, true) => Factorization.entrySquaredLoss
+
+def blockLaw :
+    ∀ b : FactorBlock nG, Upper dh →
+      Vec (factorIndex (nG := nG) k D dh b) → ℝ
+  | (_, false) => Factorization.law
+  | (_, true) => Factorization.law
+
+lemma blockLaw_reblock (b : FactorBlock nG) (a : Upper dh)
+    (p : Param nG k D dh) :
+    blockLaw (nG := nG) (k := k) (D := D) (dh := dh) b a
+      (Blocks.block (factorIndex (nG := nG) k D dh) b
+        (reblockEquiv (nG := nG) (k := k) (D := D) (dh := dh) p))
+      =
+    law (b.1, b.2, a) p := by
+  rcases b with ⟨j, b⟩
+  cases b <;>
+    simp [blockLaw, law, Factorization.law, Factorization.balance,
+      qkBlock, voBlock, qkBlock_U, qkBlock_V, voBlock_U, voBlock_V,
+      stackedQFin_gram, stackedOFin_gram, balanceQK, balanceVO]
+
+
 /-- The Step 2--3 reduction is isolated from the head-identifiability theorem.
 It is an orthogonal regrouping/stacking argument, not an assumption that the
 listed laws are already complete. -/
