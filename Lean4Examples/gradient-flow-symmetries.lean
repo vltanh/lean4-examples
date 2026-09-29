@@ -743,6 +743,9 @@ theorem gradient_isClosed (hΩ : IsOpen Ω) {h : E → ℝ}
       (fderiv ℝ (fderiv ℝ h) p b) a
   exact hs a b
 
+def radialPotential (v : Field E) (a p : E) : ℝ :=
+  ∫ t in (0 : ℝ)..1, ⟪v (a + t • (p - a)), p - a⟫_ℝ
+
 /-- Star-shaped Poincaré lemma in exactly the form used by the paper. -/
 class HasStarPoincareLemma
     (E : Type*) [NormedAddCommGroup E] [InnerProductSpace ℝ E]
@@ -753,9 +756,6 @@ class HasStarPoincareLemma
       ∀ {a : E}, a ∈ Ω → StarConvex ℝ a Ω →
         ContDiffOn ℝ ∞ (radialPotential v a) Ω ∧
           IsPotentialOn Ω v (radialPotential v a)
-
-def radialPotential (v : Field E) (a p : E) : ℝ :=
-  ∫ t in (0 : ℝ)..1, ⟪v (a + t • (p - a)), p - a⟫_ℝ
 
 /-- Global Poincaré lemma on a star-shaped domain. -/
 theorem poincare_star [HasStarPoincareLemma E]
