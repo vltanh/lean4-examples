@@ -2700,6 +2700,88 @@ theorem generic_generators_independent {p : Param A}
   simp [generator_bias_coordinate, hp a] at hcoord
   exact hcoord
 
+lemma bias_diagonalGauge_hidden (s : Hidden A → ℝˣ) (p : Param A)
+    (a : Hidden A) :
+    bias A (diagonalGauge A s p) (currentLayer A a) a.2 =
+      (s a : ℝ) * bias A p (currentLayer A a) a.2 := by
+  simp [bias, diagonalGauge, outgoingScale, outgoingNode, currentLayer]
+  congr
+  · exact Sigma.ext (by rfl) (by rfl)
+
+/-- Canonical scaling coordinates on the open chart where hidden biases are
+nonzero.  This is the local slice used implicitly in Appendix G.2. -/
+def biasRatioGauge (p q : Param A) (hp : GenericPoint A p)
+    (hq : GenericPoint A q) : Hidden A → ℝˣ :=
+  fun a => Units.mk0
+    (bias A q (currentLayer A a) a.2 /
+      bias A p (currentLayer A a) a.2)
+    (div_ne_zero (hq a) (hp a))
+
+lemma biasRatioGauge_eq_of_gauge {p q : Param A}
+    (hp : GenericPoint A p) (hq : GenericPoint A q)
+    {s : Hidden A → ℝˣ} (hqp : q = diagonalGauge A s p) :
+    biasRatioGauge A p q hp hq = s := by
+  funext a
+  apply Units.ext
+  rw [show bias A q (currentLayer A a) a.2 =
+    (s a : ℝ) * bias A p (currentLayer A a) a.2 by
+      simpa [hqp] using bias_diagonalGauge_hidden A s p a]
+  simp [biasRatioGauge, hp a]
+
+/-- Tangent space of the diagonal-scaling orbit at a generic point.  The
+coefficients are read off from the hidden-bias coordinates. -/
+lemma tangent_mem_span_generators_of_local_gauge_orbit
+    {p : Param A} (hp : GenericPoint A p)
+    {γ : ℝ → Param A} {v : Param A}
+    (hγ : HasDerivAt γ v 0) (hγ0 : γ 0 = p)
+    (hgeneric : ∀ᶠ t in 𝓝 0, GenericPoint A (γ t))
+    (horbit : ∀ᶠ t in 𝓝 0,
+      ∃ s : Hidden A → ℝˣ, γ t = diagonalGauge A s p) :
+    v ∈ Submodule.span ℝ
+      (Set.range (fun a : Hidden A => generator A a p)) := by
+  let coeff : Hidden A → ℝ := fun a =>
+    v ⟨currentLayer A a, Sum.inr a.2⟩ /
+      bias A p (currentLayer A a) a.2
+  have hcanonical : ∀ᶠ t in 𝓝 0,
+      γ t = diagonalGauge A
+        (biasRatioGauge A p (γ t) hp (hgeneric.self_of_nhds)) p := by
+    filter_upwards [hgeneric, horbit] with t hgt ⟨s, hs⟩
+    rw [hs, biasRatioGauge_eq_of_gauge A hp hgt hs]
+  have hder :
+      HasDerivAt
+        (fun t => diagonalGauge A
+          (biasRatioGauge A p (γ t) hp (hgeneric.self_of_nhds)) p)
+        (∑ a : Hidden A, coeff a • generator A a p) 0 := by
+    -- Differentiate each coordinate of the diagonal action.  For the current
+    -- row/bias the logarithmic derivative is coeff a; for an incoming column
+    -- it is -r times the coefficient of the previous hidden unit.
+    apply hasDerivAt_of_forall_coord
+    rintro ⟨j, z⟩
+    cases z with
+    | inl z =>
+        simp [diagonalGauge, biasRatioGauge, outgoingScale, incomingScale,
+          generator, singleGauge, coeff, W, bias, Finset.sum_apply]
+        field_simp [hp]
+        ring
+    | inr i =>
+        simp [diagonalGauge, biasRatioGauge, outgoingScale, generator,
+          singleGauge, coeff, bias, Finset.sum_apply]
+        field_simp [hp]
+        ring
+  have hsame :
+      HasDerivAt
+        (fun t => diagonalGauge A
+          (biasRatioGauge A p (γ t) hp (hgeneric.self_of_nhds)) p) v 0 :=
+    hγ.congr_of_eventuallyEq hcanonical
+  have hvsum := hder.unique hsame
+  rw [← hvsum]
+  exact (Submodule.span ℝ
+    (Set.range (fun a : Hidden A => generator A a p))).sum_mem
+      (fun a _ =>
+        (Submodule.span ℝ
+          (Set.range (fun a : Hidden A => generator A a p))).smul_mem _
+          (Submodule.subset_span ⟨a, rfl⟩))
+
 /-- The local consequence of the paper's finite-to-one-at-a-generic-point
 hypothesis.  Finite-to-one isolates the finitely many discrete equivalence
 classes, while genericity supplies the bias-normalized local slice of the
@@ -2795,9 +2877,44 @@ theorem conserved_gradient_spanned {U : Set (Param A)} (hU : IsOpen U)
     (hc : IsConservedOn V (sampleLoss (model A) ell) h) :
     ∀ p ∈ V, gradient h p ∈
       Submodule.span ℝ (Set.range (fun a : Hidden A => gradient (law A a) p)) := by
-  exact PolynomialIdentifiability.conserved_gradient_spanned_by_scalings
-    A hU hb hident ell hsep hL hV hVU hh hc
-    (gradient_law A)
+  intro p hp
+  have hregV := hL.mono hV hVU
+  obtain ⟨ψ, -, hψloss⟩ := proposition9 hregV
+    (smooth_gradient_on hV hh)
+    ((proposition2 hregV (hh.of_le (by simp))).mp hc)
+  have hψfun : IsFunctionalSymmetry (model A) ψ :=
+    proposition14 (model A) ell hsep ψ hψloss
+  let γ : ℝ → Param A := fun t => ψ.toFun t p
+  have hγ : HasDerivAt γ (gradient h p) 0 := by
+    simpa [γ, ψ.initial p hp] using ψ.ode (ψ.zero_mem p hp)
+  have hγ0 : γ 0 = p := ψ.initial p hp
+  have hgeneric : ∀ᶠ t in 𝓝 0, GenericPoint A (γ t) := by
+    filter_upwards [(ψ.open_times p).mem_nhds (ψ.zero_mem p hp)] with t ht
+    exact hb _ (hVU (ψ.target_mem ht))
+  have horbit : ∀ᶠ t in 𝓝 0,
+      ∃ s : Hidden A → ℝˣ, γ t = diagonalGauge A s p := by
+    filter_upwards [(ψ.open_times p).mem_nhds (ψ.zero_mem p hp)] with t ht
+    apply (hident _ (hVU (ψ.target_mem ht)) p (hVU hp)).mp
+    exact hψfun t p ht
+  have hspan := tangent_mem_span_generators_of_local_gauge_orbit
+    A (hb p (hVU hp)) hγ hγ0 hgeneric horbit
+  have heq :
+      (fun a : Hidden A => gradient (law A a) p) =
+        fun a => (2 : ℝ) • generator A a p := by
+    funext a
+    exact gradient_law A a p
+  rw [heq]
+  exact Submodule.span_mono <| by
+    rintro _ ⟨a, rfl⟩
+    have htwo : (2 : ℝ) ≠ 0 := by norm_num
+    have :
+        generator A a p =
+          (2 : ℝ)⁻¹ • ((2 : ℝ) • generator A a p) := by
+      simp [htwo]
+    rw [this]
+    exact (Submodule.span ℝ
+      (Set.range (fun a : Hidden A => (2 : ℝ) • generator A a p))).smul_mem _
+        (Submodule.subset_span ⟨a, rfl⟩) hspan
 
 /-- Proposition 19 in the explicit generic regime described above. -/
 theorem proposition19 {Y : Type*} (ell : Output A → Y → ℝ)
