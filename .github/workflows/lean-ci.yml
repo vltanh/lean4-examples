@@ -23,3 +23,6 @@ jobs:
           lint: false
           use-mathlib-cache: true
           nanoda: false
+
+      - name: Check gradient-flow single file
+        run: lake env lean Lean4Examples/gradient-flow-symmetries.lean
