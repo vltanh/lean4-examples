@@ -619,6 +619,76 @@ theorem gradient_law {m n r : ℕ} (a : Upper r) (p : Param m n r) :
     symmetricElementary, inner, Finset.sum_sigma']
   ring
 
+
+
+@[simp] lemma gaugeGenerator_zero {m n r : ℕ} (p : Param m n r) :
+    gaugeGenerator (0 : Mat r r) p = 0 := by
+  ext z
+  cases z <;> simp [gaugeGenerator, pack, U, V]
+
+lemma gaugeGenerator_add {m n r : ℕ} (A B : Mat r r)
+    (p : Param m n r) :
+    gaugeGenerator (A + B) p =
+      gaugeGenerator A p + gaugeGenerator B p := by
+  ext z
+  cases z <;>
+    simp [gaugeGenerator, pack, U, V, Matrix.mul_add,
+      Matrix.transpose_add]
+
+lemma gaugeGenerator_smul {m n r : ℕ} (c : ℝ) (A : Mat r r)
+    (p : Param m n r) :
+    gaugeGenerator (c • A) p = c • gaugeGenerator A p := by
+  ext z
+  cases z <;>
+    simp [gaugeGenerator, pack, U, V, Matrix.mul_smul,
+      Matrix.transpose_smul]
+
+lemma gaugeGenerator_mem_span_of_symmetric
+    {m n r : ℕ} (A : Mat r r) (hA : Aᵀ = A)
+    (p : Param m n r) :
+    gaugeGenerator A p ∈
+      Submodule.span ℝ
+        (Set.range (fun a : Upper r =>
+          gaugeGenerator (symmetricElementary a) p)) := by
+  have hspan := symmetric_mem_span_symmetricElementary A hA
+  induction hspan using Submodule.span_induction with
+  | mem B hB =>
+      obtain ⟨a, rfl⟩ := hB
+      exact Submodule.subset_span ⟨a, rfl⟩
+  | zero =>
+      simpa using
+        (Submodule.span ℝ
+          (Set.range (fun a : Upper r =>
+            gaugeGenerator (symmetricElementary a) p))).zero_mem
+  | add A B hA hB ihA ihB =>
+      rw [gaugeGenerator_add]
+      exact Submodule.add_mem _ ihA ihB
+  | smul c A hA ih =>
+      rw [gaugeGenerator_smul]
+      exact Submodule.smul_mem _ c ih
+
+/-- The Gram-difference laws are functionally independent throughout the
+stratum where both factors have full column rank. -/
+lemma gradient_laws_independent
+    {m n r : ℕ} {p : Param m n r} (hp : p ∈ regular) :
+    LinearIndependent ℝ
+      (fun a : Upper r => gradient (law (m := m) (n := n) a) p) := by
+  classical
+  rw [Fintype.linearIndependent_iff]
+  intro c hsum a
+  have hUzero :
+      U p * (∑ b : Upper r, c b • symmetricElementary b) = 0 := by
+    ext i j
+    have hcoord := congrArg (fun q : Param m n r => U q i j) hsum
+    simpa [gradient_law, gaugeGenerator, pack, U,
+      Matrix.mul_apply, Finset.sum_apply, Finset.mul_sum] using hcoord
+  have hmat :
+      (∑ b : Upper r, c b • symmetricElementary b) = 0 := by
+    apply hp.1.mul_right_cancel
+    simpa using hUzero
+  exact Fintype.linearIndependent_iff.mp
+    (symmetricElementary_linearIndependent r) c hmat a
+
 theorem law_smooth {m n r : ℕ} (a : Upper r) :
     ContDiff ℝ ∞ (law (m := m) (n := n) a) := by
   unfold law balance U V
