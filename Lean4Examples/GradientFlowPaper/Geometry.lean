@@ -798,6 +798,165 @@ lemma smooth_ode_solution_unique_on_open_convex
 
 
 
+/-- Time-dependent version of smooth ODE uniqueness.  Smoothness of the
+uncurried field gives a locally uniform Lipschitz constant in the state
+variable; connectedness of the time interval propagates local uniqueness. -/
+lemma smooth_timeDependent_ode_solution_unique_on_open_convex
+    {I : Set ℝ} (hIopen : IsOpen I) (hIconv : Convex ℝ I)
+    {F : Type*} [NormedAddCommGroup F] [NormedSpace ℝ F] [CompleteSpace F]
+    {ΩF : Set F} (hΩF : IsOpen ΩF)
+    {V : ℝ → F → F}
+    (hV : ContDiffOn ℝ 1 (fun z : ℝ × F => V z.1 z.2) (I ×ˢ ΩF))
+    {γ η : ℝ → F} {t₀ : ℝ} (ht₀ : t₀ ∈ I)
+    (hγmem : ∀ t ∈ I, γ t ∈ ΩF)
+    (hηmem : ∀ t ∈ I, η t ∈ ΩF)
+    (hγ : ∀ t ∈ I, HasDerivAt γ (V t (γ t)) t)
+    (hη : ∀ t ∈ I, HasDerivAt η (V t (η t)) t)
+    (heq₀ : γ t₀ = η t₀) :
+    Set.EqOn γ η I := by
+  let J := {t : ℝ // t ∈ I}
+  let S : Set J := {t | γ t.1 = η t.1}
+  have hcontγ : ContinuousOn γ I :=
+    fun t ht => (hγ t ht).continuousAt.continuousWithinAt
+  have hcontη : ContinuousOn η I :=
+    fun t ht => (hη t ht).continuousAt.continuousWithinAt
+  have hSclosed : IsClosed S := by
+    have hγJ : Continuous (fun t : J => γ t.1) :=
+      hcontγ.comp_continuous continuous_subtype_val (fun t => t.2)
+    have hηJ : Continuous (fun t : J => η t.1) :=
+      hcontη.comp_continuous continuous_subtype_val (fun t => t.2)
+    exact isClosed_eq hγJ hηJ
+  have hSopen : IsOpen S := by
+    rw [isOpen_iff_mem_nhds]
+    intro τ hτ
+    have hτI : τ.1 ∈ I := τ.2
+    have hx : γ τ.1 ∈ ΩF := hγmem τ.1 hτI
+    have hVτ :
+        ContDiffAt ℝ 1 (fun z : ℝ × F => V z.1 z.2) (τ.1, γ τ.1) :=
+      (hV (τ.1, γ τ.1) ⟨hτI,hx⟩).contDiffAt
+        ((hIopen.prod hΩF).mem_nhds ⟨hτI,hx⟩)
+    obtain ⟨K, W, hW, hKW⟩ := hVτ.exists_lipschitzOnWith
+    obtain ⟨T, X, hT, hX, hprod⟩ :=
+      mem_nhds_prod_iff'.mp hW
+    have htime : I ∈ 𝓝 τ.1 := hIopen.mem_nhds hτI
+    have hγX : ∀ᶠ t in 𝓝 τ.1, γ t ∈ X :=
+      (hγ τ.1 hτI).continuousAt.eventually hX
+    have hηX : ∀ᶠ t in 𝓝 τ.1, η t ∈ X := by
+      have hητ : η τ.1 = γ τ.1 := hτ.symm
+      simpa [hητ] using (hη τ.1 hτI).continuousAt.eventually hX
+    have hTnhds : T ∈ 𝓝 τ.1 := hT
+    have hlip :
+        ∀ᶠ t in 𝓝 τ.1, LipschitzOnWith K (V t) X := by
+      filter_upwards [hTnhds] with t ht
+      exact LipschitzOnWith.of_dist_le_mul fun x hx y hy => by
+        have hxy := hKW (hprod ⟨ht,hx⟩) (hprod ⟨ht,hy⟩)
+        simpa [Prod.dist_eq, max_self] using hxy
+    have hγev :
+        ∀ᶠ t in 𝓝 τ.1,
+          HasDerivAt γ (V t (γ t)) t ∧ γ t ∈ X := by
+      filter_upwards [htime,hγX] with t htI htx
+      exact ⟨hγ t htI,htx⟩
+    have hηev :
+        ∀ᶠ t in 𝓝 τ.1,
+          HasDerivAt η (V t (η t)) t ∧ η t ∈ X := by
+      filter_upwards [htime,hηX] with t htI htx
+      exact ⟨hη t htI,htx⟩
+    have hevent : γ =ᶠ[𝓝 τ.1] η :=
+      ODE_solution_unique_of_eventually hlip hγev hηev hτ
+    exact Filter.mem_of_superset
+      (nhds_subtype_eq_comap τ.1 I ▸ Filter.preimage_mem_comap' hevent)
+      (by intro σ hσ; exact hσ)
+  have hSne : S.Nonempty := ⟨⟨t₀,ht₀⟩,heq₀⟩
+  have hSuniv : S = Set.univ := by
+    letI : PreconnectedSpace J :=
+      Subtype.preconnectedSpace hIconv.isPreconnected
+    exact IsClopen.eq_univ ⟨hSclosed,hSopen⟩ hSne
+  intro t ht
+  have : (⟨t,ht⟩ : J) ∈ S := by rw [hSuniv]; trivial
+  exact this
+
+/-- A smooth independent frame evolving by a smooth linear system has
+constant span.  This is the precise linear-ODE statement needed in the
+rank-induction proof of Frobenius. -/
+lemma span_eq_of_smooth_linear_system
+    {F : Type*} [NormedAddCommGroup F] [InnerProductSpace ℝ F]
+    [FiniteDimensional ℝ F] [CompleteSpace F]
+    {n : ℕ} {I : Set ℝ} (hI : IsOpen I) (hIconv : Convex ℝ I)
+    {t₀ : ℝ} (ht₀ : t₀ ∈ I)
+    (a : ℝ → Fin n → F)
+    (ha_smooth : ∀ i, ContDiffOn ℝ ∞ (fun t => a t i) I)
+    (ha_ind : ∀ t ∈ I, LinearIndependent ℝ (a t))
+    (C : ℝ → Fin n → Fin n → ℝ)
+    (hC : ∀ i j, ContDiffOn ℝ ∞ (fun t => C t i j) I)
+    (ha_ode : ∀ t ∈ I, ∀ i,
+      HasDerivAt (fun s => a s i) (∑ j, C t i j • a t j) t) :
+    ∀ t ∈ I,
+      Submodule.span ℝ (Set.range (a t)) =
+        Submodule.span ℝ (Set.range (a t₀)) := by
+  classical
+  let K := Submodule.span ℝ (Set.range (a t₀))
+  let P : F →L[ℝ] Kᗮ := K.orthogonalProjection
+  let y : ℝ → Fin n → Kᗮ := fun t i => P (a t i)
+  let V : ℝ → (Fin n → Kᗮ) → (Fin n → Kᗮ) :=
+    fun t Y i => ∑ j, C t i j • Y j
+  have hVsmooth :
+      ContDiffOn ℝ 1 (fun z : ℝ × (Fin n → Kᗮ) => V z.1 z.2)
+        (I ×ˢ Set.univ) := by
+    fun_prop
+  have hy :
+      ∀ t ∈ I, HasDerivAt
+        (fun s => fun i => y s i) (V t (y t)) t := by
+    intro t ht
+    rw [hasDerivAt_pi]
+    intro i
+    have hder := (ha_ode t ht i).clm_apply P
+    simpa [V,y,map_sum] using hder
+  have hy0 : (fun i => y t₀ i) = 0 := by
+    funext i
+    exact Submodule.orthogonalProjection_mem_subspace_eq_zero
+      (Submodule.subset_span ⟨i,rfl⟩)
+  have hzero :
+      ∀ t ∈ I, HasDerivAt
+        (fun _ : ℝ => (0 : Fin n → Kᗮ)) (V t 0) t := by
+    intro t ht
+    simpa [V] using
+      (hasDerivAt_const (x := t) (c := (0 : Fin n → Kᗮ)))
+  have hy_eq_zero :
+      Set.EqOn (fun t => fun i => y t i) (fun _ => 0) I := by
+    exact smooth_timeDependent_ode_solution_unique_on_open_convex
+      hI hIconv isOpen_univ hVsmooth ht₀
+      (fun _ _ => Set.mem_univ _)
+      (fun _ _ => Set.mem_univ _)
+      hy hzero hy0
+  intro t ht
+  have hle :
+      Submodule.span ℝ (Set.range (a t)) ≤ K := by
+    rw [← Submodule.orthogonal_orthogonal (K := K)]
+    apply Submodule.le_orthogonal_of_inner_left
+    intro x hx z hz
+    induction hx using Submodule.span_induction with
+    | mem x hx =>
+        obtain ⟨i,rfl⟩ := hx
+        have hproj := congrFun (hy_eq_zero ht) i
+        have horth : a t i ∈ Kᗮ := by
+          simpa [y,P] using hproj
+        exact (Submodule.mem_orthogonal' _ _).mp horth z hz
+    | zero => simp
+    | add x z hx hz ihx ihz =>
+        simp [inner_add_left,ihx,ihz]
+    | smul c x hx ih =>
+        simp [inner_smul_left,ih]
+  apply le_antisymm hle
+  have hdimt :
+      Module.finrank ℝ (Submodule.span ℝ (Set.range (a t))) = n := by
+    simpa using finrank_span_eq_card (ha_ind t ht)
+  have hdim0 :
+      Module.finrank ℝ K = n := by
+    simpa [K] using finrank_span_eq_card (ha_ind t₀ ht₀)
+  exact Submodule.eq_of_le_of_finrank_eq hle
+    (by rw [hdimt,hdim0]) |>.ge
+
+
 structure SymmetricFlowPatch (Ω : Set E) (v : Field E) where
   U : Set E
   open_U : IsOpen U
