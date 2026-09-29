@@ -4674,6 +4674,96 @@ lemma posDef_sq_add_scalar_one (H : Mat 2 2) (hH : Hᵀ = H)
     (Matrix.PosDef.one).smul hc
   exact hsq.posSemidef_add hcI
 
+lemma positiveSquareRoot_eq_cfc {A R : Mat 2 2}
+    (hA : Matrix.PosDef A) (hR : PositiveSquareRoot A R) :
+    R = CFC.sqrt A := by
+  rw [eq_comm, CFC.sqrt_eq_iff A R
+    hA.posSemidef.nonneg hR.1.posSemidef.nonneg]
+  simpa [pow_two] using hR.2.symm
+
+lemma positiveSquareRoot_commutes_with_base
+    (H : Mat 2 2) (hH : Hᵀ = H) (α : ℝ) (hα : α ≠ 0)
+    (R : Mat 2 2)
+    (hR : PositiveSquareRoot
+      (H * H + (4 * α^2) • (1 : Mat 2 2)) R) :
+    Commute H R := by
+  let A : Mat 2 2 := H * H + (4 * α^2) • (1 : Mat 2 2)
+  have hA : Matrix.PosDef A := by
+    dsimp [A]
+    exact posDef_sq_add_scalar_one H hH
+      (by positivity [sq_pos_of_ne_zero hα])
+  have hReq : R = CFC.sqrt A := positiveSquareRoot_eq_cfc hA hR
+  have hAH : Commute A H := by
+    rw [Commute, SemiconjBy]
+    dsimp [A]
+    simp only [add_mul, mul_add, Matrix.one_mul, Matrix.mul_one,
+      Algebra.smul_mul_assoc, Algebra.mul_smul_comm]
+    noncomm_ring
+  rw [hReq, CFC.sqrt]
+  exact (hAH.cfcₙ_nnreal NNReal.sqrt).symm
+
+lemma gramCandidate_posDef_mathlib
+    (H : Mat 2 2) (hH : Hᵀ = H) (α : ℝ) (hα : α ≠ 0)
+    (R : Mat 2 2)
+    (hR : PositiveSquareRoot
+      (H * H + (4 * α^2) • (1 : Mat 2 2)) R) :
+    Matrix.PosDef (gramCandidate H R) := by
+  let A : Mat 2 2 := H * H + (4 * α^2) • (1 : Mat 2 2)
+  have hA : Matrix.PosDef A := by
+    dsimp [A]
+    exact posDef_sq_add_scalar_one H hH
+      (by positivity [sq_pos_of_ne_zero hα])
+  have hReq : R = CFC.sqrt A := positiveSquareRoot_eq_cfc hA hR
+  have hHself : IsSelfAdjoint H := by
+    simpa [star_eq_transpose] using hH
+  have hcI : 0 ≤ (4 * α^2) • (1 : Mat 2 2) := by
+    exact ((Matrix.PosDef.one).smul
+      (by positivity [sq_pos_of_ne_zero hα])).posSemidef.nonneg
+  have hsq_le : H * H ≤ A := by
+    dsimp [A]
+    exact le_add_of_nonneg_right hcI
+  have habsR : CFC.abs H ≤ R := by
+    rw [hReq]
+    have hs := CFC.sqrt_le_sqrt (H * H) A hsq_le
+    simpa [CFC.abs, hHself.star_eq] using hs
+  have hnegabs : -H ≤ CFC.abs H := by
+    rw [← sub_nonneg, sub_neg_eq_add, CFC.abs_add_self H hHself]
+    exact smul_nonneg (by norm_num) (CFC.posPart_nonneg H)
+  have hsum_nonneg : 0 ≤ H + R := by
+    exact (neg_le_iff_add_nonneg).mp (hnegabs.trans habsR)
+  have hPsem : Matrix.PosSemidef (gramCandidate H R) := by
+    unfold gramCandidate
+    exact (smul_nonneg (by norm_num : (0 : ℝ) ≤ 1 / 2) hsum_nonneg).posSemidef
+  have hcomm := positiveSquareRoot_commutes_with_base H hH α hα R hR
+  have hinj : Function.Injective (gramCandidate H R).mulVec := by
+    intro x y hxy
+    let z := x - y
+    have hzP : gramCandidate H R *ᵥ z = 0 := by
+      simp [z, Matrix.mulVec_sub, hxy]
+    have hzsum : (H + R) *ᵥ z = 0 := by
+      have hhalf : (1 / 2 : ℝ) ≠ 0 := by norm_num
+      simpa [gramCandidate, Matrix.smul_mulVec, hhalf] using hzP
+    have hRz : R *ᵥ z = -(H *ᵥ z) := by
+      simpa [Matrix.add_mulVec, eq_neg_iff_add_eq_zero] using hzsum
+    have hR2z : (R * R) *ᵥ z = (H * H) *ᵥ z := by
+      rw [← Matrix.mulVec_mulVec, ← Matrix.mulVec_mulVec, hRz]
+      have hc := congrArg (fun w => w *ᵥ z) hcomm.eq
+      simp only [Matrix.mulVec_mulVec] at hc
+      rw [hc, hRz]
+      simp
+    have hcz : ((4 * α^2) • (1 : Mat 2 2)) *ᵥ z = 0 := by
+      have hrsq := congrArg (fun M : Mat 2 2 => M *ᵥ z) hR.2
+      simp only [Matrix.add_mulVec] at hrsq
+      rw [hR2z] at hrsq
+      simpa using sub_eq_zero.mp (eq_sub_iff_add_eq.mpr hrsq.symm)
+    have hz : z = 0 := by
+      have hc : (4 * α^2 : ℝ) ≠ 0 := by
+        positivity [sq_pos_of_ne_zero hα]
+      simpa [Matrix.smul_mulVec, hc] using hcz
+    exact sub_eq_zero.mp hz
+  exact hPsem.posDef_iff_isUnit.mpr
+    (Matrix.mulVec_injective_iff_isUnit.mp hinj)
+
 /-- Standard spectral-algebra facts used in Appendix H.  Nguyen--Montúfar
 invoke the spectral theorem here; Stage 1 keeps the exact consequences
 explicit and Stage 2 discharges them from Mathlib CFC/spectral theory. -/
