@@ -239,9 +239,15 @@ theorem separates_cosineLoss {n : ℕ} :
 Items (1)–(3) are the generic zero-diagonal criterion, metric distance, and
 squared Euclidean loss above; items (4)–(8) are the declarations immediately
 above. -/
-theorem lemma26_summary :
+theorem lemma26 :
+    (∀ (Z : Type*) (ell : Z → Z → ℝ),
+      (∀ z, ell z z = 0) →
+      (∀ z y, z ≠ y → 0 < ell z y) →
+      SeparatesPredictions ell) ∧
     (∀ (Z : Type*) [MetricSpace Z],
       SeparatesPredictions (fun z y : Z => dist z y)) ∧
+    (∀ n, SeparatesPredictions
+      (fun z y : Vec (Fin n) => ‖z - y‖ ^ 2)) ∧
     (∀ n, SeparatesPredictions
       (absoluteLoss : Vec (Fin n) → Vec (Fin n) → ℝ)) ∧
     (∀ n (p : ℝ), 0 < p →
@@ -255,12 +261,20 @@ theorem lemma26_summary :
         PositiveProbabilitySimplex n → ProbabilitySimplex n → ℝ)) ∧
     (∀ n, SeparatesPredictions
       (cosineLoss : UnitVector n → UnitVector n → ℝ)) := by
-  exact ⟨fun _ _ => separates_dist,
+  refine ⟨fun _ ell hdiag hpos =>
+      separates_of_zero_on_diagonal ell hdiag hpos,
+    fun _ _ => separates_dist, ?_,
     fun _ => separates_absoluteLoss,
     fun _ _ hp => separates_lpPowerLoss hp,
     fun _ => separates_crossEntropyLoss,
     fun _ => separates_klDivergenceLoss,
     fun _ => separates_cosineLoss⟩
+  intro n
+  apply separates_of_zero_on_diagonal
+  · intro z
+    simp
+  · intro z y hne
+    exact sq_pos_of_pos (norm_pos_iff.mpr (sub_ne_zero.mpr hne))
 
 end Models
 
