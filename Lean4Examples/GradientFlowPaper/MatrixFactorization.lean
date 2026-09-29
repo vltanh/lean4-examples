@@ -246,6 +246,97 @@ theorem fullRank_fiber {m n r : ℕ} {p q : Param m n r}
   · rintro ⟨s, rfl⟩
     exact (observation_gauge s p).symm
 
+
+/-- Differentiating the matrix product along a parameter curve gives the
+usual product-rule tangent equation. -/
+lemma observation_tangent_eq_zero
+    {m n r : ℕ} {p v : Param m n r} {γ : ℝ → Param m n r}
+    (hγ : HasDerivAt γ v 0) (hγ0 : γ 0 = p)
+    (hobs : (fun t => observation (γ t)) =ᶠ[𝓝 0]
+      (fun _ => observation p)) :
+    U v * (V p)ᵀ + U p * (V v)ᵀ = 0 := by
+  ext i j
+  have hentry :
+      HasDerivAt (fun t => observation (γ t) i j)
+        ((U v * (V p)ᵀ + U p * (V v)ᵀ) i j) 0 := by
+    have hterm :
+        ∀ a : Fin r,
+          HasDerivAt
+            (fun t => U (γ t) i a * V (γ t) j a)
+            (U v i a * V p j a + U p i a * V v j a) 0 := by
+      intro a
+      have hu :
+          HasDerivAt (fun t => U (γ t) i a) (U v i a) 0 := by
+        simpa [U] using
+          hγ.clm_apply
+            (ContinuousLinearMap.apply ℝ (Param m n r) (Sum.inl (i,a)))
+      have hv :
+          HasDerivAt (fun t => V (γ t) j a) (V v j a) 0 := by
+        simpa [V] using
+          hγ.clm_apply
+            (ContinuousLinearMap.apply ℝ (Param m n r) (Sum.inr (j,a)))
+      simpa [hγ0] using hu.mul hv
+    have hsum :=
+      (fun a (_ : a ∈ (Finset.univ : Finset (Fin r))) => hterm a)
+        |>.fun_sum
+    simpa [observation, Matrix.mul_apply, Matrix.transpose_apply,
+      Finset.sum_add_distrib] using hsum
+  have hconst :
+      HasDerivAt (fun t => observation (γ t) i j) 0 0 := by
+    exact (hasDerivAt_const (x := 0)
+      (c := observation p i j)).congr_of_eventuallyEq
+        (hobs.mono fun t ht => congrFun₂ ht i j)
+  exact hentry.unique hconst
+
+/-- At a full-rank factorization, the kernel of the differential of
+`(U,V) ↦ UVᵀ` is exactly the infinitesimal `GL(r)` gauge orbit. -/
+lemma exists_gaugeGenerator_of_observation_tangent
+    {m n r : ℕ} {p v : Param m n r} (hp : p ∈ regular)
+    (htan : U v * (V p)ᵀ + U p * (V v)ᵀ = 0) :
+    ∃ A : Mat r r, v = gaugeGenerator A p := by
+  have hGv : IsUnit ((V p)ᵀ * V p) := hp.2.gram_isUnit
+  let gv : GL r := hGv.unit
+  have hgv : (gv : Mat r r) = (V p)ᵀ * V p := hGv.unit_spec
+  let Rv : Mat n r := V p * ((gv⁻¹ : GL r) : Mat r r)
+  have hright : (V p)ᵀ * Rv = 1 := by
+    simp [Rv, Matrix.mul_assoc, ← hgv]
+  let A : Mat r r := -((V v)ᵀ * Rv)
+  have hU : U v = U p * A := by
+    have h := congrArg (fun M : Mat m n => M * Rv) htan
+    simp only [Matrix.add_mul, Matrix.mul_assoc, hright, Matrix.mul_one] at h
+    rw [show U p * (V v)ᵀ * Rv = U p * ((V v)ᵀ * Rv) by
+      simp [Matrix.mul_assoc]] at h
+    simpa [A, Matrix.mul_neg] using eq_neg_of_add_eq_zero_left h
+  have hVt : A * (V p)ᵀ + (V v)ᵀ = 0 := by
+    have h := htan
+    rw [hU, Matrix.mul_assoc] at h
+    have hcancel :
+        U p * (A * (V p)ᵀ + (V v)ᵀ) = U p * 0 := by
+      simpa [Matrix.mul_add, Matrix.mul_assoc] using h
+    exact hp.1.mul_right_cancel hcancel
+  have hV : V v = -(V p * Aᵀ) := by
+    have ht := congrArg Matrix.transpose hVt
+    simpa [Matrix.transpose_add, Matrix.transpose_mul] using
+      eq_neg_of_add_eq_zero_left ht
+  refine ⟨A, ?_⟩
+  rw [← pack_U_V v]
+  simp [gaugeGenerator, hU, hV]
+
+/-- Tangent version of full-rank functional identifiability. -/
+lemma tangent_functional_fibre_is_gauge
+    {m n r : ℕ} {p v : Param m n r} (hp : p ∈ regular)
+    {γ : ℝ → Param m n r}
+    (hγ : HasDerivAt γ v 0) (hγ0 : γ 0 = p)
+    (hfun : ∀ᶠ t in 𝓝 0, FunctionalEquiv model (γ t) p) :
+    ∃ A : Mat r r, v = gaugeGenerator A p := by
+  have hobs :
+      (fun t => observation (γ t)) =ᶠ[𝓝 0]
+        (fun _ => observation p) := by
+    filter_upwards [hfun] with t ht
+    simpa [model] using ht ()
+  exact exists_gaugeGenerator_of_observation_tangent hp
+    (observation_tangent_eq_zero hγ hγ0 hobs)
+
 def balance {m n r : ℕ} (p : Param m n r) : Mat r r :=
   (U p)ᵀ * U p - (V p)ᵀ * V p
 
