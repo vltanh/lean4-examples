@@ -2675,6 +2675,7 @@ theorem exists_oneField_flowBox
       IsOpen U ∧ (0,0) ∈ U ∧ U ⊆ e.source ∧
       e (0,0) = p ∧ IsOpen (e '' U) ∧ e '' U ⊆ Ω ∧
       ContDiffOn ℝ ∞ e U ∧ ContDiffOn ℝ ∞ e.symm (e '' U) ∧
+      (∀ z ∈ U, (fderiv ℝ e z).IsInvertible) ∧
       (∀ z ∈ U,
         (fderiv ℝ e z) (1,0) = v (e z)) := by
   obtain ⟨P, hPc⟩ := exists_symmetricFlowPatch hΩ hv hp
@@ -2847,7 +2848,7 @@ theorem exists_oneField_flowBox
     have := hchain.unique hline
     simpa [e] using this
   refine ⟨e, U, hU, h0U, hUsource, ?_, himgOpen, hUΩ,
-    hesmooth, hesymm, htime_all⟩
+    hesmooth, hesymm, heinv, htime_all⟩
   simpa [e] using hχ0
 
 def InvolutiveOn (Ω : Set E) (D : Distribution E) : Prop :=
