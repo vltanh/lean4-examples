@@ -2559,6 +2559,41 @@ def HasLocalSmoothFrame (Ω : Set E) (D : Distribution E) : Prop :=
 def ConstantRankOn (Ω : Set E) (D : Distribution E) (r : ℕ) : Prop :=
   ∀ p ∈ Ω, Module.finrank ℝ (D p) = r
 
+/-- A local smooth frame of a constant-rank distribution can be
+reindexed so that its index type is exactly `Fin r`. -/
+lemma HasLocalSmoothFrame.exists_rank_frame
+    {D : Distribution E} {r : ℕ}
+    (hframe : HasLocalSmoothFrame Ω D)
+    (hrank : ConstantRankOn Ω D r)
+    {p : E} (hp : p ∈ Ω) :
+    ∃ (U : Set E) (v : Fin r → Field E),
+      IsOpen U ∧ p ∈ U ∧ U ⊆ Ω ∧
+      (∀ i, ContDiffOn ℝ ∞ (v i) U) ∧
+      (∀ q ∈ U,
+        LinearIndependent ℝ (fun i => v i q) ∧
+        D q = Submodule.span ℝ (Set.range (fun i => v i q))) := by
+  obtain ⟨U, hU, hpU, hUΩ, n, v, hv, hvframe⟩ := hframe p hp
+  have hnr : n = r := by
+    have hdim :
+        Module.finrank ℝ (D p) = n := by
+      rw [(hvframe p hpU).2]
+      simpa using finrank_span_eq_card (hvframe p hpU).1
+    exact hdim.symm.trans (hrank p hp)
+  let e : Fin r ≃ Fin n := (finCongr hnr).symm
+  let w : Fin r → Field E := fun i => v (e i)
+  refine ⟨U, w, hU, hpU, hUΩ, ?_, ?_⟩
+  · intro i
+    exact hv (e i)
+  · intro q hq
+    have hind := (hvframe q hq).1.comp e e.injective
+    have hspan :
+        Submodule.span ℝ (Set.range (fun i : Fin r => w i q)) =
+          Submodule.span ℝ (Set.range (fun i : Fin n => v i q)) := by
+      simpa [w, Function.comp_def, Set.range_comp] using
+        congrArg (Submodule.span ℝ) e.surjective.range_comp
+    refine ⟨hind, ?_⟩
+    rw [(hvframe q hq).2, ← hspan]
+
 def InvolutiveOn (Ω : Set E) (D : Distribution E) : Prop :=
   ∀ U : Set E, IsOpen U → U ⊆ Ω →
     ∀ v w : Field E, IsSectionOn U D v → IsSectionOn U D w →
