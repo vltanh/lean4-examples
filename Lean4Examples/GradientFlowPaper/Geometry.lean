@@ -2664,6 +2664,192 @@ lemma lineOrthogonalEquiv_apply (u : E) (hu : u ≠ 0)
     lineOrthogonalEquiv u hu z = z.1 • u + z.2.1 := by
   rfl
 
+/-- A smooth nonvanishing vector field admits local coordinates whose
+first coordinate line is its flow.  The transverse model is the orthogonal
+complement of the field value at the base point. -/
+theorem exists_oneField_flowBox
+    (hΩ : IsOpen Ω) {v : Field E} (hv : ContDiffOn ℝ ∞ v Ω)
+    {p : E} (hp : p ∈ Ω) (hvp : v p ≠ 0) :
+    ∃ (e : OpenPartialHomeomorph (ℝ × (ℝ ∙ v p)ᗮ) E)
+      (U : Set (ℝ × (ℝ ∙ v p)ᗮ)),
+      IsOpen U ∧ (0,0) ∈ U ∧ U ⊆ e.source ∧
+      e (0,0) = p ∧ IsOpen (e '' U) ∧ e '' U ⊆ Ω ∧
+      ContDiffOn ℝ ∞ e U ∧ ContDiffOn ℝ ∞ e.symm (e '' U) ∧
+      (∀ z ∈ U,
+        (fderiv ℝ e z) (1,0) = v (e z)) := by
+  obtain ⟨P, hPc⟩ := exists_symmetricFlowPatch hΩ hv hp
+  subst hPc
+  let H : Submodule ℝ E := (ℝ ∙ v p)ᗮ
+  let χ : ℝ × H → E := fun z => P.toFun (p + z.2.1) z.1
+  have h0time : (0 : ℝ) ∈ Set.Ioo (-P.ε) P.ε := by
+    constructor <;> linarith [P.ε_pos]
+  have hχ0 : χ (0,0) = p := by
+    simp [χ, P.initial]
+  have hχsmoothAt : ContDiffAt ℝ ∞ χ (0,0) := by
+    have hbase :
+        ContDiffAt ℝ ∞
+          (fun z : ℝ × H => (p + z.2.1, z.1)) (0,0) := by
+      fun_prop
+    have hP :
+        ContDiffAt ℝ ∞
+          (fun z : E × ℝ => P.toFun z.1 z.2) (p,0) :=
+      (P.smooth (p,0) ⟨P.center_mem, h0time⟩).contDiffAt
+        ((P.open_U.prod isOpen_Ioo).mem_nhds
+          ⟨P.center_mem, h0time⟩)
+    simpa [χ] using hP.comp (0,0) hbase
+  have hχdiff : DifferentiableAt ℝ χ (0,0) :=
+    hχsmoothAt.differentiableAt (by simp)
+  have htime :
+      (fderiv ℝ χ (0,0)) (1,0) = v p := by
+    have hline :
+        HasDerivAt (fun t : ℝ => χ (t,0)) (v p) 0 := by
+      simpa [χ, P.initial] using
+        P.ode p P.center_mem 0 h0time
+    have hinc :
+        HasDerivAt (fun t : ℝ => ((t, (0 : H)) : ℝ × H)) (1,0) 0 := by
+      fun_prop
+    have hchain :=
+      hχdiff.hasFDerivAt.comp_hasDerivAt 0 hinc
+    exact hchain.unique hline
+  have htrans :
+      ∀ z : H, (fderiv ℝ χ (0,0)) (0,z) = z.1 := by
+    intro z
+    have hslice :
+        (fun y : H => χ (0,y)) = fun y => p + y.1 := by
+      funext y
+      simp [χ, P.initial]
+    have hinc :
+        HasFDerivAt (fun y : H => ((0,y) : ℝ × H))
+          (ContinuousLinearMap.inr ℝ ℝ H) 0 := by
+      fun_prop
+    have hchain := hχdiff.hasFDerivAt.comp 0 hinc
+    have hright :
+        HasFDerivAt (fun y : H => p + y.1)
+          (Submodule.subtypeL H) 0 := by
+      fun_prop
+    rw [hslice] at hchain
+    have heq := hchain.unique hright
+    have := congrArg (fun T : H →L[ℝ] E => T z) heq
+    simpa [ContinuousLinearMap.comp_apply] using this
+  have hder :
+      fderiv ℝ χ (0,0) =
+        (lineOrthogonalEquiv (v p) hvp :
+          ℝ × H →L[ℝ] E) := by
+    apply ContinuousLinearMap.ext
+    rintro ⟨a,z⟩
+    have hsplit :
+        ((a,z) : ℝ × H) =
+          a • ((1,0) : ℝ × H) + (0,z) := by
+      ext <;> simp
+    rw [hsplit, map_add, map_smul, htime, htrans]
+    simp [lineOrthogonalEquiv_apply, H]
+  have hχder :
+      HasFDerivAt χ
+        (lineOrthogonalEquiv (v p) hvp : ℝ × H →L[ℝ] E) (0,0) := by
+    rw [← hder]
+    exact hχdiff.hasFDerivAt
+  let e : OpenPartialHomeomorph (ℝ × H) E :=
+    hχsmoothAt.toOpenPartialHomeomorph χ hχder (by simp)
+  have h0source : (0,0) ∈ e.source :=
+    hχsmoothAt.mem_toOpenPartialHomeomorph_source hχder (by simp)
+  have he0 : e (0,0) = p := by
+    simpa [e] using hχ0
+  have hfderiv_cont :
+      ContinuousAt (fderiv ℝ χ) (0,0) :=
+    hχsmoothAt.continuousAt_fderiv (by simp)
+  have hinv0 : (fderiv ℝ χ (0,0)).IsInvertible := by
+    rw [hder]
+    exact ContinuousLinearMap.isInvertible_equiv
+  have hinv_event :
+      ∀ᶠ z in 𝓝 ((0,0) : ℝ × H),
+        (fderiv ℝ χ z).IsInvertible :=
+    hfderiv_cont.eventually hinv0.eventually_nhds
+  let good : Set (ℝ × H) :=
+    e.source ∩
+      {z | p + z.2.1 ∈ P.U} ∩
+      {z | z.1 ∈ Set.Ioo (-P.ε) P.ε} ∩
+      χ ⁻¹' Ω ∩
+      {z | (fderiv ℝ χ z).IsInvertible}
+  have hgood : good ∈ 𝓝 ((0,0) : ℝ × H) := by
+    refine Filter.inter_mem
+      (Filter.inter_mem
+        (Filter.inter_mem
+          (Filter.inter_mem
+            (e.open_source.mem_nhds h0source)
+            ?_) ?_) ?_) hinv_event
+    · exact (by
+        have hc : ContinuousAt (fun z : ℝ × H => p + z.2.1) (0,0) := by fun_prop
+        exact hc.eventually (by simpa using P.center_mem))
+    · exact (continuousAt_fst.eventually
+        (isOpen_Ioo.mem_nhds h0time))
+    · have hc : ContinuousAt χ (0,0) := hχsmoothAt.continuousAt
+      exact hc.eventually (by simpa [hχ0] using hΩ.mem_nhds hp)
+  obtain ⟨U, hUgood, hU, h0U⟩ := mem_nhds_iff.mp hgood
+  have hUsource : U ⊆ e.source := fun z hz => (hUgood hz).1
+  have hUflow :
+      ∀ z ∈ U, p + z.2.1 ∈ P.U ∧
+        z.1 ∈ Set.Ioo (-P.ε) P.ε := by
+    intro z hz
+    exact ⟨(hUgood hz).2.1, (hUgood hz).2.2.1⟩
+  have hUΩ : e '' U ⊆ Ω := by
+    rintro _ ⟨z,hz,rfl⟩
+    have := (hUgood hz).2.2.2.1
+    simpa [e] using this
+  have himgOpen : IsOpen (e '' U) :=
+    e.isOpen_image_of_subset_source hU hUsource
+  have hesmooth : ContDiffOn ℝ ∞ e U := by
+    intro z hz
+    have hdom := hUflow z hz
+    have hP :
+        ContDiffAt ℝ ∞
+          (fun q : E × ℝ => P.toFun q.1 q.2)
+          (p + z.2.1, z.1) :=
+      (P.smooth _ hdom).contDiffAt
+        ((P.open_U.prod isOpen_Ioo).mem_nhds hdom)
+    have hbase :
+        ContDiffAt ℝ ∞
+          (fun y : ℝ × H => (p + y.2.1, y.1)) z := by
+      fun_prop
+    simpa [e, χ] using hP.comp z hbase
+  have heinv :
+      ∀ z ∈ U, (fderiv ℝ e z).IsInvertible := by
+    intro z hz
+    have hz' := (hUgood hz).2.2.2.2
+    simpa [e] using hz'
+  have hesymm : ContDiffOn ℝ ∞ e.symm (e '' U) := by
+    rintro y ⟨z,hz,rfl⟩
+    have hzs : z ∈ e.source := hUsource hz
+    have hzt : e z ∈ e.target := e.mapsTo hzs
+    have hez : ContDiffAt ℝ ∞ e z :=
+      (hesmooth z hz).contDiffAt (hU.mem_nhds hz)
+    rcases heinv z hz with ⟨d, hd⟩
+    have hderz :
+        HasFDerivAt e (d : (ℝ × H) →L[ℝ] E) z := by
+      rw [hd]
+      exact hez.differentiableAt (by simp) |>.hasFDerivAt
+    exact (e.contDiffAt_symm hzt hderz hez).contDiffWithinAt
+  have htime_all :
+      ∀ z ∈ U, (fderiv ℝ e z) (1,0) = v (e z) := by
+    intro z hz
+    have hdom := hUflow z hz
+    have hdiff : DifferentiableAt ℝ χ z :=
+      (hesmooth z hz).differentiableWithinAt.differentiableAt
+        (hU.mem_nhds hz)
+    have hline :
+        HasDerivAt (fun t : ℝ => χ (t,z.2))
+          (v (χ z)) z.1 := by
+      simpa [χ] using
+        P.ode (p + z.2.1) hdom.1 z.1 hdom.2
+    have hinc :
+        HasDerivAt (fun t : ℝ => ((t,z.2) : ℝ × H)) (1,0) z.1 := by
+      fun_prop
+    have hchain := hdiff.hasFDerivAt.comp_hasDerivAt z.1 hinc
+    have := hchain.unique hline
+    simpa [e] using this
+  refine ⟨e, U, hU, h0U, hUsource, ?_, himgOpen, hUΩ,
+    hesmooth, hesymm, htime_all⟩
+  simpa [e] using hχ0
+
 def InvolutiveOn (Ω : Set E) (D : Distribution E) : Prop :=
   ∀ U : Set E, IsOpen U → U ⊆ Ω →
     ∀ v w : Field E, IsSectionOn U D v → IsSectionOn U D w →
