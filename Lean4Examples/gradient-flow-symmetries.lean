@@ -1147,7 +1147,83 @@ lemma open_times (ψ : LocalFlow Ω v) (p : E) :
     IsOpen {t : ℝ | (t, p) ∈ ψ.domain} :=
   ψ.open_domain.preimage (continuous_id.prodMk continuous_const)
 
+
 end LocalFlow
+
+lemma smooth_ode_solution_unique_on_open_convex
+    {I : Set ℝ} (hIopen : IsOpen I) (hIconv : Convex ℝ I)
+    {v : Field E} (hΩ : IsOpen Ω) (hv : ContDiffOn ℝ ∞ v Ω)
+    {γ η : ℝ → E} {t₀ : ℝ} (ht₀ : t₀ ∈ I)
+    (hγmem : ∀ t ∈ I, γ t ∈ Ω)
+    (hηmem : ∀ t ∈ I, η t ∈ Ω)
+    (hγ : ∀ t ∈ I, HasDerivAt γ (v (γ t)) t)
+    (hη : ∀ t ∈ I, HasDerivAt η (v (η t)) t)
+    (heq₀ : γ t₀ = η t₀) :
+    Set.EqOn γ η I := by
+  let J := {t : ℝ // t ∈ I}
+  let S : Set J := {t | γ t.1 = η t.1}
+  have hcontγ : ContinuousOn γ I :=
+    fun t ht => (hγ t ht).continuousAt.continuousWithinAt
+  have hcontη : ContinuousOn η I :=
+    fun t ht => (hη t ht).continuousAt.continuousWithinAt
+  have hSclosed : IsClosed S := by
+    have hγJ : Continuous (fun t : J => γ t.1) :=
+      hcontγ.comp_continuous continuous_subtype_val (fun t => t.2)
+    have hηJ : Continuous (fun t : J => η t.1) :=
+      hcontη.comp_continuous continuous_subtype_val (fun t => t.2)
+    exact isClosed_eq hγJ hηJ
+  have hSopen : IsOpen S := by
+    rw [isOpen_iff_mem_nhds]
+    intro τ hτ
+    have hτI : τ.1 ∈ I := τ.2
+    have hstate : γ τ.1 ∈ Ω := hγmem τ.1 hτI
+    have hvAt : ContDiffAt ℝ 1 v (γ τ.1) :=
+      ((hv.of_le (by simp)) _ hstate).contDiffAt (hΩ.mem_nhds hstate)
+    obtain ⟨K, U, hU, hKU⟩ := hvAt.exists_lipschitzOnWith
+    have hγU : ∀ᶠ s in 𝓝 τ.1, γ s ∈ U := by
+      exact (hγ τ.1 hτI).continuousAt.eventually hU
+    have hηU : ∀ᶠ s in 𝓝 τ.1, η s ∈ U := by
+      have hητ : η τ.1 = γ τ.1 := hτ.symm
+      simpa [hητ] using (hη τ.1 hτI).continuousAt.eventually hU
+    have htime : I ∈ 𝓝 τ.1 := hIopen.mem_nhds hτI
+    have hlip :
+        ∀ᶠ s in 𝓝 τ.1,
+          LipschitzOnWith K (fun _ : E => v ·) U := by
+      exact Filter.Eventually.of_forall (fun _ => hKU)
+    have hγev :
+        ∀ᶠ s in 𝓝 τ.1,
+          HasDerivAt γ ((fun _ : ℝ => v) s (γ s)) s ∧ γ s ∈ U := by
+      filter_upwards [htime, hγU] with s hsI hsU
+      exact ⟨hγ s hsI, hsU⟩
+    have hηev :
+        ∀ᶠ s in 𝓝 τ.1,
+          HasDerivAt η ((fun _ : ℝ => v) s (η s)) s ∧ η s ∈ U := by
+      filter_upwards [htime, hηU] with s hsI hsU
+      exact ⟨hη s hsI, hsU⟩
+    have hevent : γ =ᶠ[𝓝 τ.1] η :=
+      ODE_solution_unique_of_eventually
+        (v := fun _ : ℝ => v) (s := fun _ => U)
+        hlip hγev hηev hτ
+    exact Filter.mem_of_superset
+      (nhds_subtype_eq_comap τ.1 I ▸
+        Filter.preimage_mem_comap' hevent)
+      (by
+        intro σ hσ
+        exact hσ)
+  have hJpre : IsPreconnected (Set.univ : Set J) := by
+    letI : PreconnectedSpace J := Subtype.preconnectedSpace hIconv.isPreconnected
+    exact isPreconnected_univ
+  have hSne : S.Nonempty :=
+    ⟨⟨t₀, ht₀⟩, heq₀⟩
+  have hSuniv : S = Set.univ := by
+    letI : PreconnectedSpace J := Subtype.preconnectedSpace hIconv.isPreconnected
+    exact IsClopen.eq_univ ⟨hSclosed, hSopen⟩ hSne
+  intro t ht
+  have : (⟨t, ht⟩ : J) ∈ S := by
+    rw [hSuniv]
+    trivial
+  exact this
+
 
 /-- Standard autonomous-ODE background used by Proposition 9.  This is an
 explicit Stage-1 dependency, not an assumed theorem constant. -/
