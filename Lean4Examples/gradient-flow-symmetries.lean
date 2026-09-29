@@ -2217,6 +2217,27 @@ lemma FullColumnRank.gram_isUnit {m r : ℕ} {A : Mat m r}
   exact Matrix.linearIndependent_cols_iff_isUnit.mp
     ((Matrix.mulVec_injective_iff).mp hinjGram)
 
+lemma fullColumnRank_iff_gram_isUnit {m r : ℕ} {A : Mat m r} :
+    FullColumnRank A ↔ IsUnit (Aᵀ * A) := by
+  constructor
+  · exact FullColumnRank.gram_isUnit
+  · intro hgram
+    apply (Matrix.mulVec_injective_iff).mp
+    intro x y hxy
+    have hgramInj : Function.Injective (Aᵀ * A).mulVec :=
+      Matrix.mulVec_injective_of_isUnit hgram
+    apply hgramInj
+    simpa [Matrix.mulVec_mulVec, hxy]
+
+lemma isOpen_fullColumnRank {m r : ℕ} :
+    IsOpen {A : Mat m r | FullColumnRank A} := by
+  rw [show {A : Mat m r | FullColumnRank A} =
+    {A | Matrix.det (Aᵀ * A) ≠ 0} by
+      ext A
+      rw [fullColumnRank_iff_gram_isUnit,
+        Matrix.isUnit_iff_isUnit_det, isUnit_iff_ne_zero]]
+  exact isOpen_ne_fun (by fun_prop) continuous_const
+
 lemma mul_invTranspose_invariant {m n r : ℕ}
     (U : Mat m r) (V : Mat n r) (s : GL r) :
     (U * (s : Mat r r)) * (V * ((s⁻¹ : GL r) : Mat r r)ᵀ)ᵀ = U * Vᵀ := by
@@ -2257,6 +2278,45 @@ def model {m n r : ℕ} (p : Param m n r) (_ : Unit) : Mat m n := observation p
 
 def regular {m n r : ℕ} : Set (Param m n r) :=
   {p | FullColumnRank (U p) ∧ FullColumnRank (V p)}
+
+theorem regular_isOpen {m n r : ℕ} :
+    IsOpen (regular : Set (Param m n r)) := by
+  unfold regular
+  exact (isOpen_fullColumnRank.preimage (by fun_prop)).and
+    (isOpen_fullColumnRank.preimage (by fun_prop))
+
+def entrySquaredLoss {m n : ℕ} (z y : Mat m n) : ℝ :=
+  ∑ i, ∑ j, (z i j - y i j)^2
+
+theorem separates_entrySquaredLoss {m n : ℕ} :
+    SeparatesPredictions (entrySquaredLoss : Mat m n → Mat m n → ℝ) := by
+  intro z z'
+  constructor
+  · intro h
+    ext i j
+    have hz := h z' 
+    have hnonneg : ∀ a b, 0 ≤ (z a b - z' a b)^2 := by
+      intro a b
+      positivity
+    have hsum : (∑ a, ∑ b, (z a b - z' a b)^2) = 0 := by
+      simpa [entrySquaredLoss] using hz
+    have hij : (z i j - z' i j)^2 = 0 := by
+      exact Finset.sum_eq_zero_iff_of_nonneg
+        (fun a _ => Finset.sum_nonneg fun b _ => hnonneg a b) |>.mp hsum i
+        (Finset.mem_univ i) |>
+        Finset.sum_eq_zero_iff_of_nonneg (fun b _ => hnonneg i b) |>.mp · j (Finset.mem_univ j)
+    nlinarith
+  · rintro rfl y
+    simp [entrySquaredLoss]
+
+theorem squaredLoss_regular {m n r : ℕ} :
+    RegularLossOn (regular : Set (Param m n r))
+      (sampleLoss model (entrySquaredLoss : Mat m n → Mat m n → ℝ)) := by
+  apply SmoothLossOn.regular
+  refine ⟨regular_isOpen, ?_⟩
+  rintro ⟨u,y⟩
+  unfold sampleLoss model observation entrySquaredLoss U V
+  fun_prop
 
 def gauge {m n r : ℕ} (s : GL r) (p : Param m n r) : Param m n r :=
   pack (U p * (s : Mat r r)) (V p * ((s⁻¹ : GL r) : Mat r r)ᵀ)
