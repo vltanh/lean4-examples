@@ -850,7 +850,6 @@ lemma blockLaw_reblock (b : FactorBlock nG) (a : Upper dh)
 It is an orthogonal regrouping/stacking argument, not an assumption that the
 listed laws are already complete. -/
 theorem completeness_from_product_identifiability
-    [HasMarcotteMatrixFactorizationCompleteness]
     (hg : 0 < nG) (hk : 0 < k) (hh : 0 < dh) (hd : dh ≤ D)
     {Y : Type*} (ell : Tokens D → Y → ℝ) (hsep : SeparatesPredictions ell)
     {U : Set (Param nG k D dh)} (hU : IsOpen U) (hUr : U ⊆ regular)
@@ -1036,7 +1035,6 @@ theorem completeness_from_product_identifiability
 /-- Proposition 18, completeness of the stated conservation laws. -/
 theorem proposition18_laws
     [HasTranAttentionIdentifiability]
-    [HasMarcotteMatrixFactorizationCompleteness]
     (hg : 0 < nG) (hk : 0 < k)
     (hh : 0 < dh) (hd : dh ≤ D)
     {Y : Type*} (ell : Tokens D → Y → ℝ) (hsep : SeparatesPredictions ell)
