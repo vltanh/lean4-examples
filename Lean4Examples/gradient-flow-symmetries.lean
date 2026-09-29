@@ -2265,18 +2265,29 @@ theorem laws_conserved {m n r : ℕ} {Y : Type*}
   exact (corollary7 hL ψ).mp
     (functionalSymmetry_loss model ell ψ hψ) p hp
 
-/-- Lemma 28: the nontrivial completeness theorem imported from the cited
-matrix-factorization analysis is an explicit unfinished proof, not an axiom. -/
-theorem lemma28 {m n r : ℕ} (hr : 0 < r) {Y : Type*}
+/-- Marcotte et al. (2023), Section 4.1: completeness of the
+upper-triangular Gram-difference coordinates for full-rank matrix
+factorization.  This is external to Nguyen--Montúfar and therefore remains an
+explicit Stage-1 dependency. -/
+class HasMarcotteMatrixFactorizationCompleteness : Prop where
+  complete_balance_laws :
+    ∀ {m n r : ℕ}, 0 < r → ∀ {Y : Type*}
+      (ell : Mat m n → Y → ℝ), SeparatesPredictions ell →
+      RegularLossOn (regular : Set (Param m n r)) (sampleLoss model ell) →
+      ∀ {p₀ : Param m n r}, p₀ ∈ regular →
+        ∃ Ω : Set (Param m n r), IsOpen Ω ∧ p₀ ∈ Ω ∧ Ω ⊆ regular ∧
+          CompleteLawsOn Ω (sampleLoss model ell) (law (m := m) (n := n))
+
+/-- Lemma 28 as used by Nguyen--Montúfar. -/
+theorem lemma28 [HasMarcotteMatrixFactorizationCompleteness]
+    {m n r : ℕ} (hr : 0 < r) {Y : Type*}
     (ell : Mat m n → Y → ℝ) (hsep : SeparatesPredictions ell)
     (hL : RegularLossOn (regular : Set (Param m n r)) (sampleLoss model ell))
     {p₀ : Param m n r} (hp₀ : p₀ ∈ regular) :
     ∃ Ω : Set (Param m n r), IsOpen Ω ∧ p₀ ∈ Ω ∧ Ω ⊆ regular ∧
-      CompleteLawsOn Ω (sampleLoss model ell) (law (m := m) (n := n)) := by
-  exact MatrixFactorization.complete_balance_laws
+      CompleteLawsOn Ω (sampleLoss model ell) (law (m := m) (n := n)) :=
+  HasMarcotteMatrixFactorizationCompleteness.complete_balance_laws
     hr ell hsep hL hp₀
-    (fun a => laws_conserved ell hL a)
-    (fun a => gradient_law a)
 
 /-- Counting upper-triangular coordinates. -/
 theorem card_upper (r : ℕ) : Fintype.card (Upper r) = r * (r + 1) / 2 := by
@@ -2399,14 +2410,24 @@ theorem gauge_functional (s t : Fin nG → GL dh) (p : Param nG k D dh) :
   intro X
   simp only [model, run_gauge]
 
+/-- Tran et al. (2025a), Theorem 3.1, restated as Theorem 27 by
+Nguyen--Montúfar.  It is explicitly external during Stage 1. -/
+class HasTranAttentionIdentifiability : Prop where
+  identifiability :
+    ∀ {H D : ℕ}, 0 < D →
+      ∀ (A B : Fin H → Mat D D), Function.Injective A →
+      (∀ (L : ℕ+) (X : Mat (L : ℕ) D),
+        (∑ i, rowSoftmax (X * A i * Xᵀ) * X * B i) = 0) →
+      ∀ i, B i = 0
+
 /-- Theorem 27 (the externally cited attention-head identifiability theorem). -/
-theorem theorem27 {H D : ℕ} (hD : 0 < D)
+theorem theorem27 [HasTranAttentionIdentifiability]
+    {H D : ℕ} (hD : 0 < D)
     (A B : Fin H → Mat D D) (hdistinct : Function.Injective A)
     (hzero : ∀ (L : ℕ+) (X : Mat (L : ℕ) D),
       (∑ i, rowSoftmax (X * A i * Xᵀ) * X * B i) = 0) :
-    ∀ i, B i = 0 := by
-  exact TranEtAl2025.attention_head_identifiability
-    hD A B hdistinct hzero
+    ∀ i, B i = 0 :=
+  HasTranAttentionIdentifiability.identifiability hD A B hdistinct hzero
 
 /-- A local neighborhood excludes head permutations by keeping distinct
 score matrices in pairwise-disjoint balls (Appendix G.1, Step 1). -/
@@ -2882,19 +2903,29 @@ lemma tangent_mem_span_generators_of_local_gauge_orbit
           (Set.range (fun a : Hidden A => generator A a p))).smul_mem _
           (Submodule.subset_span ⟨a, rfl⟩))
 
-/-- The local consequence of the paper's finite-to-one-at-a-generic-point
-hypothesis.  Finite-to-one isolates the finitely many discrete equivalence
-classes, while genericity supplies the bias-normalized local slice of the
-continuous diagonal-scaling orbit. -/
-theorem local_scaling_identifiability {p₀ : Param A}
+/-- External PNN identifiability input from Usevich et al. (2025), in
+the exact local form used by Appendix G.2 after eliminating the finite
+permutation/discrete branches. Stage 2 will derive this field from the cited
+finite-to-one/generic theorem. -/
+class HasUsevichLocalScalingOrbit (A : Architecture) : Prop where
+  local_scaling_orbit :
+    ∀ {p₀ : Param A}, FiniteToOneAt A p₀ → GenericPoint A p₀ →
+      ∃ U : Set (Param A), IsOpen U ∧ p₀ ∈ U ∧
+        (∀ p ∈ U, GenericPoint A p) ∧
+        (∀ p ∈ U, ∀ q ∈ U,
+          FunctionalEquiv (model A) p q ↔
+            ∃ s : Hidden A → ℝˣ, q = diagonalGauge A s p)
+
+/-- The local consequence used in the paper's proof of Proposition 19. -/
+theorem local_scaling_identifiability [HasUsevichLocalScalingOrbit A]
+    {p₀ : Param A}
     (hfinite : FiniteToOneAt A p₀) (hgeneric : GenericPoint A p₀) :
     ∃ U : Set (Param A), IsOpen U ∧ p₀ ∈ U ∧
       (∀ p ∈ U, GenericPoint A p) ∧
       (∀ p ∈ U, ∀ q ∈ U,
         FunctionalEquiv (model A) p q ↔
-          ∃ s : Hidden A → ℝˣ, q = diagonalGauge A s p) := by
-  exact PolynomialIdentifiability.local_scaling_orbit_chart
-    A hfinite hgeneric
+          ∃ s : Hidden A → ℝˣ, q = diagonalGauge A s p) :=
+  HasUsevichLocalScalingOrbit.local_scaling_orbit hfinite hgeneric
 
 theorem law_smooth (a : Hidden A) : ContDiff ℝ ∞ (law A a) := by
   unfold law W bias
@@ -3476,8 +3507,33 @@ lemma posDef_sq_add_scalar_one (H : Mat 2 2) (hH : Hᵀ = H)
     (Matrix.PosDef.one).smul hc
   exact hsq.posSemidef_add hcI
 
+/-- Standard spectral-algebra facts used in Appendix H.  Nguyen--Montúfar
+invoke the spectral theorem here; Stage 1 keeps the exact consequences
+explicit and Stage 2 discharges them from Mathlib CFC/spectral theory. -/
+class HasAppendixHSpectralAlgebra : Prop where
+  gramCandidate_posDef :
+    ∀ (H₀ : Mat 2 2), H₀ᵀ = H₀ → ∀ (α : ℝ), α ≠ 0 →
+      ∀ R : Mat 2 2,
+        PositiveSquareRoot
+          (H₀ * H₀ + (4 * α^2) • (1 : Mat 2 2)) R →
+        Matrix.PosDef (gramCandidate H₀ R)
+  gramCandidate_identity :
+    ∀ (H₀ : Mat 2 2), H₀ᵀ = H₀ → ∀ (α : ℝ), α ≠ 0 →
+      ∀ R : Mat 2 2,
+        PositiveSquareRoot
+          (H₀ * H₀ + (4 * α^2) • (1 : Mat 2 2)) R →
+        gramCandidate H₀ R - α^2 • (gramCandidate H₀ R)⁻¹ = H₀
+  positive_solution_unique :
+    ∀ (H₀ : Mat 2 2), H₀ᵀ = H₀ → ∀ (α : ℝ), α ≠ 0 →
+      ∀ P R : Mat 2 2,
+        Matrix.PosDef P →
+        P - α^2 • P⁻¹ = H₀ →
+        PositiveSquareRoot
+          (H₀ * H₀ + (4 * α^2) • (1 : Mat 2 2)) R →
+        P = gramCandidate H₀ R
+
 /-- The required positive square roots actually exist. -/
-theorem lemma29_roots_exist (H₀ : Mat 2 2) (hH : H₀ᵀ = H₀)
+theorem lemma29_roots_exist [HasAppendixHSpectralAlgebra] (H₀ : Mat 2 2) (hH : H₀ᵀ = H₀)
     (α : ℝ) (hα : α ≠ 0) :
     ∃ R S : Mat 2 2,
       PositiveSquareRoot (H₀ * H₀ + (4 * α^2) • (1 : Mat 2 2)) R ∧
@@ -3494,9 +3550,9 @@ theorem lemma29_roots_exist (H₀ : Mat 2 2) (hH : H₀ᵀ = H₀)
   have hRpos := hRroot.1
   have hRsq := hRroot.2
   let P := gramCandidate H₀ R
-  have hP : Matrix.PosDef P := by
-    exact Matrix.posDef_half_add_sqrt_sq_add
-      hH hα hRpos hRsq
+  have hP : Matrix.PosDef P :=
+    HasAppendixHSpectralAlgebra.gramCandidate_posDef
+      H₀ hH α hα R hRroot
   let S : Mat 2 2 := CFC.sqrt P
   have hSroot : PositiveSquareRoot P S :=
     positiveSquareRoot_cfc hP
@@ -3504,7 +3560,7 @@ theorem lemma29_roots_exist (H₀ : Mat 2 2) (hH : H₀ᵀ = H₀)
 
 /-- Lemma 29. Supplying R and S by their unique positive-root properties
 expresses the explicit formula without relying on a specific CFC interface. -/
-theorem lemma29 (H₀ : Mat 2 2) (hH : H₀ᵀ = H₀)
+theorem lemma29 [HasAppendixHSpectralAlgebra] (H₀ : Mat 2 2) (hH : H₀ᵀ = H₀)
     (α : ℝ) (hα : α ≠ 0) (R S : Mat 2 2)
     (hR : PositiveSquareRoot (H₀ * H₀ + (4 * α^2) • (1 : Mat 2 2)) R)
     (hS : PositiveSquareRoot (gramCandidate H₀ R) S)
@@ -3515,8 +3571,8 @@ theorem lemma29 (H₀ : Mat 2 2) (hH : H₀ᵀ = H₀)
   have hSinv : IsUnit S := hS.1.isUnit
   have hPformula :
       gramCandidate H₀ R -
-          α^2 • (gramCandidate H₀ R)⁻¹ = H₀ := by
-    exact Matrix.sqrt_quadratic_gram_identity hH hα hR
+          α^2 • (gramCandidate H₀ R)⁻¹ = H₀ :=
+    HasAppendixHSpectralAlgebra.gramCandidate_identity H₀ hH α hα R hR
   constructor
   · rintro ⟨hbal, hprod⟩
     have hUunit : IsUnit U :=
@@ -3535,8 +3591,8 @@ theorem lemma29 (H₀ : Mat 2 2) (hH : H₀ᵀ = H₀)
       simpa [Matrix.transpose_smul, Matrix.transpose_inv,
         Matrix.mul_inv_rev, hUunit] using hbal
     have hPuniq : P = gramCandidate H₀ R :=
-      Matrix.unique_posDef_solution_sub_sq_smul_inv
-        hH hα hPpos hPeq hR
+      HasAppendixHSpectralAlgebra.positive_solution_unique
+        H₀ hH α hα P R hPpos hPeq hR
     have hgram : Uᵀ * U = S * S := by
       rw [← hS.2, ← hPuniq]
       rfl
