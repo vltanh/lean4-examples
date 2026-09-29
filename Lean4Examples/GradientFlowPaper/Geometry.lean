@@ -3081,10 +3081,17 @@ rank construction, plus the smooth orthogonal-complement frame. -/
 class HasFrobeniusBackground
     (E : Type*) [NormedAddCommGroup E] [InnerProductSpace ℝ E]
     [FiniteDimensional ℝ E] [CompleteSpace E] : Prop where
-  lieClosure_involutive :
-    ∀ {Ω : Set E} {D : Distribution E},
-      HasLocalSmoothFrame Ω (lieCompletion Ω D) →
-      InvolutiveOn Ω (lieCompletion Ω D)
+  firstIntegrals :
+    ∀ {Ω : Set E} {D : Distribution E} {r : ℕ},
+      IsOpen Ω → HasLocalSmoothFrame Ω D →
+      ConstantRankOn Ω D r → InvolutiveOn Ω D →
+      ∀ {p : E}, p ∈ Ω →
+        ∃ (U : Set E) (h : Fin (Module.finrank ℝ E - r) → E → ℝ),
+          IsOpen U ∧ p ∈ U ∧ U ⊆ Ω ∧
+          (∀ i, ContDiffOn ℝ ∞ (h i) U) ∧
+          FunctionallyIndependentOn U h ∧
+          (∀ q ∈ U,
+            Submodule.span ℝ (Set.range (fun i => gradient (h i) q)) = (D q)ᗮ)
 
 /-- Complete integrability implies involutivity directly: local first
 integrals annihilate the distribution, so the Lie bracket of two local
@@ -3170,11 +3177,53 @@ theorem theorem21 [HasFrobeniusBackground E]
     exact ⟨U, Module.finrank ℝ E - r, h, hU, hpU, hUΩ, hh,
       fun q hq => ⟨hind q hq, hspan q hq⟩⟩
 
-lemma lieCompletion_involutive [HasFrobeniusBackground E]
+/-- The Lie completion is involutive whenever it is a smooth
+constant-rank distribution. A local Lie-word frame represents every smooth
+section by a Lie word on a smaller neighborhood, so the bracket is again one
+of the generators of the completion. -/
+lemma lieCompletion_involutive
     {D : Distribution E}
     (hD : HasLocalSmoothFrame Ω (lieCompletion Ω D)) :
-    InvolutiveOn Ω (lieCompletion Ω D) :=
-  HasFrobeniusBackground.lieClosure_involutive hD
+    InvolutiveOn Ω (lieCompletion Ω D) := by
+  intro V hV hVΩ v w hv hw p hp
+  obtain ⟨U, n, g, hU, hpU, hUΩ, hgword, hgframe⟩ :=
+    exists_local_lieWord_frame hD (hVΩ hp)
+  let W : Set E := V ∩ U
+  have hW : IsOpen W := hV.inter hU
+  have hpW : p ∈ W := ⟨hp, hpU⟩
+  have hWΩ : W ⊆ Ω := fun q hq => hUΩ hq.2
+  have hgwordW : ∀ i, LieWordOn W D (g i) :=
+    fun i => (hgword i).mono inter_subset_right
+  have hgindW : ∀ q ∈ W, LinearIndependent ℝ (fun i => g i q) :=
+    fun q hq => (hgframe q hq.2).1
+  have hgspanW : ∀ q ∈ W,
+      lieCompletion Ω D q =
+        Submodule.span ℝ (Set.range (fun i => g i q)) :=
+    fun q hq => (hgframe q hq.2).2
+  obtain ⟨v', hvword, hveq⟩ :=
+    exists_lieWord_representation (Ω := Ω) g hgwordW hgindW hgspanW
+      (hv.1.mono inter_subset_left)
+      (fun q hq => hv.2 q hq.1)
+  obtain ⟨w', hwword, hweq⟩ :=
+    exists_lieWord_representation (Ω := Ω) g hgwordW hgindW hgspanW
+      (hw.1.mono inter_subset_left)
+      (fun q hq => hw.2 q hq.1)
+  have hbrword : LieWordOn W D (lieBracket v' w') :=
+    LieWordOn.bracket hvword hwword
+  have hbrmem :
+      lieBracket v' w' p ∈ lieCompletion Ω D p := by
+    apply Submodule.subset_span
+    exact ⟨W, lieBracket v' w', hW, hpW, hWΩ, hbrword, rfl⟩
+  have hvev : v' =ᶠ[𝓝 p] v :=
+    hveq.eventuallyEq_of_mem (hW.mem_nhds hpW)
+  have hwev : w' =ᶠ[𝓝 p] w :=
+    hweq.eventuallyEq_of_mem (hW.mem_nhds hpW)
+  have hbr_eq : lieBracket v w p = lieBracket v' w' p := by
+    simp only [lieBracket]
+    rw [← hvev.fderiv_eq, ← hwev.fderiv_eq,
+      ← hveq hpW, ← hweq hpW]
+  rw [hbr_eq]
+  exact hbrmem
 
 lemma firstIntegral_lieCompletion {D : Distribution E} {h : E → ℝ}
     (hΩ : IsOpen Ω) (hh : ContDiffOn ℝ ∞ h Ω)
