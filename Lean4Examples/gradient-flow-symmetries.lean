@@ -882,6 +882,208 @@ lemma constant_on_vertical_implicit_slice
     exact hker y hy z hz _ hvertical
   exact hZ.exists_is_const_of_fderiv_eq_zero hZconn hgdiff hgzero
 
+
+lemma locallyFactors_of_gradient_mem_span {k : ℕ} {r : ℕ∞ω}
+    (hr : 1 ≤ r) {Ω : Set E} (hΩ : IsOpen Ω)
+    (H : Fin k → E → ℝ) (h : E → ℝ)
+    (hH : ∀ i, ContDiffOn ℝ r (H i) Ω)
+    (hh : ContDiffOn ℝ r h Ω)
+    (hind : FunctionallyIndependentOn Ω H)
+    (hspan : ∀ p ∈ Ω, gradient h p ∈
+      Submodule.span ℝ (Set.range (fun i => gradient (H i) p))) :
+    LocallyFactorsOn r Ω h (bundleFunctions H) := by
+  intro p hp
+  let B : E → Vec (Fin k) := bundleFunctions H
+  let T : E →L[ℝ] Vec (Fin k) := fderiv ℝ B p
+  have hBon : ContDiffOn ℝ r B Ω := by
+    unfold B bundleFunctions
+    fun_prop
+  have hBat : ContDiffAt ℝ r B p :=
+    (hBon p hp).contDiffAt (hΩ.mem_nhds hp)
+  have hBder : HasFDerivAt B T p := by
+    exact hBat.differentiableAt (by
+      exact ne_of_gt (lt_of_lt_of_le (by norm_num) hr)) |>.hasFDerivAt
+  have hHat : ∀ i, DifferentiableAt ℝ (H i) p :=
+    fun i => ((hH i).of_le hr).differentiableOn (by norm_num)
+      |>.differentiableAt (hΩ.mem_nhds hp)
+  have hsurj : Function.Surjective T := by
+    exact bundleFunctions_fderiv_surjective H hHat (hind p hp)
+  have hrange : LinearMap.range T = ⊤ :=
+    LinearMap.range_eq_top.mpr hsurj
+  have hr0 : r ≠ 0 :=
+    ne_of_gt (lt_of_lt_of_le (by norm_num) hr)
+  have hstrict : HasStrictFDerivAt B T p :=
+    hBat.hasStrictFDerivAt' hBder hr0
+  have hker : (LinearMap.ker T).ClosedComplemented :=
+    T.ker_closedComplemented_of_finiteDimensional_range
+  let data :=
+    hstrict.implicitFunctionDataOfComplemented B T hrange hker
+  let e : OpenPartialHomeomorph E (Vec (Fin k) × LinearMap.ker T) :=
+    data.toOpenPartialHomeomorph
+
+  have hprodOn : ContDiffOn ℝ r data.prodFun Ω := by
+    intro q hq
+    have hBq := hBon q hq
+    have hright :
+        ContDiffWithinAt ℝ r data.rightFun Ω q := by
+      dsimp [data, HasStrictFDerivAt.implicitFunctionDataOfComplemented]
+      fun_prop
+    exact hBq.prodMk hright
+  have hprodAt : ContDiffAt ℝ r data.prodFun p :=
+    (hprodOn p hp).contDiffAt (hΩ.mem_nhds hp)
+  have hfdcont : ContinuousAt (fderiv ℝ data.prodFun) p :=
+    hprodAt.continuousAt_fderiv hr0
+  have hinv0 : (fderiv ℝ data.prodFun p).IsInvertible :=
+    data.isInvertible_fderiv_prodFun
+  have hinvN :
+      ∀ᶠ q in 𝓝 p, (fderiv ℝ data.prodFun q).IsInvertible :=
+    hfdcont.eventually hinv0.eventually_nhds
+  have hgood :
+      Ω ∩ e.source ∩
+        {q | (fderiv ℝ data.prodFun q).IsInvertible} ∈ 𝓝 p := by
+    refine inter_mem (inter_mem (hΩ.mem_nhds hp)
+      (e.open_source.mem_nhds ?_)) hinvN
+    exact data.pt_mem_toOpenPartialHomeomorph_source
+  obtain ⟨W, hWsub, hWopen, hpW⟩ := mem_nhds_iff.mp hgood
+  have hWsource : W ⊆ e.source := fun q hq => (hWsub hq).2.1
+  have hWΩ : W ⊆ Ω := fun q hq => (hWsub hq).1
+  have hWinv : ∀ q ∈ W, (fderiv ℝ data.prodFun q).IsInvertible :=
+    fun q hq => (hWsub hq).2.2
+
+  let WT : Set (Vec (Fin k) × LinearMap.ker T) := e '' W
+  have hWTOpen : IsOpen WT :=
+    e.isOpen_image_of_subset_source hWopen hWsource
+  have he_p : e p = (B p, 0) := by
+    dsimp [e, data]
+    exact hstrict.implicitToOpenPartialHomeomorphOfComplemented_self
+      B T hrange hker
+  have hpWT : (B p, (0 : LinearMap.ker T)) ∈ WT :=
+    ⟨p, hpW, he_p⟩
+  obtain ⟨U, Z₀, hU, hBpU, hZ₀, h0Z₀, hUZWT⟩ :=
+    mem_nhds_prod_iff'.mp (hWTOpen.mem_nhds hpWT)
+  obtain ⟨ε, hε, hballZ⟩ := Metric.isOpen_iff.mp hZ₀ 0 h0Z₀
+  let Z : Set (LinearMap.ker T) := Metric.ball 0 ε
+  have hZ : IsOpen Z := isOpen_ball
+  have h0Z : (0 : LinearMap.ker T) ∈ Z := Metric.mem_ball_self hε
+  have hZZ₀ : Z ⊆ Z₀ := by
+    intro z hz
+    exact hballZ hz
+  have hUZWT' : U ×ˢ Z ⊆ WT := by
+    intro yz hyz
+    exact hUZWT ⟨hyz.1, hZZ₀ hyz.2⟩
+  have hZconn : IsPreconnected Z :=
+    (convex_ball (0 : LinearMap.ker T) ε).isPreconnected
+
+  let φ : Vec (Fin k) × LinearMap.ker T → E := e.symm
+  have hφW : ∀ yz ∈ U ×ˢ Z, φ yz ∈ W := by
+    intro yz hyz
+    rcases hUZWT' hyz with ⟨q, hqW, hqeq⟩
+    have hqsource : q ∈ e.source := hWsource hqW
+    change e.symm yz ∈ W
+    have : e.symm yz = q := by
+      rw [← hqeq]
+      exact e.left_inv hqsource
+    simpa [this] using hqW
+  have hφtarget : U ×ˢ Z ⊆ e.target := by
+    intro yz hyz
+    rcases hUZWT' hyz with ⟨q,hqW,rfl⟩
+    exact e.mapsTo (hWsource hqW)
+  have hφsmooth : ContDiffOn ℝ r φ (U ×ˢ Z) := by
+    intro yz hyz
+    have hyzt : yz ∈ e.target := hφtarget hyz
+    have hxW : e.symm yz ∈ W := hφW yz hyz
+    have hxΩ : e.symm yz ∈ Ω := hWΩ hxW
+    have hprodq : ContDiffAt ℝ r data.prodFun (e.symm yz) :=
+      (hprodOn _ hxΩ).contDiffAt (hΩ.mem_nhds hxΩ)
+    have hinv := hWinv _ hxW
+    rcases hinv with ⟨d, hd⟩
+    have hder :
+        HasFDerivAt e (d : E →L[ℝ] Vec (Fin k) × LinearMap.ker T)
+          (e.symm yz) := by
+      change HasFDerivAt data.prodFun
+        (d : E →L[ℝ] Vec (Fin k) × LinearMap.ker T) (e.symm yz)
+      rw [hd]
+      exact hprodq.differentiableAt hr0 |>.hasFDerivAt
+    exact (e.contDiffAt_symm hyzt hder hprodq).contDiffWithinAt
+
+  have hBφ :
+      ∀ y ∈ U, ∀ z ∈ Z, B (φ (y,z)) = y := by
+    intro y hy z hz
+    have hyz : (y,z) ∈ e.target := hφtarget ⟨hy,hz⟩
+    have happ := e.apply_symm_apply hyz
+    have hfst := congrArg Prod.fst happ
+    simpa [φ, e, data, ImplicitFunctionData.prodFun] using hfst
+  have hBφdiff :
+      ∀ y ∈ U, ∀ z ∈ Z, DifferentiableAt ℝ B (φ (y,z)) := by
+    intro y hy z hz
+    have hxΩ := hWΩ (hφW (y,z) ⟨hy,hz⟩)
+    exact (hBon.differentiableOn (by
+      exact ne_of_gt (lt_of_lt_of_le (by norm_num) hr)) _ hxΩ)
+      |>.differentiableAt (hΩ.mem_nhds hxΩ)
+  have hhφdiff :
+      ∀ y ∈ U, ∀ z ∈ Z, DifferentiableAt ℝ h (φ (y,z)) := by
+    intro y hy z hz
+    have hxΩ := hWΩ (hφW (y,z) ⟨hy,hz⟩)
+    exact ((hh.of_le hr).differentiableOn (by norm_num) _ hxΩ)
+      |>.differentiableAt (hΩ.mem_nhds hxΩ)
+  have hvertical :
+      ∀ y ∈ U, ∀ z ∈ Z, ∀ u : E,
+        (fderiv ℝ B (φ (y,z))) u = 0 →
+        (fderiv ℝ h (φ (y,z))) u = 0 := by
+    intro y hy z hz u hu
+    have hxW := hφW (y,z) ⟨hy,hz⟩
+    have hxΩ := hWΩ hxW
+    apply fderiv_vanishes_on_bundle_kernel
+      (Ω := Ω) H h hxΩ
+      (fun i => ((hH i).of_le hr).differentiableOn (by norm_num)
+        |>.differentiableAt (hΩ.mem_nhds hxΩ))
+      (((hh.of_le hr).differentiableOn (by norm_num))
+        |>.differentiableAt (hΩ.mem_nhds hxΩ))
+      (hspan _ hxΩ)
+    exact LinearMap.mem_ker.mpr hu
+  have hconst :=
+    constant_on_vertical_implicit_slice
+      hU hZ hZconn φ B h
+      (hφsmooth.of_le hr) hBφ hBφdiff hhφdiff hvertical
+
+  let f : Vec (Fin k) → ℝ := fun y => h (φ (y,0))
+  have hfsmooth : ContDiffOn ℝ r f U := by
+    have hslice :
+        ContDiffOn ℝ r (fun y : Vec (Fin k) => φ (y,0)) U := by
+      exact hφsmooth.comp
+        (contDiffOn_id.prodMk contDiffOn_const)
+        (fun y hy => ⟨hy,h0Z⟩)
+    apply hh.comp hslice
+    intro y hy
+    exact hWΩ (hφW (y,0) ⟨hy,h0Z⟩)
+
+  let V : Set E := e.symm '' (U ×ˢ Z)
+  have hVopen : IsOpen V := by
+    exact e.symm.isOpen_image_of_subset_source
+      (hU.prod hZ) hφtarget
+  have hpV : p ∈ V := by
+    refine ⟨(B p, (0 : LinearMap.ker T)), ⟨hBpU,h0Z⟩, ?_⟩
+    change e.symm (B p, 0) = p
+    rw [← he_p]
+    exact e.left_inv (hWsource hpW)
+  have hVΩ : V ⊆ Ω := by
+    rintro q ⟨yz,hyz,rfl⟩
+    exact hWΩ (hφW yz hyz)
+  have hmap : MapsTo B V U := by
+    rintro q ⟨⟨y,z⟩,hyz,rfl⟩
+    simpa [φ] using hBφ y hyz.1 z hyz.2
+  have heq : EqOn h (f ∘ B) V := by
+    rintro q ⟨⟨y,z⟩,hyz,rfl⟩
+    obtain ⟨a, ha⟩ := hconst y hyz.1
+    have hz := ha z hyz.2
+    have h0 := ha 0 h0Z
+    have hBy := hBφ y hyz.1 z hyz.2
+    simp only [Function.comp_apply, f]
+    rw [hBy]
+    exact hz.trans h0.symm
+  exact ⟨V, U, f, hVopen, hpV, hVΩ, hU, hBpU,
+    hmap, hfsmooth, heq⟩
+
 /-- Standard finite-dimensional constant-rank/submersion factorization
 principle used in Proposition 4.  Nguyen--Montúfar treat this as differential
 geometry background rather than proving it. Stage 2 will instantiate this
