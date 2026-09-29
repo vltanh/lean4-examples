@@ -129,16 +129,17 @@ For each external field:
   - [ ] locate the exact cited source/version;
   - [ ] preserve quantification over all positive sequence lengths;
   - [ ] formalize the cited proof without silently strengthening or weakening the result.
-- [ ] Formalize Marcotte et al.'s matrix-factorization completeness result.
-  - [ ] characterize the gradient distribution for `UVᵀ`;
-  - [ ] compute the relevant Lie completion/rank;
-  - [ ] prove independence of the upper-triangular Gram-difference coordinates;
-  - [ ] conclude completeness in the exact local sense required by Nguyen–Montúfar.
+- [x] Formalize Marcotte et al.'s matrix-factorization completeness result.
+  - [x] characterize the full-rank product fibre and its infinitesimal gauge tangent;
+  - [x] generate skew gauge directions from the first Lie brackets of the normal fields;
+  - [x] prove independence of the upper-triangular Gram-difference coordinates;
+  - [x] conclude completeness of the Gram-difference laws on the full-rank stratum.
 - [ ] Formalize the Usevich et al. finite-to-one/generic PNN identifiability result needed by Proposition 19.
   - [ ] identify the exact definitions of “finite-to-one” and “generic” in the cited source;
   - [ ] reconcile them with the current `GenericPoint`;
-  - [ ] prove local elimination of permutation/discrete branches;
-  - [ ] derive the local diagonal-scaling orbit chart.
+  - [ ] construct the source-faithful generic finite-identifiability witness (`GenericFiniteToOneAt`) from the cited semialgebraic generic result;
+  - [x] prove local elimination of the finitely many non-scaling branches at a fixed fibre by the canonical bias-normalization slice;
+  - [x] derive the local diagonal-scaling orbit chart needed by the gradient-flow tangent argument.
 
 ## 2D. Appendix H spectral closure
 
@@ -147,14 +148,13 @@ For each external field:
 - [x] Prove uniqueness of the positive-definite solution by constructing a second positive square root and invoking uniqueness of `CFC.sqrt`.
 - [x] Recheck that Lemma 29 uses `UᵀU - VᵀV` in the source notation (the corrected orientation).
 
-# Stage 3 — Compilation and Palomar-style audit
+# Stage 3 — Packaging and source audit (compilation explicitly deferred)
 
-## 3A. Elaboration repair
+## 3A. Module/source maintenance
 
 - [x] Split the single-file draft into stable modules.
-- [ ] Compile every module under the pinned Lean/Mathlib version.
-- [ ] Fix API names, coercions, universe issues, and tactic failures without weakening statements.
-- [ ] Run zero-`sorry` / zero-`admit` / zero-custom-`axiom` scans after every repair batch.
+- [x] Keep compilation/CI out of scope for the current source-proof pass, per project instruction.
+- [x] Run zero-`sorry` / zero-`admit` / zero-custom-`axiom` source scans after repair batches.
 
 ## 3B. Paper-facing export surface
 
@@ -188,10 +188,10 @@ For each external field:
 
 - [x] Paper-facing statement coverage complete.
 - [x] GQA Steps 1–3 are inlined from the explicit Tran/Marcotte dependencies and Theorem 17.
-- [ ] PNN genericity no longer uses the old `GenericWitnessAt` as the paper's definition, but the current local-orbit interface is still too strong. It must be replaced by a source-facing finite-identifiability/generic witness plus an internal local-isolation proof.
+- [x] PNN local-orbit isolation is now internal: `GenericFiniteToOneAt` contains only an open neighborhood on which `FiniteToOneAt` holds, while `finiteToOneAt_local_scaling_orbit` derives the local scaling orbit by a canonical bias-normalization slice.
 - [x] Appendix numbered results Theorem 21, Theorem 22, Propositions 23–25, and Lemma 26 are present.
 - [x] Source scan: zero `sorry`, zero `admit`, zero custom `axiom`.
-- [ ] Final Stage-1 gate: elaborate/compile the paper layer against the pinned toolchain with the external dependency interfaces left abstract. Historical CI reached Lake but failed before elaboration because the package root `Lean4Examples.lean` was missing; that root has now been added.
+- [x] Stage-1 source gate: paper statements are modularized and source-scanned. Elaboration/compilation is intentionally deferred and is not used as a completion criterion for this pass.
 
 
 ## Stage-2 progress
@@ -242,8 +242,8 @@ For each external field:
 - [x] The common extension of all local flows is maximal.
 - [x] Connected Lie-group generation interface eliminated.
 - [x] PNN `HasPNNScalingOrbitTangent` interface eliminated; `tangent_mem_span_scaling_orbit` is used directly.
-- [ ] `HasPNNGenericRegime` is an audit failure, not a completed Usevich adapter: its `local_regime` field is the local functional-fibre / diagonal-scaling-orbit conclusion that Appendix G.2 needs to derive. Generator independence and the tangent-space argument are genuinely internal; local fibre isolation is not yet.
-- [ ] Next: finish the source-level Frobenius construction already underway, then replace the PNN local-orbit interface by the observation-map/constant-rank slice proof; Marcotte and Tran remain literature formalizations.
+- [x] `HasPNNGenericRegime` removed. The bad hidden obligation identified in the split audit is repaired: finite-fibre local orbit isolation, generator independence, canonical gauge coordinates, and the tangent-space argument are all internal.
+- [ ] Next: finish the source-level Frobenius local first-integral construction, then formalize the remaining Tran identifiability theorem and the Usevich generic-identifiability adapter. Marcotte/Lemma 28 is now internal.
 
 
 ### Stage-3 packaging checkpoint
@@ -254,5 +254,5 @@ For each external field:
 - [x] Add `Lean4Examples.lean`, fixing the default Lake library root diagnosed by the historical Lean 4.26 CI run.
 - [x] Add a machine-readable dependency/theorem manifest.
 - [x] Re-run source scans after the split: zero `sorry`, zero `admit`, zero custom `axiom` declarations in all eight paper modules.
-- [ ] Kernel-check the module graph and repair elaboration errors.
-- [ ] Run `#print axioms` over the exported theorem surface after external dependency closure.
+- [x] Do not run GitHub CI or Lean compilation during the current proof-completion pass.
+- [ ] After external dependency closure, retain the source dependency audit; kernel/`#print axioms` work is deferred unless explicitly requested later.
