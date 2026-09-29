@@ -578,14 +578,49 @@ class HasTranAttentionIdentifiability : Prop where
         (∑ i, rowSoftmax (X * A i * Xᵀ) * X * B i) = 0) →
       ∀ i, B i = 0
 
-/-- Theorem 27 (the externally cited attention-head identifiability theorem). -/
-theorem theorem27 [HasTranAttentionIdentifiability]
+/-- Theorem 27 (Tran et al. 2025a, Theorem 3.1), proved directly
+from the special-input reduction in their appendix. -/
+theorem theorem27
     {H D : ℕ} (hD : 0 < D)
     (A B : Fin H → Mat D D) (hdistinct : Function.Injective A)
     (hzero : ∀ (L : ℕ+) (X : Mat (L : ℕ) D),
       (∑ i, rowSoftmax (X * A i * Xᵀ) * X * B i) = 0) :
-    ∀ i, B i = 0 :=
-  HasTranAttentionIdentifiability.identifiability hD A B hdistinct hzero
+    ∀ i, B i = 0 := by
+  classical
+  obtain ⟨u,z₀,hsep₀⟩ :=
+    exists_bilinear_separator A hdistinct
+  let Z : Set (Fin D → ℝ) := bilinearSeparatorSet A u
+  have hZopen : IsOpen Z := by
+    simpa [Z] using bilinearSeparatorSet_isOpen A u
+  have hZnonempty : Z.Nonempty := ⟨z₀, by simpa [Z] using hsep₀⟩
+  have hzB :
+      ∀ z ∈ Z, ∀ i : Fin H, Matrix.vecMul z (B i) = 0 := by
+    intro z hz i
+    ext b
+    let a : Fin H → ℝ :=
+      fun j => Real.exp (bilinearValue (A j) u z)
+    let c : Fin H → ℝ :=
+      fun j => (Matrix.vecMul z (B j)) b
+    have ha : Function.Injective a := by
+      intro j k hjk
+      apply (show Function.Injective
+        (fun j : Fin H => bilinearValue (A j) u z) from by
+          simpa [Z, bilinearSeparatorSet] using hz)
+      exact Real.exp_injective hjk
+    have hapos : ∀ j, 0 < a j := by
+      intro j
+      exact Real.exp_pos _
+    have hrec :
+        ∀ L : ℕ+,
+          ∑ j, c j / (a j + (L : ℕ : ℝ)) = 0 := by
+      intro L
+      simpa [a,c] using
+        attention_reciprocal_relation A B hzero L u z b
+    have hc := reciprocal_functions_independent a c ha hapos hrec
+    exact hc i
+  intro i
+  exact matrix_eq_zero_of_vecMul_eq_zero_on_open
+    (B i) hZopen hZnonempty (fun z hz => hzB z hz i)
 
 /-- Reindex Theorem 27 by an arbitrary finite head type. -/
 theorem theorem27_fintype [HasTranAttentionIdentifiability]
