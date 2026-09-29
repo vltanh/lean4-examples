@@ -860,29 +860,79 @@ lemma le_lieCompletion {D : Distribution E} (hD : HasLocalSmoothFrame Ω D)
 lemma lieCompletion_restrict {D : Distribution E} {U : Set E}
     (hU : IsOpen U) (hsub : U ⊆ Ω) {p : E} (hp : p ∈ U) :
     lieCompletion U D p = lieCompletion Ω D p := by
-  -- TODO[LIE-GERMS]: intersect each generating section's domain with U.
-  sorry
+  have word_mono :
+      ∀ {V W : Set E}, W ⊆ V → ∀ {v : Field E},
+        LieWordOn V D v → LieWordOn W D v := by
+    intro V W hWV v hv
+    induction hv with
+    | basic v hv =>
+        exact LieWordOn.basic v
+          ⟨hv.1.mono hWV, fun q hq => hv.2 q (hWV hq)⟩
+    | add hv hw ihv ihw =>
+        exact LieWordOn.add ihv ihw
+    | smul a ha hv ih =>
+        exact LieWordOn.smul a (ha.mono hWV) ih
+    | bracket hv hw ihv ihw =>
+        exact LieWordOn.bracket ihv ihw
+  apply le_antisymm
+  · apply Submodule.span_le.mpr
+    rintro a ⟨V, v, hV, hpV, hVU, hv, rfl⟩
+    apply Submodule.subset_span
+    exact ⟨V, v, hV, hpV, hVU.trans hsub, hv, rfl⟩
+  · apply Submodule.span_le.mpr
+    rintro a ⟨V, v, hV, hpV, hVΩ, hv, rfl⟩
+    let W := V ∩ U
+    have hW : IsOpen W := hV.inter hU
+    have hpW : p ∈ W := ⟨hpV, hp⟩
+    have hWU : W ⊆ U := inter_subset_right
+    have hWV : W ⊆ V := inter_subset_left
+    apply Submodule.subset_span
+    exact ⟨W, v, hW, hpW, hWU, word_mono hWV hv, rfl⟩
 
 lemma lieCompletion_eq_iff {D : Distribution E} (hD : HasLocalSmoothFrame Ω D) :
     (∀ p ∈ Ω, lieCompletion Ω D p = D p) ↔ InvolutiveOn Ω D := by
-  -- TODO[LIE-CLOSURE]: the forward implication inserts a bracket generator;
-  -- the reverse is induction on LieWordOn, followed by span induction.
-  sorry
+  constructor
+  · intro hEq U hU hUΩ v w hv hw p hp
+    have hword : LieWordOn U D (lieBracket v w) :=
+      LieWordOn.bracket (LieWordOn.basic v hv) (LieWordOn.basic w hw)
+    have hmem : lieBracket v w p ∈ lieCompletion Ω D p := by
+      apply Submodule.subset_span
+      exact ⟨U, lieBracket v w, hU, hp, hUΩ, hword, rfl⟩
+    simpa [hEq p (hUΩ hp)] using hmem
+  · intro hinv p hp
+    apply le_antisymm
+    · apply Submodule.span_le.mpr
+      rintro a ⟨U, v, hU, hpU, hUΩ, hv, rfl⟩
+      have word_section : ∀ {w : Field E}, LieWordOn U D w → IsSectionOn U D w := by
+        intro w hw
+        induction hw with
+        | basic w hw => exact hw
+        | add hv hw ihv ihw =>
+            refine ⟨ihv.1.add ihw.1, ?_⟩
+            intro q hq
+            exact (D q).add_mem (ihv.2 q hq) (ihw.2 q hq)
+        | smul a ha hw ih =>
+            refine ⟨ha.smul ih.1, ?_⟩
+            intro q hq
+            exact (D q).smul_mem (a q) (ih.2 q hq)
+        | bracket hv hw ihv ihw =>
+            refine ⟨ihv.1.lieBracket_vectorField ihw.1 (by simp), ?_⟩
+            intro q hq
+            exact hinv U hU hUΩ _ _ ihv ihw q hq
+      exact (word_section hv).2 p hpU
+    · exact le_lieCompletion hD hp
 
 lemma lieCompletion_involutive {D : Distribution E}
     (hD : HasLocalSmoothFrame Ω (lieCompletion Ω D)) :
     InvolutiveOn Ω (lieCompletion Ω D) := by
-  -- TODO[LIE-INVOLUTIVE]: express local sections in a local frame of Lie
-  -- words and use the Leibniz rule for brackets of smooth coefficients.
-  sorry
+  exact LieClosure.involutive_of_hasLocalSmoothFrame hD
 
 lemma firstIntegral_lieCompletion {D : Distribution E} {h : E → ℝ}
     (hΩ : IsOpen Ω) (hh : ContDiffOn ℝ ∞ h Ω)
     (hD : ∀ p ∈ Ω, gradient h p ∈ (D p)ᗮ) :
     ∀ p ∈ Ω, gradient h p ∈ (lieCompletion Ω D p)ᗮ := by
-  -- TODO[LIE-FIRST-INTEGRAL]: induction on LieWordOn. For the bracket step,
-  -- L_[v,w] h = L_v(L_w h) - L_w(L_v h) = 0. Finally use span induction.
-  sorry
+  exact LieClosure.gradient_mem_orthogonal_lieCompletion
+    hΩ hh hD
 
 /-- Local Frobenius theorem in exactly the form used in Appendix E.8. -/
 theorem theorem21_frobenius {D : Distribution E} {r : ℕ}
