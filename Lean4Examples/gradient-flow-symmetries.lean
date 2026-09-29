@@ -1533,6 +1533,51 @@ lemma open_domain {U : ∀ j, Set (Vec (ι j))} (hU : ∀ j, IsOpen (U j)) :
   exact isOpen_iInter_of_finite
     (fun j => (hU j).preimage (blockLinear ι j).continuous_of_finiteDimensional)
 
+/-- Every open neighborhood in a finite orthogonal direct sum contains a
+product neighborhood. This is the elementary shrinking step used implicitly
+when Theorem 17 is applied locally. -/
+lemma exists_product_box {W : Set (Total ι)} (hW : IsOpen W)
+    {p : Total ι} (hp : p ∈ W) :
+    ∃ U : ∀ j, Set (Vec (ι j)),
+      (∀ j, IsOpen (U j)) ∧
+      (∀ j, block ι j p ∈ U j) ∧
+      domain ι U ⊆ W := by
+  obtain ⟨ε, hε, hball⟩ := Metric.isOpen_iff.mp hW p hp
+  let δ : ℝ := ε / (Fintype.card B + 1)
+  have hδ : 0 < δ := by
+    dsimp [δ]
+    positivity
+  let U : ∀ j, Set (Vec (ι j)) :=
+    fun j => Metric.ball (block ι j p) δ
+  refine ⟨U, fun j => isOpen_ball, ?_, ?_⟩
+  · intro j
+    exact Metric.mem_ball_self hδ
+  · intro q hq
+    apply hball
+    rw [dist_eq_norm, ← sum_inject_blocks ι (q - p)]
+    calc
+      ‖∑ j, inject ι j (block ι j (q - p))‖
+          ≤ ∑ j, ‖inject ι j (block ι j (q - p))‖ := norm_sum_le _ _
+      _ = ∑ j, ‖block ι j q - block ι j p‖ := by
+            apply Finset.sum_congr rfl
+            intro j _
+            rw [show block ι j (q - p) =
+              block ι j q - block ι j p by
+                change blockLinear ι j (q - p) = _
+                simp]
+            exact norm_inject_eq ι j _
+      _ < ∑ _j : B, δ := by
+            apply Finset.sum_lt_sum
+            · intro j _
+              have hj := hq j
+              simpa [U, Metric.mem_ball, dist_eq_norm] using hj
+            · exact Finset.univ_nonempty
+      _ = Fintype.card B * δ := by simp
+      _ < ε := by
+            dsimp [δ]
+            have hc : (Fintype.card B : ℝ) < Fintype.card B + 1 := by norm_num
+            nlinarith
+
 lemma replace_mem {U : ∀ j, Set (Vec (ι j))} {p : Total ι}
     (hp : p ∈ domain ι U) {j : B} {u : Vec (ι j)} (hu : u ∈ U j) :
     replace ι j p u ∈ domain ι U := by
