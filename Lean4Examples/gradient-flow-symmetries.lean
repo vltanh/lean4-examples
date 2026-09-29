@@ -103,6 +103,165 @@ theorem separates_dist [MetricSpace Z] :
   · intro z y h
     exact dist_pos.mpr h
 
+/-- Lemma 26(4): the finite-dimensional absolute/L¹ loss. -/
+def absoluteLoss {n : ℕ} (z y : Vec (Fin n)) : ℝ :=
+  ∑ i, |z i - y i|
+
+theorem separates_absoluteLoss {n : ℕ} :
+    SeparatesPredictions (absoluteLoss : Vec (Fin n) → Vec (Fin n) → ℝ) := by
+  apply separates_of_zero_on_diagonal
+  · intro z
+    simp [absoluteLoss]
+  · intro z y hne
+    have hex : ∃ i : Fin n, z i ≠ y i := by
+      by_contra h
+      push_neg at h
+      exact hne (WithLp.ext h)
+    obtain ⟨i, hi⟩ := hex
+    have hterm : 0 < |z i - y i| := abs_pos.mpr (sub_ne_zero.mpr hi)
+    have hle :
+        |z i - y i| ≤ ∑ j, |z j - y j| :=
+      Finset.single_le_sum
+        (fun j _ => abs_nonneg (z j - y j)) (Finset.mem_univ i)
+    unfold absoluteLoss
+    linarith
+
+/-- Lemma 26(5): the finite-dimensional Lᵖ loss written as the sum of
+coordinatewise real powers, for p > 0. -/
+def lpPowerLoss {n : ℕ} (p : ℝ) (z y : Vec (Fin n)) : ℝ :=
+  ∑ i, |z i - y i| ^ p
+
+theorem separates_lpPowerLoss {n : ℕ} {p : ℝ} (hp : 0 < p) :
+    SeparatesPredictions (lpPowerLoss p : Vec (Fin n) → Vec (Fin n) → ℝ) := by
+  apply separates_of_zero_on_diagonal
+  · intro z
+    simp [lpPowerLoss, Real.zero_rpow hp.ne']
+  · intro z y hne
+    have hex : ∃ i : Fin n, z i ≠ y i := by
+      by_contra h
+      push_neg at h
+      exact hne (WithLp.ext h)
+    obtain ⟨i, hi⟩ := hex
+    have habs : 0 < |z i - y i| := abs_pos.mpr (sub_ne_zero.mpr hi)
+    have hterm : 0 < |z i - y i| ^ p :=
+      Real.rpow_pos_of_pos habs p
+    have hle :
+        |z i - y i| ^ p ≤ ∑ j, |z j - y j| ^ p :=
+      Finset.single_le_sum
+        (fun j _ => Real.rpow_nonneg (abs_nonneg _) _) (Finset.mem_univ i)
+    unfold lpPowerLoss
+    linarith
+
+/-- Closed and open probability simplices used in Lemma 26(6–7). -/
+def ProbabilitySimplex (n : ℕ) :=
+  {y : Vec (Fin n) // (∀ i, 0 ≤ y i) ∧ ∑ i, y i = 1}
+
+def PositiveProbabilitySimplex (n : ℕ) :=
+  {z : Vec (Fin n) // (∀ i, 0 < z i) ∧ ∑ i, z i = 1}
+
+def simplexVertex {n : ℕ} (i : Fin n) : ProbabilitySimplex n :=
+  ⟨WithLp.toLp 2 (fun j => if j = i then 1 else 0),
+    ⟨by intro j; split_ifs <;> positivity, by simp⟩⟩
+
+/-- Lemma 26(6): multiclass cross entropy on Δ₊₊ × Δ₊. -/
+def crossEntropyLoss {n : ℕ}
+    (z : PositiveProbabilitySimplex n) (y : ProbabilitySimplex n) : ℝ :=
+  - ∑ i, y.1 i * Real.log (z.1 i)
+
+theorem separates_crossEntropyLoss {n : ℕ} :
+    SeparatesPredictions
+      (crossEntropyLoss :
+        PositiveProbabilitySimplex n → ProbabilitySimplex n → ℝ) := by
+  intro z z' h
+  apply Subtype.ext
+  apply WithLp.ext
+  intro i
+  have hi := h (simplexVertex i)
+  have hlog : Real.log (z.1 i) = Real.log (z'.1 i) := by
+    simpa [crossEntropyLoss, simplexVertex] using neg_injective hi
+  calc
+    z.1 i = Real.exp (Real.log (z.1 i)) :=
+      (Real.exp_log (z.2.1 i)).symm
+    _ = Real.exp (Real.log (z'.1 i)) := congrArg Real.exp hlog
+    _ = z'.1 i := Real.exp_log (z'.2.1 i)
+
+/-- Lemma 26(7): KL divergence on Δ₊₊ × Δ₊. -/
+def klDivergenceLoss {n : ℕ}
+    (z : PositiveProbabilitySimplex n) (y : ProbabilitySimplex n) : ℝ :=
+  ∑ i, y.1 i * Real.log (y.1 i / z.1 i)
+
+theorem separates_klDivergenceLoss {n : ℕ} :
+    SeparatesPredictions
+      (klDivergenceLoss :
+        PositiveProbabilitySimplex n → ProbabilitySimplex n → ℝ) := by
+  intro z z' h
+  apply Subtype.ext
+  apply WithLp.ext
+  intro i
+  have hi := h (simplexVertex i)
+  have hlog :
+      Real.log ((z.1 i)⁻¹) = Real.log ((z'.1 i)⁻¹) := by
+    simpa [klDivergenceLoss, simplexVertex, one_div] using hi
+  have hinv : (z.1 i)⁻¹ = (z'.1 i)⁻¹ := by
+    calc
+      (z.1 i)⁻¹ = Real.exp (Real.log ((z.1 i)⁻¹)) := by
+        rw [Real.exp_log]
+        positivity
+      _ = Real.exp (Real.log ((z'.1 i)⁻¹)) := congrArg Real.exp hlog
+      _ = (z'.1 i)⁻¹ := by
+        rw [Real.exp_log]
+        positivity
+  exact inv_injective.mp hinv
+
+/-- Unit vectors used for the cosine loss in Lemma 26(8). -/
+def UnitVector (n : ℕ) := {z : Vec (Fin n) // ‖z‖ = 1}
+
+def cosineLoss {n : ℕ} (z y : UnitVector n) : ℝ :=
+  1 - ⟪z.1, y.1⟫_ℝ
+
+theorem separates_cosineLoss {n : ℕ} :
+    SeparatesPredictions (cosineLoss : UnitVector n → UnitVector n → ℝ) := by
+  intro z z' h
+  apply Subtype.ext
+  have hz := h z
+  have hinner : ⟪z'.1, z.1⟫_ℝ = 1 := by
+    have hself : ⟪z.1, z.1⟫_ℝ = 1 := by
+      rw [real_inner_self_eq_norm_sq, z.2]
+      norm_num
+    simpa [cosineLoss, hself] using hz.symm
+  have hnormsq : ‖z'.1 - z.1‖ ^ 2 = 0 := by
+    rw [norm_sub_sq_real, z'.2, z.2, hinner]
+    norm_num
+  have hnorm : ‖z'.1 - z.1‖ = 0 := sq_eq_zero_iff.mp hnormsq
+  exact sub_eq_zero.mp (norm_eq_zero.mp hnorm)
+
+/-- Lemma 26, represented by the eight source-level separation facts.
+Items (1)–(3) are the generic zero-diagonal criterion, metric distance, and
+squared Euclidean loss above; items (4)–(8) are the declarations immediately
+above. -/
+theorem lemma26_summary :
+    (∀ (Z : Type*) [MetricSpace Z],
+      SeparatesPredictions (fun z y : Z => dist z y)) ∧
+    (∀ n, SeparatesPredictions
+      (absoluteLoss : Vec (Fin n) → Vec (Fin n) → ℝ)) ∧
+    (∀ n (p : ℝ), 0 < p →
+      SeparatesPredictions
+        (lpPowerLoss p : Vec (Fin n) → Vec (Fin n) → ℝ)) ∧
+    (∀ n, SeparatesPredictions
+      (crossEntropyLoss :
+        PositiveProbabilitySimplex n → ProbabilitySimplex n → ℝ)) ∧
+    (∀ n, SeparatesPredictions
+      (klDivergenceLoss :
+        PositiveProbabilitySimplex n → ProbabilitySimplex n → ℝ)) ∧
+    (∀ n, SeparatesPredictions
+      (cosineLoss : UnitVector n → UnitVector n → ℝ)) := by
+  exact ⟨fun _ _ => separates_dist,
+    fun _ => separates_absoluteLoss,
+    fun _ _ hp => separates_lpPowerLoss hp,
+    fun _ => separates_crossEntropyLoss,
+    fun _ => separates_klDivergenceLoss,
+    fun _ => separates_cosineLoss⟩
+
 end Models
 
 section Calculus
