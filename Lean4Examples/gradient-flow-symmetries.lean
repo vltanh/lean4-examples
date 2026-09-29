@@ -3287,16 +3287,13 @@ def LocallyCompletelyIntegrableOn
       LinearIndependent ℝ (fun i => gradient (h i) q) ∧
       Submodule.span ℝ (Set.range (fun i => gradient (h i) q)) = (D q)ᗮ)
 
-/-- Differential-geometric background used by Theorem 12: Theorem 21
-(Frobenius), involutivity of the Lie closure, first integrals, and smooth
-orthogonal frames. -/
+/-- Differential-geometric background still needed by Theorem 12.
+The easy direction of Frobenius is proved below; this interface now contains
+only the local-existence ingredients that require a genuine Frobenius/constant-
+rank construction, plus the smooth orthogonal-complement frame. -/
 class HasFrobeniusBackground
     (E : Type*) [NormedAddCommGroup E] [InnerProductSpace ℝ E]
     [FiniteDimensional ℝ E] [CompleteSpace E] : Prop where
-  frobenius_iff :
-    ∀ {Ω : Set E} {D : Distribution E} {r : ℕ},
-      IsOpen Ω → HasLocalSmoothFrame Ω D → ConstantRankOn Ω D r →
-      (LocallyCompletelyIntegrableOn Ω D ↔ InvolutiveOn Ω D)
   lieClosure_involutive :
     ∀ {Ω : Set E} {D : Distribution E},
       HasLocalSmoothFrame Ω (lieCompletion Ω D) →
@@ -3322,14 +3319,89 @@ class HasFrobeniusBackground
           (∀ q ∈ U, LinearIndependent ℝ (fun i => v i q) ∧
             Submodule.span ℝ (Set.range (fun i => v i q)) = (D q)ᗮ)
 
-/-- Theorem 21 (Frobenius), in the local complete-integrability
-form reviewed in Appendix A. -/
+/-- Complete integrability implies involutivity directly: local first
+integrals annihilate the distribution, so the Lie bracket of two local
+sections annihilates all of their gradients as well. -/
+lemma locallyCompletelyIntegrable_involutive
+    {D : Distribution E} (hΩ : IsOpen Ω)
+    (hint : LocallyCompletelyIntegrableOn Ω D) :
+    InvolutiveOn Ω D := by
+  intro U hU hUΩ v w hv hw p hp
+  obtain ⟨W, m, h, hW, hpW, hWΩ, hh, hframe⟩ :=
+    hint p (hUΩ hp)
+  let V : Set E := U ∩ W
+  have hV : IsOpen V := hU.inter hW
+  have hpV : p ∈ V := ⟨hp, hpW⟩
+  have hvV : IsSectionOn V D v :=
+    ⟨hv.1.mono inter_subset_left, fun q hq => hv.2 q hq.1⟩
+  have hwV : IsSectionOn V D w :=
+    ⟨hw.1.mono inter_subset_left, fun q hq => hw.2 q hq.1⟩
+  have hann :
+      ∀ i : Fin m, ∀ q ∈ V,
+        ⟪gradient (h i) q, v q⟫_ℝ = 0 ∧
+        ⟪gradient (h i) q, w q⟫_ℝ = 0 := by
+    intro i q hq
+    have hgi :
+        gradient (h i) q ∈ (D q)ᗮ := by
+      rw [← (hframe q hq.2).2]
+      exact Submodule.subset_span ⟨i, rfl⟩
+    constructor
+    · exact (Submodule.mem_orthogonal' _ _).mp hgi _ (hvV.2 q hq)
+    · exact (Submodule.mem_orthogonal' _ _).mp hgi _ (hwV.2 q hq)
+  have hbracket_orth :
+      ∀ i : Fin m, ⟪gradient (h i) p, lieBracket v w p⟫_ℝ = 0 := by
+    intro i
+    have hhi : ContDiffAt ℝ ∞ (h i) p :=
+      (hh i p hpW).contDiffAt (hW.mem_nhds hpW)
+    have hvp : DifferentiableAt ℝ v p :=
+      (hvV.1 p hpV).contDiffAt (hV.mem_nhds hpV) |>.differentiableAt (by simp)
+    have hwp : DifferentiableAt ℝ w p :=
+      (hwV.1 p hpV).contDiffAt (hV.mem_nhds hpV) |>.differentiableAt (by simp)
+    have hzv :
+        (fun x => fderiv ℝ (h i) x (v x)) =ᶠ[𝓝 p] fun _ => 0 := by
+      filter_upwards [hV.mem_nhds hpV] with x hx
+      rw [← inner_gradient_left]
+      exact (hann i x hx).1
+    have hzw :
+        (fun x => fderiv ℝ (h i) x (w x)) =ᶠ[𝓝 p] fun _ => 0 := by
+      filter_upwards [hV.mem_nhds hpV] with x hx
+      rw [← inner_gradient_left]
+      exact (hann i x hx).2
+    have hbr := fderiv_apply_lieBracket
+      (f := h i) hhi (by simp) hvp hwp
+    rw [hzv.fderiv_eq, hzw.fderiv_eq] at hbr
+    simp at hbr
+    rw [← inner_gradient_left]
+    simpa [lieBracket] using hbr
+  rw [← Submodule.orthogonal_orthogonal (K := D p)]
+  rw [Submodule.mem_orthogonal']
+  intro z hz
+  rw [← (hframe p hpW).2] at hz
+  induction hz using Submodule.span_induction with
+  | mem z hz =>
+      obtain ⟨i, rfl⟩ := hz
+      simpa [real_inner_comm] using hbracket_orth i
+  | zero => simp
+  | add x y hx hy ihx ihy =>
+      simp [inner_add_right, ihx, ihy]
+  | smul a x hx ih =>
+      simp [inner_smul_right, ih]
+
+/-- Theorem 21 (Frobenius), in the local complete-integrability form
+reviewed in Appendix A. The integrable-to-involutive implication is elementary;
+the reverse implication is exactly the local first-integral construction. -/
 theorem theorem21 [HasFrobeniusBackground E]
     {D : Distribution E} {r : ℕ}
     (hΩ : IsOpen Ω) (hframe : HasLocalSmoothFrame Ω D)
     (hrank : ConstantRankOn Ω D r) :
-    LocallyCompletelyIntegrableOn Ω D ↔ InvolutiveOn Ω D :=
-  HasFrobeniusBackground.frobenius_iff hΩ hframe hrank
+    LocallyCompletelyIntegrableOn Ω D ↔ InvolutiveOn Ω D := by
+  constructor
+  · exact locallyCompletelyIntegrable_involutive hΩ
+  · intro hinv p hp
+    obtain ⟨U, h, hU, hpU, hUΩ, hh, hind, hspan⟩ :=
+      HasFrobeniusBackground.firstIntegrals hΩ hframe hrank hinv hp
+    exact ⟨U, Module.finrank ℝ E - r, h, hU, hpU, hUΩ, hh,
+      fun q hq => ⟨hind q hq, hspan q hq⟩⟩
 
 lemma lieCompletion_involutive [HasFrobeniusBackground E]
     {D : Distribution E}
