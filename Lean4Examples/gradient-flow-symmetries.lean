@@ -2774,32 +2774,58 @@ lemma exists_generator_basis_subfamily
       let j : {j // j ∈ T} := ⟨i,hi⟩
       exact ⟨eqv.symm j, rfl⟩
 
-/-- Fulton--Harris generation theorem quoted as Theorem 22. This is an
-external background result in Stage 1. -/
-class HasConnectedLieGroupGeneration
-    (A Γ : Type*)
-    [NormedAddCommGroup A] [NormedSpace ℝ A] [FiniteDimensional ℝ A]
-    [Group Γ] [TopologicalSpace Γ] [ChartedSpace A Γ]
-    [LieGroup (𝓘(ℝ, A)) ∞ Γ] [ConnectedSpace Γ] : Prop where
-  generate :
-    ∀ {s : ℕ} (φ : Fin s → ℝ → Γ),
-      (∀ i, IsOneParameterSubgroup (A := A) (Γ := Γ) (φ i)) →
-      Submodule.span ℝ
-        (Set.range (fun i =>
-          InfinitesimalGenerator (A := A) (Γ := Γ) (φ i))) = ⊤ →
-      ProductsGenerate φ
-
 /-- Theorem 22: if the infinitesimal generators of finitely many
 one-parameter subgroups span the Lie algebra of a connected Lie group, finite
 products of those one-parameter subgroups generate the group. -/
-theorem theorem22 [HasConnectedLieGroupGeneration A Γ]
+theorem theorem22
     {s : ℕ} (φ : Fin s → ℝ → Γ)
     (hφ : ∀ i, IsOneParameterSubgroup (A := A) (Γ := Γ) (φ i))
     (hspan : Submodule.span ℝ
       (Set.range (fun i =>
         InfinitesimalGenerator (A := A) (Γ := Γ) (φ i))) = ⊤) :
-    ProductsGenerate φ :=
-  HasConnectedLieGroupGeneration.generate φ hφ hspan
+    ProductsGenerate φ := by
+  let X : Fin s → TangentSpace (𝓘(ℝ, A)) (1 : Γ) :=
+    fun i => InfinitesimalGenerator (A := A) (Γ := Γ) (φ i)
+  obtain ⟨k,e,hind,hspan'⟩ :=
+    exists_generator_basis_subfamily (A := A) (Γ := Γ) X (by simpa [X] using hspan)
+  let φ' : Fin k → ℝ → Γ := fun i => φ (e i)
+  have hφ' : ∀ i, IsOneParameterSubgroup (A := A) (Γ := Γ) (φ' i) :=
+    fun i => hφ (e i)
+  have hind' :
+      LinearIndependent ℝ
+        (fun i => InfinitesimalGenerator (A := A) (Γ := Γ) (φ' i)) := by
+    simpa [φ',X] using hind
+  have hspan'' :
+      Submodule.span ℝ
+        (Set.range (fun i =>
+          InfinitesimalGenerator (A := A) (Γ := Γ) (φ' i))) = ⊤ := by
+    simpa [φ',X] using hspan'
+  obtain ⟨U,hU,h1U,hUsmall⟩ :=
+    orderedProductMap_identity_neighborhood
+      (A := A) (Γ := Γ) φ' hφ' hind' hspan''
+  have hrange :
+      Set.range (fun z : Fin k × ℝ => φ' z.1 z.2) ⊆
+        Set.range (fun z : Fin s × ℝ => φ z.1 z.2) := by
+    rintro _ ⟨⟨i,t⟩,rfl⟩
+    exact ⟨(e i,t),rfl⟩
+  have hclosure :
+      Subgroup.closure
+        (Set.range (fun z : Fin k × ℝ => φ' z.1 z.2)) ≤
+      Subgroup.closure
+        (Set.range (fun z : Fin s × ℝ => φ z.1 z.2)) :=
+    Subgroup.closure_mono hrange
+  have hnhds :
+      ∃ U : Set Γ, IsOpen U ∧ (1 : Γ) ∈ U ∧
+        U ⊆ Subgroup.closure
+          (Set.range (fun z : Fin s × ℝ => φ z.1 z.2)) :=
+    ⟨U,hU,h1U,fun g hg => hclosure (hUsmall hg)⟩
+  have htop :=
+    generated_eq_top_of_identity_neighborhood
+      (A := A) (Γ := Γ) φ hφ hnhds
+  intro g
+  apply generated_mem_products φ hφ g
+  rw [htop]
+  exact Subgroup.mem_top g
 
 end LieGroup
 
