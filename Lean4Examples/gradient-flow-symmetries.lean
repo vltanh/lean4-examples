@@ -2516,9 +2516,23 @@ def gauge (s : Fin (L - 1) → GL D) (p : Param L D) : Param L D :=
 
 theorem product_gauge (s : Fin (L - 1) → GL D) (p : Param L D) :
     product (gauge s p) = product p := by
-  -- TODO[DEEP-GAUGE-TELESCOPE]: induct on productPrefix; the S_j^{-1}S_j
-  -- factors cancel and the two boundary gauges are identities.
-  sorry
+  have hprefix :
+      ∀ j (hj : j ≤ L),
+        productPrefix (gauge s p) j hj =
+          (boundaryGauge s j hj : Mat D D) * productPrefix p j hj := by
+    intro j
+    induction j with
+    | zero =>
+        intro hj
+        simp [productPrefix, boundaryGauge]
+    | succ j ih =>
+        intro hj
+        have hj' : j ≤ L := by omega
+        rw [productPrefix, productPrefix, ih hj']
+        simp [gauge, W, boundaryGauge, Matrix.mul_assoc]
+  unfold product
+  rw [hprefix L le_rfl]
+  simp [boundaryGauge]
 
 theorem functionalEquiv_iff_product (p q : Param L D) :
     FunctionalEquiv model p q ↔ product p = product q := by
@@ -2536,9 +2550,10 @@ theorem fullRank_fiber (hL : 0 < L) {p q : Param L D}
     FunctionalEquiv model p q ↔ ∃ s : Fin (L - 1) → GL D, q = gauge s p := by
   constructor
   · intro he
-    -- TODO[DEEP-FIBER]: every W_j is invertible because their product is.
-    -- Set S_j = (W'_j ... W'_1)(W_j ... W_1)^{-1}, then telescope.
-    sorry
+    have hprod : product p = product q :=
+      (functionalEquiv_iff_product p q).mp he
+    exact DeepLinear.exists_gauge_of_equal_product_fullRank
+      hL hp hq hprod
   · rintro ⟨s, rfl⟩
     exact (functionalEquiv_iff_product p (gauge s p)).mpr (product_gauge s p).symm
 
@@ -2547,21 +2562,46 @@ def vertical (p : Param L D) : Submodule ℝ (Param L D) :=
   LinearMap.ker (fderiv ℝ (product (L := L) (D := D)) p).toLinearMap
 
 theorem product_smooth : ContDiff ℝ ∞ (product (L := L) (D := D)) := by
-  -- TODO[DEEP-PRODUCT-SMOOTH]: induction on the finite matrix product;
-  -- each coordinate is polynomial in the parameter coordinates.
-  sorry
+  have hprefix :
+      ∀ j (hj : j ≤ L),
+        ContDiff ℝ ∞ (fun p : Param L D => productPrefix p j hj) := by
+    intro j
+    induction j with
+    | zero =>
+        intro hj
+        simpa [productPrefix] using contDiff_const
+    | succ j ih =>
+        intro hj
+        have hj' : j ≤ L := by omega
+        simpa [productPrefix] using
+          (DeepLinear.contDiff_W (L := L) (D := D) ⟨j, by omega⟩).mul
+            (ih hj')
+  exact hprefix L le_rfl
 
 theorem regular_isOpen : IsOpen (regular : Set (Param L D)) := by
-  -- TODO[DEEP-OPEN]: regular = {p | det(product p) ≠ 0}; determinant and
-  -- product are continuous.
-  sorry
+  have hcont : Continuous (fun p : Param L D => Matrix.det (product p)) :=
+    Matrix.continuous_det.comp product_smooth.continuous
+  have heq : (regular : Set (Param L D)) =
+      (fun p => Matrix.det (product p)) ⁻¹' ({0} : Set ℝ)ᶜ := by
+    ext p
+    simp [regular, Matrix.isUnit_iff_isUnit_det]
+  rw [heq]
+  exact isOpen_compl_singleton.preimage hcont
 
 theorem product_derivative_surjective (hL : 0 < L) {p : Param L D}
     (hp : p ∈ regular) :
     Function.Surjective (fderiv ℝ (product (L := L) (D := D)) p) := by
-  -- TODO[DEEP-SUBMERSION]: vary the last layer only. Its differential is
-  -- δW_L ↦ δW_L (W_{L-1}...W_1), an invertible linear map.
-  sorry
+  have hinv :
+      IsUnit (productPrefix p (L - 1) (by omega)) :=
+    DeepLinear.prefix_isUnit_of_product_isUnit hL hp
+  intro Y
+  let R : Mat D D := (productPrefix p (L - 1) (by omega))⁻¹
+  let δ : Param L D :=
+    WithLp.toLp 2 (fun a =>
+      if h : a.1.val = L - 1 then (Y * R) a.2.1 a.2.2 else 0)
+  refine ⟨δ, ?_⟩
+  rw [DeepLinear.fderiv_product_apply_last hL p δ]
+  simp [δ, R, hinv]
 
 theorem vertical_rank (hL : 0 < L) {p : Param L D} (hp : p ∈ regular) :
     Module.finrank ℝ (vertical p) = (L - 1) * D^2 := by
