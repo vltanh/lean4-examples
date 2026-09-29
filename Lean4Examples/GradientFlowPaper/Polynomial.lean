@@ -12,14 +12,13 @@ form a finite group, they may be absorbed in a finite set of representatives;
 `FiniteToOneAt` below therefore quotients by all nonzero diagonal scalings.
 
 The paper does not further define the word "generic" in Proposition 19.
-This module therefore separates two issues.  The concrete nonzero-hidden-bias
-locus is proved open and dense and is used only for the differential scaling
-argument.  The cited finite-identifiability input is represented by the
-source-facing witness `GenericFiniteToOneAt`, which says only that
-`FiniteToOneAt` holds on an open neighborhood.  The paper-internal step
-from a finite fibre modulo scaling to a locally isolated scaling orbit is
-proved below by the canonical bias-normalization slice; it is not assumed as
-part of the external input.
+This module separates two issues. The concrete nonzero-hidden-bias locus is
+proved open and dense and is used for the differential scaling argument.
+Usevich et al.'s generic finite identifiability is represented literally as
+an almost-everywhere `FiniteToOneAt` statement. The paper-internal local
+orbit isolation is proved by the canonical bias-normalization slice, and the
+a.e. pointwise completeness statement is extended to the entire regular
+neighborhood by continuity.
 -/
 
 noncomputable section
@@ -701,19 +700,6 @@ identifiability in a generic neighborhood.  The local scaling-orbit
 conclusion is **not** part of the external hypothesis: it is the theorem
 `finiteToOneAt_local_scaling_orbit` proved above. -/
 
-def FiniteToOneOn (U : Set (Param A)) : Prop :=
-  ∀ p ∈ U, FiniteToOneAt A p
-
-/-- Source-facing local witness for a generic finite-identifiability point.
-This contains only the identifiability property that must ultimately be
-supplied from Usevich et al.; it does not contain the desired fibre chart,
-generator independence, or tangent-space conclusion. -/
-structure GenericFiniteToOneAt (p : Param A) : Prop where
-  neighborhood : Set (Param A)
-  isOpen_neighborhood : IsOpen neighborhood
-  mem_neighborhood : p ∈ neighborhood
-  finiteToOneOn_neighborhood : FiniteToOneOn A neighborhood
-
 theorem law_smooth (a : Hidden A) : ContDiff ℝ ∞ (law A a) := by
   unfold law W bias
   fun_prop
@@ -1012,40 +998,34 @@ theorem conserved_gradient_spanned_of_generic_finite
   rw [hspan_g p] at hprojpg
   exact hprojpg
 
-/-- Proposition 19 at a point of a generic finite-identifiability
-neighborhood, intersected with the explicit dense-open regular locus used by
-the differential argument.  The finite-identifiability hypothesis contains
-no local fibre/orbit conclusion; that conclusion is derived pointwise above. -/
+/-- Proposition 19 under the source-faithful generic finite-identifiability
+hypothesis.  Usevich et al. formulate genericity measure-theoretically; no
+stronger open-neighborhood finite-fibre assumption is introduced here. -/
 theorem proposition19
     {Y : Type*} (ell : Output A → Y → ℝ)
     (hsep : SeparatesPredictions ell)
     (hL : RegularLossOn Set.univ (sampleLoss (model A) ell))
-    {p₀ : Param A} (hfinite : GenericFiniteToOneAt A p₀)
-    (hregular : GenericPoint A p₀) :
+    (hfinite : GenericallyFiniteToOne A)
+    {p₀ : Param A} (hregular : GenericPoint A p₀) :
     ∃ U : Set (Param A), IsOpen U ∧ p₀ ∈ U ∧
       CompleteLawsOn U (sampleLoss (model A) ell) (law A) := by
-  let U := hfinite.neighborhood ∩ genericSet A
-  have hU : IsOpen U :=
-    hfinite.isOpen_neighborhood.inter (genericSet_isOpen A)
-  have hpU : p₀ ∈ U :=
-    ⟨hfinite.mem_neighborhood, hregular⟩
+  let U := genericSet A
+  have hU : IsOpen U := genericSet_isOpen A
+  have hpU : p₀ ∈ U := hregular
   have hregularU : ∀ p ∈ U, GenericPoint A p := by
     intro p hp
-    exact hp.2
-  have hfiniteU : FiniteToOneOn A U := by
-    intro p hp
-    exact hfinite.finiteToOneOn_neighborhood p hp.1
+    exact hp
   have hind : ∀ p ∈ U,
       LinearIndependent ℝ (fun a : Hidden A => generator A a p) := by
     intro p hp
-    exact generic_generators_independent A hp.2
+    exact generic_generators_independent A hp
   have hreg := hL.mono hU (Set.subset_univ U)
   refine ⟨U, hU, hpU, (fun a => (law_smooth A a).contDiffOn),
     (fun a => laws_conserved A ell hreg a),
     independent_laws_of_generators A hind, ?_⟩
   intro V hV hVU h hh hc p hp
-  exact conserved_gradient_spanned A hU hregularU hfiniteU
-    ell hsep hreg hV hVU hh hc p hp
+  exact conserved_gradient_spanned_of_generic_finite
+    A hU hregularU hfinite ell hsep hreg hV hVU hh hc p hp
 
 theorem number_of_laws :
     Fintype.card (Hidden A) = ∑ j : Fin (A.depth - 1), A.width (j.val + 1) := by
