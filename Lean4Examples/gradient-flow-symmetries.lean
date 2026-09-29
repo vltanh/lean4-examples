@@ -2584,6 +2584,8 @@ open scoped BigOperators Topology InnerProductSpace ContDiff Matrix
 namespace GradientFlowPaper
 namespace Attention
 
+variable [HasMaximalSmoothLocalFlows]
+
 inductive Slot (k : ℕ)
   | query (i : Fin k)
   | key
@@ -3417,6 +3419,7 @@ lemma blockLaw_reblock (b : FactorBlock nG) (a : Upper dh)
 It is an orthogonal regrouping/stacking argument, not an assumption that the
 listed laws are already complete. -/
 theorem completeness_from_product_identifiability
+    [HasMarcotteMatrixFactorizationCompleteness]
     (hg : 0 < nG) (hk : 0 < k) (hh : 0 < dh) (hd : dh ≤ D)
     {Y : Type*} (ell : Tokens D → Y → ℝ) (hsep : SeparatesPredictions ell)
     {U : Set (Param nG k D dh)} (hU : IsOpen U) (hUr : U ⊆ regular)
@@ -3426,12 +3429,184 @@ theorem completeness_from_product_identifiability
     {p₀ : Param nG k D dh} (hp₀ : p₀ ∈ U) :
     ∃ V : Set (Param nG k D dh), IsOpen V ∧ p₀ ∈ V ∧ V ⊆ U ∧
       CompleteLawsOn V (sampleLoss model ell) (law (k := k) (D := D)) := by
-  exact AttentionIdentifiability.complete_laws_from_factor_blocks
-    hg hk hh hd ell hsep hU hUr hL hident hp₀
-    Factorization.lemma28 theorem17_laws stackedQ_gram stackedO_gram
+  classical
+  let ι := factorIndex (nG := nG) k D dh
+  let e := reblockEquiv (nG := nG) (k := k) (D := D) (dh := dh)
+  let pB := e p₀
+
+  /- Step 3 of Appendix G.1: apply Lemma 28 to every Q/K and V/O
+     factorization block. -/
+  have hlocal :
+      ∀ b : FactorBlock nG,
+        ∃ Ωb : Set (Vec (ι b)),
+          IsOpen Ωb ∧ Blocks.block ι b pB ∈ Ωb ∧
+          Ωb ⊆ blockRegular (nG := nG) (k := k) (D := D) (dh := dh) b ∧
+          CompleteLawsOn Ωb
+            (sampleLoss
+              (blockModel (nG := nG) (k := k) (D := D) (dh := dh) b)
+              (blockLoss (nG := nG) (k := k) (D := D) (dh := dh) b))
+            (blockLaw (nG := nG) (k := k) (D := D) (dh := dh) b) := by
+    intro b
+    rcases b with ⟨j,b⟩
+    cases b
+    · have hpblock : qkBlock p₀ j ∈ Factorization.regular :=
+        qkBlock_regular hk (hUr hp₀) j
+      simpa [ι, pB, blockRegular, blockModel, blockLoss, blockLaw, qkBlock]
+        using Factorization.lemma28
+          (m := k * D) (n := D) (r := dh) hh
+          (Factorization.entrySquaredLoss : Mat (k * D) D → Mat (k * D) D → ℝ)
+          Factorization.separates_entrySquaredLoss
+          Factorization.squaredLoss_regular hpblock
+    · have hpblock : voBlock p₀ j ∈ Factorization.regular :=
+        voBlock_regular hk (hUr hp₀) j
+      simpa [ι, pB, blockRegular, blockModel, blockLoss, blockLaw, voBlock]
+        using Factorization.lemma28
+          (m := D) (n := k * D) (r := dh) hh
+          (Factorization.entrySquaredLoss : Mat D (k * D) → Mat D (k * D) → ℝ)
+          Factorization.separates_entrySquaredLoss
+          Factorization.squaredLoss_regular hpblock
+  choose Ωb hΩb hpΩb hΩbreg hcomplete using hlocal
+
+  /- Shrink to a genuine product neighborhood which also lies inside the
+     original attention neighborhood U. -/
+  have heU : IsOpen (e '' U) :=
+    e.toHomeomorph.isOpenMap U hU
+  have hpBeU : pB ∈ e '' U := ⟨p₀, hp₀, rfl⟩
+  obtain ⟨Box, hBoxOpen, hpBox, hBoxSub⟩ :=
+    Blocks.exists_product_box ι heU hpBeU
+
+  let W : ∀ b : FactorBlock nG, Set (Vec (ι b)) :=
+    fun b => Ωb b ∩ Box b
+  have hWopen : ∀ b, IsOpen (W b) :=
+    fun b => (hΩb b).inter (hBoxOpen b)
+  have hpW : ∀ b, Blocks.block ι b pB ∈ W b :=
+    fun b => ⟨hpΩb b, hpBox b⟩
+  have hWreg : ∀ b, W b ⊆
+      blockRegular (nG := nG) (k := k) (D := D) (dh := dh) b :=
+    fun b _ hx => hΩbreg b hx.1
+  have hcompW : ∀ b,
+      CompleteLawsOn (W b)
+        (sampleLoss
+          (blockModel (nG := nG) (k := k) (D := D) (dh := dh) b)
+          (blockLoss (nG := nG) (k := k) (D := D) (dh := dh) b))
+        (blockLaw (nG := nG) (k := k) (D := D) (dh := dh) b) :=
+    fun b => (hcomplete b).mono (hWopen b) inter_subset_left
+  have hregW : ∀ b,
+      RegularLossOn (W b)
+        (sampleLoss
+          (blockModel (nG := nG) (k := k) (D := D) (dh := dh) b)
+          (blockLoss (nG := nG) (k := k) (D := D) (dh := dh) b)) :=
+    fun b => (blockLoss_regular (nG := nG) (k := k) (D := D) (dh := dh) b).mono
+      (hWopen b) (hWreg b)
+  have hsepW : ∀ b,
+      SeparatesPredictions
+        (blockLoss (nG := nG) (k := k) (D := D) (dh := dh) b) :=
+    blockLoss_separates
+
+  have hdomain_eU : Blocks.domain ι W ⊆ e '' U := by
+    intro q hq
+    apply hBoxSub
+    intro b
+    exact (hq b).2
+  have hdomain_U : ∀ q ∈ Blocks.domain ι W, e.symm q ∈ U := by
+    intro q hq
+    rcases hdomain_eU hq with ⟨p,hp,rfl⟩
+    simpa using hp
+
+  let Gblk : Blocks.Total ι → Tokens D → Tokens D :=
+    fun q x => model (e.symm q) x
+
+  /- Step 2: the product identities from Step 1 are exactly compositional
+     identifiability for the 2*nG factor blocks. -/
+  have hCI :
+      CompositionallyIdentifiable (U := W)
+        (blockModel (nG := nG) (k := k) (D := D) (dh := dh)) Gblk := by
+    intro q hq r hr
+    let p := e.symm q
+    let p' := e.symm r
+    have hpU : p ∈ U := hdomain_U q hq
+    have hp'U : p' ∈ U := hdomain_U r hr
+    have hbase :
+        FunctionalEquiv Gblk q r ↔ FunctionalEquiv model p p' := by
+      rfl
+    rw [hbase, hident p hpU p' hp'U]
+    constructor
+    · intro hprod b
+      have hb :=
+        blockFunctionalEquiv_reblock
+          (nG := nG) (k := k) (D := D) (dh := dh) p p' b
+      have hblockq :
+          Blocks.block ι b q =
+            Blocks.block ι b (e p) := by simp [p,e]
+      have hblockr :
+          Blocks.block ι b r =
+            Blocks.block ι b (e p') := by simp [p',e]
+      rw [hblockq, hblockr]
+      apply hb.mpr
+      by_cases hbool : b.2
+      · simp [hbool]
+        intro i
+        exact (hprod b.1 i).2
+      · simp [hbool]
+        intro i
+        exact (hprod b.1 i).1
+    · intro hblocks j i
+      have hqk := hblocks (j,false)
+      have hvo := hblocks (j,true)
+      have hqk' :=
+        (blockFunctionalEquiv_reblock
+          (nG := nG) (k := k) (D := D) (dh := dh) p p' (j,false)).mp <| by
+            simpa [p,p',e] using hqk
+      have hvo' :=
+        (blockFunctionalEquiv_reblock
+          (nG := nG) (k := k) (D := D) (dh := dh) p p' (j,true)).mp <| by
+            simpa [p,p',e] using hvo
+      exact ⟨by simpa using hqk' i, by simpa using hvo' i⟩
+
+  have hLGblk :
+      RegularLossOn (Blocks.domain ι W) (sampleLoss Gblk ell) := by
+    have ht := hL.precomp_linearIsometryEquiv e
+      (Blocks.open_domain ι hWopen) hdomain_U
+    simpa [Gblk, sampleLoss] using ht
+
+  have hblocksComplete :
+      CompleteLawsOn (Blocks.domain ι W) (sampleLoss Gblk ell)
+        (fun a : Sigma (fun _ : FactorBlock nG => Upper dh) =>
+          Blocks.extendLaw ι a.1
+            (blockLaw (nG := nG) (k := k) (D := D) (dh := dh) a.1 a.2)) :=
+    theorem17_laws
+      (U := W) hWopen
+      (blockModel (nG := nG) (k := k) (D := D) (dh := dh))
+      (blockLoss (nG := nG) (k := k) (D := D) (dh := dh))
+      Gblk ell hregW hsepW hCI hLGblk hsep
+      (blockLaw (nG := nG) (k := k) (D := D) (dh := dh)) hcompW
+
+  /- Transport the block theorem back through the coordinate permutation and
+     reindex Sigma((j,kind),a) as the paper's (j,kind,a). -/
+  let Vset : Set (Param nG k D dh) := e.symm '' Blocks.domain ι W
+  have hVopen : IsOpen Vset :=
+    e.symm.toHomeomorph.isOpenMap _ (Blocks.open_domain ι hWopen)
+  have hpV : p₀ ∈ Vset := by
+    refine ⟨pB, ?_, by simp [pB,e]⟩
+    exact hpW
+  have hVU : Vset ⊆ U := by
+    rintro p ⟨q,hq,rfl⟩
+    exact hdomain_U q hq
+
+  have hpull :=
+    CompleteLawsOn.pullback_linearIsometryEquiv e hblocksComplete
+  have hreindexed :=
+    CompleteLawsOn.reindex
+      (lawIndexEquiv (nG := nG) (dh := dh)) hpull
+  refine ⟨Vset, hVopen, hpV, hVU, ?_⟩
+  simpa [Vset, Gblk, Blocks.extendLaw, lawIndexEquiv,
+    blockLaw_reblock, Function.comp_def] using hreindexed
 
 /-- Proposition 18, completeness of the stated conservation laws. -/
-theorem proposition18_laws (hg : 0 < nG) (hk : 0 < k)
+theorem proposition18_laws
+    [HasTranAttentionIdentifiability]
+    [HasMarcotteMatrixFactorizationCompleteness]
+    (hg : 0 < nG) (hk : 0 < k)
     (hh : 0 < dh) (hd : dh ≤ D)
     {Y : Type*} (ell : Tokens D → Y → ℝ) (hsep : SeparatesPredictions ell)
     (hL : RegularLossOn (regular : Set (Param nG k D dh)) (sampleLoss model ell))
