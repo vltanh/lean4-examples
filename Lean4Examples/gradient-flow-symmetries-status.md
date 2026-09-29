@@ -151,7 +151,7 @@ For each external field:
 
 ## 3A. Elaboration repair
 
-- [ ] Split the single-file draft into stable modules.
+- [x] Split the single-file draft into stable modules.
 - [ ] Compile every module under the pinned Lean/Mathlib version.
 - [ ] Fix API names, coercions, universe issues, and tactic failures without weakening statements.
 - [ ] Run zero-`sorry` / zero-`admit` / zero-custom-`axiom` scans after every repair batch.
@@ -161,7 +161,7 @@ For each external field:
 - [ ] Create a compact paper-facing module containing the exact formalized statements.
 - [ ] Keep support machinery outside the challenge statement surface.
 - [ ] Add comments mapping Lean declarations to paper proposition/theorem numbers.
-- [ ] Add a theorem-dependency manifest.
+- [x] Add a theorem-dependency manifest (`Lean4Examples/GradientFlowPaper/dependency-manifest.json`).
 
 ## 3C. Foundational dependency audit
 
@@ -179,7 +179,7 @@ For each external field:
 3. [x] Inline GQA Steps 2–3 from Lemma 28 + Theorem 17.
 4. [x] Keep the paper/Usevich identifiability-generic predicate separate from the concrete nonzero-bias regular locus; Proposition 19 now works on their explicit intersection rather than identifying them.
 5. [x] Add the remaining numbered appendix-facing statements, including the Lemma 26 audit.
-6. **Stage 1:** add/update the external dependency manifest and run a source-level coverage audit.
+6. [x] Add/update the external dependency manifest and run a source-level coverage audit.
 7. Freeze Stage 1 at source level. Elaboration/compilation remains a later repair stage, per the requested uncompiled workflow.
 8. [x] Begin Stage 2.
 
@@ -191,7 +191,7 @@ For each external field:
 - [x] PNN genericity is no longer silently identified with a convenient coordinate condition; the paper's implicit “generic” regime is explicit as a parameterized dependency.
 - [x] Appendix numbered results Theorem 21, Theorem 22, Propositions 23–25, and Lemma 26 are present.
 - [x] Source scan: zero `sorry`, zero `admit`, zero custom `axiom`.
-- [ ] Final Stage-1 gate: elaborate/compile the paper layer against the pinned toolchain with the external dependency interfaces left abstract.
+- [ ] Final Stage-1 gate: elaborate/compile the paper layer against the pinned toolchain with the external dependency interfaces left abstract. Historical CI reached Lake but failed before elaboration because the package root `Lean4Examples.lean` was missing; that root has now been added.
 
 
 ## Stage-2 progress
@@ -244,3 +244,15 @@ For each external field:
 - [x] PNN `HasPNNScalingOrbitTangent` interface eliminated; `tangent_mem_span_scaling_orbit` is used directly.
 - [x] The Usevich-facing `HasPNNGenericRegime` interface now contains only the local functional-fibre / diagonal-scaling-orbit statement; generator independence is derived internally on `genericSet`.
 - [ ] Next: eliminate the remaining Frobenius / Marcotte / Tran / Usevich interfaces.
+
+
+### Stage-3 packaging checkpoint
+
+- [x] Split the former concatenated source into `Core`, `Geometry`, `Inheritance`, `MatrixFactorization`, `Attention`, `Polynomial`, `DeepLinear`, and `Examples`.
+- [x] Add aggregate module `Lean4Examples.GradientFlowPaper`.
+- [x] Keep `gradient-flow-symmetries.lean` as a compatibility import.
+- [x] Add `Lean4Examples.lean`, fixing the default Lake library root diagnosed by the historical Lean 4.26 CI run.
+- [x] Add a machine-readable dependency/theorem manifest.
+- [x] Re-run source scans after the split: zero `sorry`, zero `admit`, zero custom `axiom` declarations in all eight paper modules.
+- [ ] Kernel-check the module graph and repair elaboration errors.
+- [ ] Run `#print axioms` over the exported theorem surface after external dependency closure.
