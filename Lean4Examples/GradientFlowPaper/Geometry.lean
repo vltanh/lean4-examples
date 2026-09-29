@@ -4600,24 +4600,28 @@ lemma exists_lieWord_representation
       hzspan
   simpa [z', c] using hexpand.symm
 
-/-- Differential-geometric background still needed by Theorem 12.
-The easy direction of Frobenius is proved below; this interface now contains
-only the local-existence ingredients that require a genuine Frobenius/constant-
-rank construction, plus the smooth orthogonal-complement frame. -/
-class HasFrobeniusBackground
-    (E : Type*) [NormedAddCommGroup E] [InnerProductSpace ℝ E]
-    [FiniteDimensional ℝ E] [CompleteSpace E] : Prop where
-  firstIntegrals :
-    ∀ {Ω : Set E} {D : Distribution E} {r : ℕ},
-      IsOpen Ω → HasLocalSmoothFrame Ω D →
-      ConstantRankOn Ω D r → InvolutiveOn Ω D →
-      ∀ {p : E}, p ∈ Ω →
-        ∃ (U : Set E) (h : Fin (Module.finrank ℝ E - r) → E → ℝ),
-          IsOpen U ∧ p ∈ U ∧ U ⊆ Ω ∧
-          (∀ i, ContDiffOn ℝ ∞ (h i) U) ∧
-          FunctionallyIndependentOn U h ∧
-          (∀ q ∈ U,
-            Submodule.span ℝ (Set.range (fun i => gradient (h i) q)) = (D q)ᗮ)
+/-- Frobenius submersions exist in every finite rank. -/
+theorem frobeniusSubmersionProperty_all :
+    ∀ r : ℕ, FrobeniusSubmersionProperty r
+  | 0 => frobeniusSubmersionProperty_zero
+  | r + 1 => frobeniusSubmersionProperty_succ (frobeniusSubmersionProperty_all r)
+
+/-- Hard direction of Frobenius in the exact first-integral form consumed by
+Theorem 12.  This is now proved internally by the rank induction above. -/
+theorem frobenius_firstIntegrals
+    {D : Distribution E} {r : ℕ}
+    (hΩ : IsOpen Ω) (hframe : HasLocalSmoothFrame Ω D)
+    (hrank : ConstantRankOn Ω D r) (hinv : InvolutiveOn Ω D)
+    {p : E} (hp : p ∈ Ω) :
+    ∃ (U : Set E) (h : Fin (Module.finrank ℝ E - r) → E → ℝ),
+      IsOpen U ∧ p ∈ U ∧ U ⊆ Ω ∧
+      (∀ i, ContDiffOn ℝ ∞ (h i) U) ∧
+      FunctionallyIndependentOn U h ∧
+      (∀ q ∈ U,
+        Submodule.span ℝ (Set.range (fun i => gradient (h i) q)) = (D q)ᗮ) := by
+  have F : FrobeniusSubmersionAt Ω D r p :=
+    frobeniusSubmersionProperty_all r hΩ hframe hrank hinv hp
+  exact F.firstIntegrals hrank
 
 /-- Complete integrability implies involutivity directly: local first
 integrals annihilate the distribution, so the Lie bracket of two local
@@ -4690,7 +4694,7 @@ lemma locallyCompletelyIntegrable_involutive
 /-- Theorem 21 (Frobenius), in the local complete-integrability form
 reviewed in Appendix A. The integrable-to-involutive implication is elementary;
 the reverse implication is exactly the local first-integral construction. -/
-theorem theorem21 [HasFrobeniusBackground E]
+theorem theorem21
     {D : Distribution E} {r : ℕ}
     (hΩ : IsOpen Ω) (hframe : HasLocalSmoothFrame Ω D)
     (hrank : ConstantRankOn Ω D r) :
@@ -4699,7 +4703,7 @@ theorem theorem21 [HasFrobeniusBackground E]
   · exact locallyCompletelyIntegrable_involutive hΩ
   · intro hinv p hp
     obtain ⟨U, h, hU, hpU, hUΩ, hh, hind, hspan⟩ :=
-      HasFrobeniusBackground.firstIntegrals hΩ hframe hrank hinv hp
+      frobenius_firstIntegrals hΩ hframe hrank hinv hp
     exact ⟨U, Module.finrank ℝ E - r, h, hU, hpU, hUΩ, hh,
       fun q hq => ⟨hind q hq, hspan q hq⟩⟩
 
@@ -4822,7 +4826,7 @@ lemma firstIntegral_lieCompletion {D : Distribution E} {h : E → ℝ}
       simp [inner_smul_right, ih]
 
 /-- Local Frobenius theorem in exactly the form used in Appendix E.8. -/
-theorem theorem21_frobenius [HasFrobeniusBackground E]
+theorem theorem21_frobenius
     {D : Distribution E} {r : ℕ}
     (hΩ : IsOpen Ω) (hframe : HasLocalSmoothFrame Ω D)
     (hrank : ConstantRankOn Ω D r) (hinv : InvolutiveOn Ω D)
@@ -5151,7 +5155,7 @@ lemma orthogonal_local_frame
     fun q hq => ⟨hv_ind q hq, hv_span q hq⟩⟩
 
 /-- Theorem 12(i)--(ii). `rLie` is the paper's barred r, distinct from r. -/
-theorem theorem12 [HasFrobeniusBackground E]
+theorem theorem12
     {L : S → E → ℝ} (hL : SmoothLossOn Ω L)
     {r rLie : ℕ}
     (hW : HasLocalSmoothFrame Ω (gradientDistribution L))
