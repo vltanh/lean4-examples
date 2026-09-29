@@ -1911,7 +1911,7 @@ theorem exists_common_extension {v : Field E}
 
 end LocalFlow
 
-/-- Maximal smooth local flow.  All local flows admit a common extension,
+/-- Maximal smooth local flow.  All local flows have a common extension,
 so extending the nonempty family of every local flow gives a maximal one. -/
 theorem exists_maximal_localFlow (hΩ : IsOpen Ω) {v : Field E}
     (hv : ContDiffOn ℝ ∞ v Ω) :
