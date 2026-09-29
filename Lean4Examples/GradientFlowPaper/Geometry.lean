@@ -3010,6 +3010,167 @@ theorem exists_oneField_flowBox
     hesmooth, hesymm, heinv, htime_all⟩
   simpa [e] using hχ0
 
+
+/-! ### Differential transport through a smooth local chart -/
+
+def chartPullbackField
+    {F : Type*} [NormedAddCommGroup F] [NormedSpace ℝ F]
+    (e : OpenPartialHomeomorph F E) (v : Field E) : F → F :=
+  fun z => fderiv ℝ e.symm (e z) (v (e z))
+
+def chartPullbackDistribution
+    {F : Type*} [NormedAddCommGroup F] [NormedSpace ℝ F]
+    (e : OpenPartialHomeomorph F E) (D : Distribution E) : Distribution F :=
+  fun z => (D (e z)).comap (fderiv ℝ e z).toLinearMap
+
+lemma fderiv_symm_comp_fderiv
+    {F : Type*} [NormedAddCommGroup F] [NormedSpace ℝ F]
+    [CompleteSpace F]
+    (e : OpenPartialHomeomorph F E)
+    {U : Set F} (hU : IsOpen U) (hUs : U ⊆ e.source)
+    (he : ContDiffOn ℝ ∞ e U)
+    (hes : ContDiffOn ℝ ∞ e.symm (e '' U))
+    {z : F} (hz : z ∈ U) (x : F) :
+    fderiv ℝ e.symm (e z) (fderiv ℝ e z x) = x := by
+  have hze : e z ∈ e '' U := ⟨z,hz,rfl⟩
+  have hde : DifferentiableAt ℝ e z :=
+    (he z hz).contDiffAt (hU.mem_nhds hz)
+      |>.differentiableAt (by simp)
+  have hdes : DifferentiableAt ℝ e.symm (e z) :=
+    (hes (e z) hze).contDiffAt
+      ((e.isOpen_image_of_subset_source hU hUs).mem_nhds hze)
+      |>.differentiableAt (by simp)
+  have hcomp :=
+    hdes.hasFDerivAt.comp z hde.hasFDerivAt
+  have hlocal :
+      (fun y => e.symm (e y)) =ᶠ[𝓝 z] fun y => y := by
+    filter_upwards [hU.mem_nhds hz] with y hy
+    exact e.left_inv (hUs hy)
+  have hid :
+      HasFDerivAt (fun y : F => y) (1 : F →L[ℝ] F) z :=
+    hasFDerivAt_id z
+  have heq :
+      (fderiv ℝ e.symm (e z)).comp (fderiv ℝ e z) =
+        (1 : F →L[ℝ] F) := by
+    exact (hcomp.congr_of_eventuallyEq hlocal).unique hid
+  simpa [ContinuousLinearMap.comp_apply] using
+    congrArg (fun T : F →L[ℝ] F => T x) heq
+
+lemma fderiv_comp_fderiv_symm
+    {F : Type*} [NormedAddCommGroup F] [NormedSpace ℝ F]
+    [CompleteSpace F]
+    (e : OpenPartialHomeomorph F E)
+    {U : Set F} (hU : IsOpen U) (hUs : U ⊆ e.source)
+    (he : ContDiffOn ℝ ∞ e U)
+    (hes : ContDiffOn ℝ ∞ e.symm (e '' U))
+    {z : F} (hz : z ∈ U) (x : E) :
+    fderiv ℝ e z (fderiv ℝ e.symm (e z) x) = x := by
+  have hze : e z ∈ e '' U := ⟨z,hz,rfl⟩
+  have hde : DifferentiableAt ℝ e z :=
+    (he z hz).contDiffAt (hU.mem_nhds hz)
+      |>.differentiableAt (by simp)
+  have hdes : DifferentiableAt ℝ e.symm (e z) :=
+    (hes (e z) hze).contDiffAt
+      ((e.isOpen_image_of_subset_source hU hUs).mem_nhds hze)
+      |>.differentiableAt (by simp)
+  have hcomp :=
+    hde.hasFDerivAt.comp (e z) hdes.hasFDerivAt
+  have htarget : e z ∈ e.target := e.mapsTo (hUs hz)
+  have hlocal :
+      (fun y => e (e.symm y)) =ᶠ[𝓝 (e z)] fun y => y := by
+    filter_upwards [e.open_target.mem_nhds htarget] with y hy
+    exact e.right_inv hy
+  have hid :
+      HasFDerivAt (fun y : E => y) (1 : E →L[ℝ] E) (e z) :=
+    hasFDerivAt_id (e z)
+  have heq :
+      (fderiv ℝ e z).comp (fderiv ℝ e.symm (e z)) =
+        (1 : E →L[ℝ] E) := by
+    simpa [e.left_inv (hUs hz)] using
+      (hcomp.congr_of_eventuallyEq hlocal).unique hid
+  simpa [ContinuousLinearMap.comp_apply] using
+    congrArg (fun T : E →L[ℝ] E => T x) heq
+
+lemma chartPullbackField_push
+    {F : Type*} [NormedAddCommGroup F] [NormedSpace ℝ F]
+    [CompleteSpace F]
+    (e : OpenPartialHomeomorph F E)
+    {U : Set F} (hU : IsOpen U) (hUs : U ⊆ e.source)
+    (he : ContDiffOn ℝ ∞ e U)
+    (hes : ContDiffOn ℝ ∞ e.symm (e '' U))
+    (v : Field E) {z : F} (hz : z ∈ U) :
+    fderiv ℝ e z (chartPullbackField e v z) = v (e z) := by
+  exact fderiv_comp_fderiv_symm e hU hUs he hes hz _
+
+lemma chartPullbackField_smooth
+    {F : Type*} [NormedAddCommGroup F] [NormedSpace ℝ F]
+    [FiniteDimensional ℝ F] [CompleteSpace F]
+    (e : OpenPartialHomeomorph F E)
+    {U : Set F} (hU : IsOpen U) (hUs : U ⊆ e.source)
+    (he : ContDiffOn ℝ ∞ e U)
+    (hes : ContDiffOn ℝ ∞ e.symm (e '' U))
+    {v : Field E} (hv : ContDiffOn ℝ ∞ v (e '' U)) :
+    ContDiffOn ℝ ∞ (chartPullbackField e v) U := by
+  unfold chartPullbackField
+  have hdes :
+      ContDiffOn ℝ ∞ (fderiv ℝ e.symm) (e '' U) :=
+    ((contDiffOn_infty_iff_fderiv_of_isOpen
+      (e.isOpen_image_of_subset_source hU hUs)).mp hes).2
+  fun_prop
+
+/-- Lie brackets commute with pullback by a smooth local diffeomorphism. -/
+lemma chartPullbackField_lieBracket
+    {F : Type*} [NormedAddCommGroup F] [InnerProductSpace ℝ F]
+    [FiniteDimensional ℝ F] [CompleteSpace F]
+    (e : OpenPartialHomeomorph F E)
+    {U : Set F} (hU : IsOpen U) (hUs : U ⊆ e.source)
+    (he : ContDiffOn ℝ ∞ e U)
+    (hes : ContDiffOn ℝ ∞ e.symm (e '' U))
+    {v w : Field E}
+    (hv : ContDiffOn ℝ ∞ v (e '' U))
+    (hw : ContDiffOn ℝ ∞ w (e '' U)) :
+    EqOn
+      (chartPullbackField e (lieBracket v w))
+      (lieBracket (chartPullbackField e v) (chartPullbackField e w)) U := by
+  intro z hz
+  have hpbv := chartPullbackField_smooth e hU hUs he hes hv
+  have hpbw := chartPullbackField_smooth e hU hUs he hes hw
+  have hde : DifferentiableAt ℝ e z :=
+    (he z hz).contDiffAt (hU.mem_nhds hz)
+      |>.differentiableAt (by simp)
+  have hnat :
+      fderiv ℝ e z
+        (lieBracket (chartPullbackField e v)
+          (chartPullbackField e w) z) =
+        lieBracket v w (e z) := by
+    -- Differentiate the two identities
+    -- de·e^*v = v∘e and de·e^*w = w∘e.  The Hessian terms of e
+    -- cancel after antisymmetrization, leaving naturality of the bracket.
+    have hvpush :
+        (fun y => fderiv ℝ e y (chartPullbackField e v y)) =ᶠ[𝓝 z]
+          (fun y => v (e y)) := by
+      filter_upwards [hU.mem_nhds hz] with y hy
+      exact chartPullbackField_push e hU hUs he hes v hy
+    have hwpush :
+        (fun y => fderiv ℝ e y (chartPullbackField e w y)) =ᶠ[𝓝 z]
+          (fun y => w (e y)) := by
+      filter_upwards [hU.mem_nhds hz] with y hy
+      exact chartPullbackField_push e hU hUs he hes w hy
+    have hveq := hvpush.fderiv_eq
+    have hweq := hwpush.fderiv_eq
+    simp only [lieBracket] at *
+    -- This is the standard second-derivative cancellation in the
+    -- coordinate-invariance proof of the Lie bracket.
+    simpa [ContinuousLinearMap.comp_apply] using
+      sub_eq_sub_iff_add_eq_add.mp <| by
+        rw [hveq,hweq]
+        simp [fderiv_comp, hde,
+          (hv (e z) ⟨z,hz,rfl⟩).differentiableWithinAt,
+          (hw (e z) ⟨z,hz,rfl⟩).differentiableWithinAt]
+  apply (fderiv ℝ e z).injective_of_isInvertible
+  rw [chartPullbackField_push e hU hUs he hes]
+  exact hnat
+
 def InvolutiveOn (Ω : Set E) (D : Distribution E) : Prop :=
   ∀ U : Set E, IsOpen U → U ⊆ Ω →
     ∀ v w : Field E, IsSectionOn U D v → IsSectionOn U D w →
