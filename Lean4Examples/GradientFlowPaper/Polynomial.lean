@@ -302,7 +302,102 @@ lemma gauge_of_biasRatio_on_orbit {p q : Param A}
   obtain ⟨s,rfl⟩ := horbit
   rw [biasRatioGauge_eq_of_gauge A hp rfl]
 
-/-- Exponential coordinates on the connected component of the diagonal
+lemma GenericPoint.diagonalGauge {p : Param A} (hp : GenericPoint A p)
+    (s : Hidden A → ℝˣ) :
+    GenericPoint A (diagonalGauge A s p) := by
+  intro a
+  rw [bias_diagonalGauge_hidden]
+  exact mul_ne_zero (Units.ne_zero _) (hp a)
+
+/-- Real bias ratio used to define a proof-independent local slice map.
+Unlike `biasRatioGauge`, this is defined everywhere; only its behavior near
+a nonzero-bias point is used. -/
+def sliceRatio (p q : Param A) (a : Hidden A) : ℝ :=
+  bias A p (currentLayer A a) a.2 /
+    bias A q (currentLayer A a) a.2
+
+def sliceOutgoingScale (p q : Param A) (j : Layer A)
+    (i : Fin (A.width (j.val + 1))) : ℝ :=
+  if hj : j.val + 1 < A.depth then
+    sliceRatio A p q (outgoingNode A j hj i)
+  else 1
+
+def sliceIncomingScale (p q : Param A) (j : Layer A)
+    (i : Fin (A.width j.val)) : ℝ :=
+  if hj : 0 < j.val then
+    (sliceRatio A p q (incomingNode A j hj i)) ^
+      (-(A.degree (j.val - 1) : ℤ))
+  else 1
+
+/-- Canonical local slice through a regular parameter: rescale every hidden
+unit so that its hidden bias agrees with the corresponding bias of `p`.
+The formula is written over `ℝ` rather than `ℝˣ` so it is an ordinary
+ambient function and continuity can be discussed without proof arguments. -/
+def sliceNormalize (p q : Param A) : Param A :=
+  WithLp.toLp 2 (fun z =>
+    match z.2 with
+    | Sum.inl (i,k) =>
+        sliceOutgoingScale A p q z.1 i * W A q z.1 i k *
+          sliceIncomingScale A p q z.1 k
+    | Sum.inr i =>
+        sliceOutgoingScale A p q z.1 i * bias A q z.1 i)
+
+lemma sliceNormalize_eq_diagonalGauge {p q : Param A}
+    (hp : GenericPoint A p) (hq : GenericPoint A q) :
+    sliceNormalize A p q =
+      diagonalGauge A (biasRatioGauge A q p hq) q := by
+  ext z
+  rcases z with ⟨j,z⟩
+  cases z with
+  | inl ik =>
+      rcases ik with ⟨i,k⟩
+      simp [sliceNormalize, sliceOutgoingScale, sliceIncomingScale,
+        sliceRatio, diagonalGauge, outgoingScale, incomingScale,
+        biasRatioGauge, hp, hq, W]
+  | inr i =>
+      simp [sliceNormalize, sliceOutgoingScale, sliceRatio,
+        diagonalGauge, outgoingScale, biasRatioGauge, hp, hq, bias]
+
+@[simp] lemma sliceNormalize_self {p : Param A} (hp : GenericPoint A p) :
+    sliceNormalize A p p = p := by
+  rw [sliceNormalize_eq_diagonalGauge A hp hp]
+  have hratio :
+      biasRatioGauge A p p hp = fun _ => (1 : ℝˣ) := by
+    exact biasRatioGauge_eq_of_gauge A hp <| by
+      simpa using (diagonalGauge_one A p).symm
+  rw [hratio, diagonalGauge_one]
+
+/-- The slice normalization is constant on each regular scaling orbit. -/
+lemma sliceNormalize_diagonalGauge {p r : Param A}
+    (hp : GenericPoint A p) (hr : GenericPoint A r)
+    (s : Hidden A → ℝˣ) :
+    sliceNormalize A p (diagonalGauge A s r) =
+      sliceNormalize A p r := by
+  have hq : GenericPoint A (diagonalGauge A s r) :=
+    hr.diagonalGauge A s
+  rw [sliceNormalize_eq_diagonalGauge A hp hq,
+    sliceNormalize_eq_diagonalGauge A hp hr,
+    diagonalGauge_mul]
+  congr 2
+  funext a
+  apply Units.ext
+  have hpb : bias A p (currentLayer A a) a.2 ≠ 0 := hp a
+  have hrb : bias A r (currentLayer A a) a.2 ≠ 0 := hr a
+  have hqb :
+      bias A (diagonalGauge A s r) (currentLayer A a) a.2 ≠ 0 := hq a
+  simp [biasRatioGauge, hpb, hrb, hqb, bias_diagonalGauge_hidden]
+  field_simp [hrb, Units.ne_zero (s a)]
+  ring
+
+/-- Continuity of the canonical slice at a regular base point.  All
+denominators occurring in the normalization are hidden biases, hence are
+nonzero at `p`. -/
+lemma continuousAt_sliceNormalize {p : Param A} (hp : GenericPoint A p) :
+    ContinuousAt (sliceNormalize A p) p := by
+  unfold sliceNormalize sliceOutgoingScale sliceIncomingScale sliceRatio
+  fun_prop (disch := aesop)
+
+ /-- Exponential coordinates on the connected component of the diagonal
 scaling group. -/
 def expGauge (p : Param A) (x : Hidden A → ℝ) : Param A :=
   diagonalGauge A
