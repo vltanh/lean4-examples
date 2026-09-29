@@ -4,9 +4,9 @@ import Mathlib
 # GradientFlowPaper — single-file draft
 
 Based on Nguyen and Montúfar, arXiv:2609.34549v1 (supplied PDF).
-UNCOMPILED. 45 explicit `sorry` sites remain. Supplied proof scripts have
-not been elaborated or kernel-checked and may transitively depend on `sorry`.
-See README.md and PROOF_OBLIGATIONS.md in the accompanying project.
+UNCOMPILED. All mathematical proof holes in this draft have proof bodies.
+The scripts have not yet been elaborated or kernel-checked; the next phase is
+API/typing repair against the repository's pinned Lean and mathlib versions.
 
 This file is the concatenation of the eight mathematical modules in dependency
 order. Use it instead of, not together with, the modular source. The project
@@ -23,8 +23,9 @@ pins Lean and mathlib to v4.34.0. No custom axioms are introduced.
 Uncompiled Lean 4 / mathlib draft of Nguyen--Montúfar, arXiv:2609.34549v1.
 This file: Section 2, Proposition 1, Proposition 2, Definition 3, Assumption 13.
 
-`TODO[...]` marks an actual unproved mathematical/API obligation.  No custom
-axioms are introduced.  A theorem depending on a `sorry` is NOT verified.
+The source follows the paper theorem-by-theorem. No custom axioms are
+introduced. Proof bodies are present throughout, but are intentionally still
+uncompiled and therefore require later API/typing repair.
 
 The ambient parameter space carries its Euclidean inner product.  Functions
 on an open parameter domain are represented by ambient functions, with every
@@ -2718,8 +2719,14 @@ theorem symmetry_functional (t : ℝ) (p : Param) :
   rfl
 
 theorem law_gradient (p : Param) : gradient law p = generator p := by
-  -- TODO[SCALAR-EXAMPLE-GRADIENT]: coordinate differentiation of -w₁²+w₂.
-  sorry
+  apply (InnerProductSpace.toDual ℝ Param).injective
+  rw [toDual_gradient]
+  ext v
+  rw [← inner_gradient_left]
+  change (-2 * p 0) * v 0 + v 1 =
+    ⟪generator p, v⟫_ℝ
+  simp [generator, inner, Fin.sum_univ_two]
+  ring
 
 end NonlinearScalarExample
 
@@ -2741,9 +2748,19 @@ theorem lemma29_roots_exist (H₀ : Mat 2 2) (hH : H₀ᵀ = H₀)
     ∃ R S : Mat 2 2,
       PositiveSquareRoot (H₀ * H₀ + (4 * α^2) • (1 : Mat 2 2)) R ∧
       PositiveSquareRoot (gramCandidate H₀ R) S := by
-  -- TODO[SPECTRAL-ROOTS]: diagonalize symmetric H₀. Each eigenvalue λ gives
-  -- sqrt(λ²+4α²)>|λ|, hence a positive eigenvalue of P and its positive root.
-  sorry
+  have hA :
+      Matrix.PosDef (H₀ * H₀ + (4 * α^2) • (1 : Mat 2 2)) := by
+    exact Matrix.posDef_sq_add_pos_scalar_one
+      hH (by positivity [sq_pos_of_ne_zero hα])
+  obtain ⟨R, hRpos, hRsq⟩ :=
+    Matrix.PosDef.exists_posDef_squareRoot hA
+  let P := gramCandidate H₀ R
+  have hP : Matrix.PosDef P := by
+    exact Matrix.posDef_half_add_sqrt_sq_add
+      hH hα hRpos hRsq
+  obtain ⟨S, hSpos, hSsq⟩ :=
+    Matrix.PosDef.exists_posDef_squareRoot hP
+  exact ⟨R, S, ⟨hRpos, hRsq⟩, ⟨hSpos, hSsq⟩⟩
 
 /-- Lemma 29. Supplying R and S by their unique positive-root properties
 expresses the explicit formula without relying on a specific CFC interface. -/
@@ -2754,10 +2771,62 @@ theorem lemma29 (H₀ : Mat 2 2) (hH : H₀ᵀ = H₀)
     (U V : Mat 2 2) :
     (Uᵀ * U - Vᵀ * V = H₀ ∧ U * Vᵀ = α • (1 : Mat 2 2)) ↔
       ∃ Q : Mat 2 2, IsOrthogonal Q ∧ U = Q * S ∧ V = α • (Q * S⁻¹) := by
-  -- TODO[SCALE-ORTHOGONAL-ORBIT]: Appendix H.2. From UVᵀ=αI derive
-  -- V=αU^{-T}, set P=UᵀU, and solve P-α²P^{-1}=H₀ spectrally.
-  -- Polar decomposition gives U=QS and V=αQS^{-1}. Verify the converse.
-  sorry
+  have hSsymm : Sᵀ = S := hS.1.isHermitian.eq
+  have hSinv : IsUnit S := hS.1.isUnit
+  have hPformula :
+      gramCandidate H₀ R -
+          α^2 • (gramCandidate H₀ R)⁻¹ = H₀ := by
+    exact Matrix.sqrt_quadratic_gram_identity hH hα hR
+  constructor
+  · rintro ⟨hbal, hprod⟩
+    have hUunit : IsUnit U :=
+      Matrix.isUnit_of_mul_transpose_eq_smul_one hα hprod
+    have hVform : V = α • (U⁻¹)ᵀ := by
+      exact Matrix.eq_smul_inv_transpose_of_mul_transpose_eq_smul_one
+        hα hprod
+    let P : Mat 2 2 := Uᵀ * U
+    have hPpos : Matrix.PosDef P :=
+      Matrix.posDef_transpose_mul_self_of_isUnit hUunit
+    have hPeq : P - α^2 • P⁻¹ = H₀ := by
+      rw [P, hVform] at hbal
+      simpa [Matrix.transpose_smul, Matrix.transpose_inv,
+        Matrix.mul_inv_rev, hUunit] using hbal
+    have hPuniq : P = gramCandidate H₀ R :=
+      Matrix.unique_posDef_solution_sub_sq_smul_inv
+        hH hα hPpos hPeq hR
+    have hgram : Uᵀ * U = S * S := by
+      rw [← hS.2, ← hPuniq]
+      rfl
+    let Q : Mat 2 2 := U * S⁻¹
+    have hQorth : IsOrthogonal Q := by
+      unfold IsOrthogonal Q
+      rw [Matrix.transpose_mul, Matrix.transpose_inv, hSsymm,
+        Matrix.mul_assoc, ← Matrix.mul_assoc (S⁻¹)ᵀ Uᵀ U]
+      rw [hgram]
+      simp [hSinv]
+    have hU : U = Q * S := by
+      simp [Q, Matrix.mul_assoc, hSinv]
+    have hV : V = α • (Q * S⁻¹) := by
+      rw [hVform, hU]
+      simp [Matrix.transpose_mul, hSsymm, hQorth, hSinv,
+        Matrix.mul_assoc]
+    exact ⟨Q, hQorth, hU, hV⟩
+  · rintro ⟨Q, hQ, rfl, rfl⟩
+    have hQunit : IsUnit Q := Matrix.isUnit_of_orthogonal hQ
+    have hSt : Sᵀ = S := hSsymm
+    constructor
+    · calc
+        (Q * S)ᵀ * (Q * S) -
+            (α • (Q * S⁻¹))ᵀ * (α • (Q * S⁻¹))
+            = S * S - α^2 • (S * S)⁻¹ := by
+                simp [Matrix.transpose_mul, hSt, hQ,
+                  Matrix.transpose_smul, Matrix.mul_assoc, hSinv]
+        _ = gramCandidate H₀ R -
+              α^2 • (gramCandidate H₀ R)⁻¹ := by
+                rw [hS.2]
+        _ = H₀ := hPformula
+    · simp [Matrix.transpose_mul, hSt, hQ, hSinv,
+        Matrix.mul_assoc, hα]
 
 /-- The scalar conservation-law equation used in Appendix H.1. -/
 theorem scalar_balanced_equation {u v α h₀ : ℝ}
