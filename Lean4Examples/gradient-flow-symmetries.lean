@@ -2450,6 +2450,135 @@ lemma mfderiv_orderedProductMap_zero
     mfderiv_orderedOneParameterProduct_zero φ hφ]
   simp [generatorSynthesis, List.sum_ofFn]
 
+
+lemma generatorSynthesis_ker_eq_bot
+    {s : ℕ} (φ : Fin s → ℝ → Γ)
+    (hind : LinearIndependent ℝ
+      (fun i => InfinitesimalGenerator (A := A) (Γ := Γ) (φ i))) :
+    LinearMap.ker (generatorSynthesis (A := A) (Γ := Γ) φ) = ⊥ := by
+  apply LinearMap.ker_eq_bot.mpr
+  intro x y hxy
+  have hzero :
+      ∑ i, (x i - y i) •
+        InfinitesimalGenerator (A := A) (Γ := Γ) (φ i) = 0 := by
+    have := sub_eq_zero.mpr hxy
+    simpa [generatorSynthesis, Finset.sum_sub_distrib, sub_smul] using this
+  have hc := Fintype.linearIndependent_iff.mp hind
+    (fun i => x i - y i) hzero
+  ext i
+  have := hc i
+  linarith
+
+lemma generatorSynthesis_range_eq_top
+    {s : ℕ} (φ : Fin s → ℝ → Γ)
+    (hspan : Submodule.span ℝ
+      (Set.range (fun i =>
+        InfinitesimalGenerator (A := A) (Γ := Γ) (φ i))) = ⊤) :
+    LinearMap.range (generatorSynthesis (A := A) (Γ := Γ) φ) = ⊤ := by
+  rw [← hspan]
+  apply le_antisymm
+  · rintro _ ⟨x,rfl⟩
+    exact (Submodule.span ℝ
+      (Set.range (fun i =>
+        InfinitesimalGenerator (A := A) (Γ := Γ) (φ i)))).sum_mem
+      (fun i _ =>
+        (Submodule.span ℝ
+          (Set.range (fun i =>
+            InfinitesimalGenerator (A := A) (Γ := Γ) (φ i)))).smul_mem _
+          (Submodule.subset_span ⟨i,rfl⟩))
+  · apply Submodule.span_le.mpr
+    rintro _ ⟨i,rfl⟩
+    refine ⟨Pi.single i 1, ?_⟩
+    simp [generatorSynthesis]
+
+def generatorSynthesisEquiv
+    {s : ℕ} (φ : Fin s → ℝ → Γ)
+    (hind : LinearIndependent ℝ
+      (fun i => InfinitesimalGenerator (A := A) (Γ := Γ) (φ i)))
+    (hspan : Submodule.span ℝ
+      (Set.range (fun i =>
+        InfinitesimalGenerator (A := A) (Γ := Γ) (φ i))) = ⊤) :
+    (Fin s → ℝ) ≃L[ℝ] TangentSpace (𝓘(ℝ, A)) (1 : Γ) :=
+  ContinuousLinearEquiv.ofBijective
+    (generatorSynthesis (A := A) (Γ := Γ) φ).toContinuousLinearMap
+    (generatorSynthesis_ker_eq_bot φ hind)
+    (generatorSynthesis_range_eq_top φ hspan)
+
+lemma orderedProductMap_mem_generated
+    {s : ℕ} (φ : Fin s → ℝ → Γ)
+    (x : Fin s → ℝ) :
+    orderedProductMap φ x ∈
+      Subgroup.closure
+        (Set.range (fun z : Fin s × ℝ => φ z.1 z.2)) := by
+  unfold orderedProductMap
+  generalize hlist : List.ofFn id = is
+  induction is with
+  | nil => simp [orderedOneParameterProduct]
+  | cons i is ih =>
+      simp only [orderedOneParameterProduct]
+      exact (Subgroup.closure _).mul_mem ih
+        (Subgroup.subset_closure ⟨(i,x i),rfl⟩)
+
+lemma oneParameter_inv
+    {s : ℕ} (φ : Fin s → ℝ → Γ)
+    (hφ : ∀ i, IsOneParameterSubgroup (A := A) (Γ := Γ) (φ i))
+    (i : Fin s) (t : ℝ) :
+    (φ i t)⁻¹ = φ i (-t) := by
+  have hmul := (hφ i).2.1 t (-t)
+  rw [add_neg_cancel, (hφ i).1] at hmul
+  exact inv_eq_of_mul_right_eq_one hmul
+
+lemma generated_mem_products
+    {s : ℕ} (φ : Fin s → ℝ → Γ)
+    (hφ : ∀ i, IsOneParameterSubgroup (A := A) (Γ := Γ) (φ i)) :
+    ∀ g ∈ Subgroup.closure
+      (Set.range (fun z : Fin s × ℝ => φ z.1 z.2)),
+      ∃ xs : List (Fin s × ℝ), oneParameterProduct φ xs = g := by
+  intro g hg
+  induction hg using Subgroup.closure_induction with
+  | mem g hg =>
+      obtain ⟨⟨i,t⟩,rfl⟩ := hg
+      exact ⟨[(i,t)], by simp [oneParameterProduct]⟩
+  | one =>
+      exact ⟨[],rfl⟩
+  | mul g h hg hh ihg ihh =>
+      obtain ⟨xs,hxs⟩ := ihg
+      obtain ⟨ys,hys⟩ := ihh
+      refine ⟨ys ++ xs, ?_⟩
+      rw [oneParameterProduct_append, hxs, hys]
+  | inv g hg ih =>
+      obtain ⟨xs,hxs⟩ := ih
+      let ys := (xs.map fun z => (z.1, -z.2)).reverse
+      refine ⟨ys, ?_⟩
+      rw [← hxs]
+      induction xs with
+      | nil => simp [ys, oneParameterProduct]
+      | cons z zs ih =>
+          simp [ys, oneParameterProduct, ih, oneParameter_inv φ hφ]
+
+lemma generated_eq_top_of_identity_neighborhood
+    {s : ℕ} (φ : Fin s → ℝ → Γ)
+    (hφ : ∀ i, IsOneParameterSubgroup (A := A) (Γ := Γ) (φ i))
+    (hnhds : ∃ U : Set Γ, IsOpen U ∧ (1 : Γ) ∈ U ∧
+      U ⊆ Subgroup.closure
+        (Set.range (fun z : Fin s × ℝ => φ z.1 z.2))) :
+    Subgroup.closure
+      (Set.range (fun z : Fin s × ℝ => φ z.1 z.2)) = ⊤ := by
+  let H := Subgroup.closure
+    (Set.range (fun z : Fin s × ℝ => φ z.1 z.2))
+  obtain ⟨U,hU,h1U,hUH⟩ := hnhds
+  have hHnhds : (H : Set Γ) ∈ 𝓝 (1 : Γ) :=
+    Filter.mem_of_superset (hU.mem_nhds h1U) hUH
+  have hHopen : IsOpen (H : Set Γ) :=
+    Subgroup.isOpen_of_mem_nhds H hHnhds
+  have hHclosed : IsClosed (H : Set Γ) :=
+    H.isClosed_of_isOpen hHopen
+  have hclopen : IsClopen (H : Set Γ) := ⟨hHclosed,hHopen⟩
+  have hHuniv : (H : Set Γ) = Set.univ := by
+    exact hclopen.eq_univ (one_mem H)
+  ext g
+  simp [H, hHuniv]
+
 /-- Fulton--Harris generation theorem quoted as Theorem 22. This is an
 external background result in Stage 1. -/
 class HasConnectedLieGroupGeneration
