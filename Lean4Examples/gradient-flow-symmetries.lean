@@ -1336,6 +1336,255 @@ lemma SymmetricFlowPatch.eq_on_overlap
        lt_of_lt_of_le ht.2 (min_le_right _ _)⟩
   · simp [P.initial, Q.initial]
 
+
+theorem exists_glued_smooth_localFlow
+    (hΩ : IsOpen Ω) {v : Field E} (hv : ContDiffOn ℝ ∞ v Ω) :
+    ∃ ψ : LocalFlow Ω v, True := by
+  classical
+  let C := {x : E // x ∈ Ω}
+  have hpatch : ∀ a : C, ∃ P : SymmetricFlowPatch Ω v, P.center = a.1 :=
+    fun a => exists_symmetricFlowPatch hΩ hv a.2
+  choose P hPcenter using hpatch
+  have haU : ∀ a : C, a.1 ∈ (P a).U := by
+    intro a
+    simpa [hPcenter a] using (P a).center_mem
+
+  let D : Set (ℝ × E) :=
+    {z | ∃ a : C,
+      z.2 ∈ (P a).U ∧ z.1 ∈ Set.Ioo (-(P a).ε) (P a).ε}
+  let Value : ℝ × E → E → Prop := fun z y =>
+    ∃ a : C, z.2 ∈ (P a).U ∧
+      z.1 ∈ Set.Ioo (-(P a).ε) (P a).ε ∧
+      y = (P a).toFun z.2 z.1
+
+  have hvalue_unique : ∀ z ∈ D, ∃! y, Value z y := by
+    intro z hz
+    obtain ⟨a, hxa, hta⟩ := hz
+    refine ⟨(P a).toFun z.2 z.1, ⟨a,hxa,hta,rfl⟩, ?_⟩
+    intro y hy
+    obtain ⟨b,hxb,htb,rfl⟩ := hy
+    have hover :=
+      SymmetricFlowPatch.eq_on_overlap hΩ hv (P a) (P b) hxa hxb
+    have ht :
+        z.1 ∈ Set.Ioo
+          (max (-(P a).ε) (-(P b).ε))
+          (min (P a).ε (P b).ε) := by
+      exact ⟨max_lt hta.1 htb.1, lt_min hta.2 htb.2⟩
+    exact (hover ht).symm
+
+  noncomputable let F : ℝ × E → E := fun z =>
+    if hz : z ∈ D then Classical.choose (hvalue_unique z hz) else z.2
+
+  have hF_patch :
+      ∀ {a : C} {t : ℝ} {x : E},
+        x ∈ (P a).U →
+        t ∈ Set.Ioo (-(P a).ε) (P a).ε →
+        F (t,x) = (P a).toFun x t := by
+    intro a t x hx ht
+    have hz : (t,x) ∈ D := ⟨a,hx,ht⟩
+    have hs := Classical.choose_spec (hvalue_unique (t,x) hz)
+    rw [show F (t,x) = Classical.choose (hvalue_unique (t,x) hz) by
+      simp [F, hz]]
+    exact (hvalue_unique (t,x) hz).unique hs ⟨a,hx,ht,rfl⟩
+
+  have hDopen : IsOpen D := by
+    rw [isOpen_iff_forall_mem_open]
+    intro z hz
+    obtain ⟨a,hx,ht⟩ := hz
+    let W : Set (ℝ × E) :=
+      Set.Ioo (-(P a).ε) (P a).ε ×ˢ (P a).U
+    refine ⟨W, ?_, ?_, ?_⟩
+    · intro y hy
+      exact ⟨a,hy.2,hy.1⟩
+    · exact isOpen_Ioo.prod (P a).open_U
+    · exact ⟨ht,hx⟩
+
+  have htimeconv : ∀ x ∈ Ω, Convex ℝ {t | (t,x) ∈ D} := by
+    intro x hx
+    rw [convex_iff_segment_subset]
+    intro t ht u hu w hw
+    obtain ⟨a,hxa,hta⟩ := ht
+    obtain ⟨b,hxb,hub⟩ := hu
+    rcases le_total (P a).ε (P b).ε with hab | hba
+    · refine ⟨b,hxb, ?_⟩
+      apply (convex_Ioo (-(P b).ε) (P b).ε).segment_subset
+      · exact ⟨lt_of_lt_of_le hta.1 (neg_le_neg hab),
+          lt_of_lt_of_le hta.2 hab⟩
+      · exact hub
+      · exact hw
+    · refine ⟨a,hxa, ?_⟩
+      apply (convex_Ioo (-(P a).ε) (P a).ε).segment_subset
+      · exact hta
+      · exact ⟨lt_of_lt_of_le hub.1 (neg_le_neg hba),
+          lt_of_lt_of_le hub.2 hba⟩
+      · exact hw
+
+  have hsource : ∀ {t x}, (t,x) ∈ D → x ∈ Ω := by
+    intro t x htx
+    obtain ⟨a,hxa,-⟩ := htx
+    exact (P a).source_subset hxa
+
+  have hzero : ∀ x ∈ Ω, (0,x) ∈ D := by
+    intro x hx
+    let a : C := ⟨x,hx⟩
+    refine ⟨a, haU a, ?_⟩
+    exact ⟨by linarith [(P a).ε_pos], (P a).ε_pos⟩
+
+  have htarget : ∀ {t x}, (t,x) ∈ D → F (t,x) ∈ Ω := by
+    intro t x htx
+    obtain ⟨a,hxa,hta⟩ := htx
+    rw [hF_patch hxa hta]
+    exact (P a).target_mem x hxa t hta
+
+  have hFzero : ∀ x ∈ Ω, F (0,x) = x := by
+    intro x hx
+    let a : C := ⟨x,hx⟩
+    rw [hF_patch (haU a)
+      (show (0:ℝ) ∈ Set.Ioo (-(P a).ε) (P a).ε by
+        exact ⟨by linarith [(P a).ε_pos], (P a).ε_pos⟩)]
+    exact (P a).initial x
+
+  have hFsmooth :
+      ContDiffOn ℝ ∞ (fun z : ℝ × E => F z) D := by
+    intro z hz
+    obtain ⟨a,hxa,hta⟩ := hz
+    let W : Set (ℝ × E) :=
+      Set.Ioo (-(P a).ε) (P a).ε ×ˢ (P a).U
+    have hWopen : IsOpen W := isOpen_Ioo.prod (P a).open_U
+    have hzW : z ∈ W := ⟨hta,hxa⟩
+    have hWD : W ⊆ D := by
+      intro y hy
+      exact ⟨a,hy.2,hy.1⟩
+    have hpatchsmooth :
+        ContDiffOn ℝ ∞
+          (fun y : ℝ × E => (P a).toFun y.2 y.1) W := by
+      exact (P a).smooth.comp
+        (by fun_prop)
+        (fun y hy => ⟨hy.2,hy.1⟩)
+    have heq :
+        (fun y : ℝ × E => F y) =ᶠ[𝓝 z]
+          (fun y : ℝ × E => (P a).toFun y.2 y.1) := by
+      filter_upwards [hWopen.mem_nhds hzW] with y hy
+      exact hF_patch hy.2 hy.1
+    exact ((hpatchsmooth z hzW).contDiffAt (hWopen.mem_nhds hzW))
+      |>.congr_of_eventuallyEq heq
+      |>.contDiffWithinAt
+
+  have hFode : ∀ {t x}, (t,x) ∈ D →
+      HasDerivAt (fun s => F (s,x)) (v (F (t,x))) t := by
+    intro t x htx
+    obtain ⟨a,hxa,hta⟩ := htx
+    have hpatchode := (P a).ode x hxa t hta
+    have heq :
+        (fun s => F (s,x)) =ᶠ[𝓝 t] (P a).toFun x := by
+      have hInhds :
+          Set.Ioo (-(P a).ε) (P a).ε ∈ 𝓝 t :=
+        isOpen_Ioo.mem_nhds hta
+      filter_upwards [hInhds] with s hs
+      exact hF_patch hxa hs
+    have hval : F (t,x) = (P a).toFun x t :=
+      hF_patch hxa hta
+    simpa [hval] using hpatchode.congr_of_eventuallyEq heq
+
+  have hFcomp :
+      ∀ {t s x}, (s,x) ∈ D →
+        (t,F (s,x)) ∈ D → (t+s,x) ∈ D →
+        F (t+s,x) = F (t,F (s,x)) := by
+    intro t s x hsx htx htsx
+    obtain ⟨a,hxa,hsa⟩ := hsx
+    obtain ⟨b,hxb,htsb⟩ := htsx
+    rcases le_total (P a).ε (P b).ε with hab | hba
+    · let R := P b
+      have hxR : x ∈ R.U := hxb
+      have hsR : s ∈ Set.Ioo (-R.ε) R.ε :=
+        ⟨lt_of_lt_of_le hsa.1 (neg_le_neg hab),
+         lt_of_lt_of_le hsa.2 hab⟩
+      have htsR : t+s ∈ Set.Ioo (-R.ε) R.ε := htsb
+      obtain ⟨qpatch,hqU,htq⟩ := htx
+      have hqeq : F (s,x) = R.toFun x s := hF_patch hxR hsR
+      let I : Set ℝ :=
+        {u | s + u ∈ Set.Ioo (-R.ε) R.ε} ∩
+          Set.Ioo (-(P qpatch).ε) (P qpatch).ε
+      have hIopen : IsOpen I := by
+        exact (isOpen_Ioo.preimage (continuous_const.add continuous_id)).inter isOpen_Ioo
+      have hIconv : Convex ℝ I := by
+        exact ((convex_Ioo (-R.ε) R.ε).preimage
+          (1 : ℝ →ₗ[ℝ] ℝ) s).inter
+          (convex_Ioo (-(P qpatch).ε) (P qpatch).ε)
+      have h0I : (0:ℝ) ∈ I := by
+        exact ⟨by simpa using hsR,
+          ⟨by linarith [(P qpatch).ε_pos], (P qpatch).ε_pos⟩⟩
+      have htI : t ∈ I := by
+        exact ⟨by simpa [add_comm] using htsR, htq⟩
+      have huniq := smooth_ode_solution_unique_on_open_convex
+        (Ω := Ω) hIopen hIconv hΩ hv h0I
+        (γ := fun u => R.toFun x (s+u))
+        (η := fun u => (P qpatch).toFun (F (s,x)) u)
+        (fun u hu => R.target_mem x hxR (s+u) hu.1)
+        (fun u hu => (P qpatch).target_mem _ hqU u hu.2)
+        (fun u hu => by
+          simpa using (R.ode x hxR (s+u) hu.1).scomp u
+            ((hasDerivAt_id u).const_add s))
+        (fun u hu => (P qpatch).ode _ hqU u hu.2)
+        (by
+          rw [add_zero, ← hqeq, (P qpatch).initial])
+      have heqt := huniq t htI
+      rw [hF_patch hxR htsR]
+      rw [hF_patch hqU htq]
+      exact heqt
+    · let R := P a
+      have hxR : x ∈ R.U := hxa
+      have hsR : s ∈ Set.Ioo (-R.ε) R.ε := hsa
+      have htsR : t+s ∈ Set.Ioo (-R.ε) R.ε :=
+        ⟨lt_of_lt_of_le htsb.1 (neg_le_neg hba),
+         lt_of_lt_of_le htsb.2 hba⟩
+      obtain ⟨qpatch,hqU,htq⟩ := htx
+      have hqeq : F (s,x) = R.toFun x s := hF_patch hxR hsR
+      let I : Set ℝ :=
+        {u | s + u ∈ Set.Ioo (-R.ε) R.ε} ∩
+          Set.Ioo (-(P qpatch).ε) (P qpatch).ε
+      have hIopen : IsOpen I := by
+        exact (isOpen_Ioo.preimage (continuous_const.add continuous_id)).inter isOpen_Ioo
+      have hIconv : Convex ℝ I := by
+        exact ((convex_Ioo (-R.ε) R.ε).preimage
+          (1 : ℝ →ₗ[ℝ] ℝ) s).inter
+          (convex_Ioo (-(P qpatch).ε) (P qpatch).ε)
+      have h0I : (0:ℝ) ∈ I := by
+        exact ⟨by simpa using hsR,
+          ⟨by linarith [(P qpatch).ε_pos], (P qpatch).ε_pos⟩⟩
+      have htI : t ∈ I := by
+        exact ⟨by simpa [add_comm] using htsR, htq⟩
+      have huniq := smooth_ode_solution_unique_on_open_convex
+        (Ω := Ω) hIopen hIconv hΩ hv h0I
+        (γ := fun u => R.toFun x (s+u))
+        (η := fun u => (P qpatch).toFun (F (s,x)) u)
+        (fun u hu => R.target_mem x hxR (s+u) hu.1)
+        (fun u hu => (P qpatch).target_mem _ hqU u hu.2)
+        (fun u hu => by
+          simpa using (R.ode x hxR (s+u) hu.1).scomp u
+            ((hasDerivAt_id u).const_add s))
+        (fun u hu => (P qpatch).ode _ hqU u hu.2)
+        (by
+          rw [add_zero, ← hqeq, (P qpatch).initial])
+      have heqt := huniq t htI
+      rw [hF_patch hxR htsR]
+      rw [hF_patch hqU htq]
+      exact heqt
+
+  let ψ : LocalFlow Ω v :=
+    { domain := D
+      open_domain := hDopen
+      source_mem := hsource
+      zero_mem := hzero
+      time_convex := htimeconv
+      toFun := fun t x => F (t,x)
+      smooth := hFsmooth
+      initial := hFzero
+      target_mem := htarget
+      ode := hFode
+      composition := hFcomp }
+  exact ⟨ψ, trivial⟩
+
 /-- Standard autonomous-ODE background used by Proposition 9.  This is an
 explicit Stage-1 dependency, not an assumed theorem constant. -/
 class HasMaximalSmoothLocalFlows : Prop where
