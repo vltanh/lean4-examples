@@ -2363,8 +2363,8 @@ lemma mfderiv_orderedOneParameterProduct_zero
     ∀ is : List (Fin s), ∀ u : Fin s → ℝ,
       mfderiv (𝓘(ℝ, Fin s → ℝ)) (𝓘(ℝ, A))
         (orderedOneParameterProduct φ is) 0 u =
-        ∑ i in is.toFinset, u i •
-          InfinitesimalGenerator (A := A) (Γ := Γ) (φ i) := by
+        (is.map (fun i => u i •
+          InfinitesimalGenerator (A := A) (Γ := Γ) (φ i))).sum := by
   intro is
   induction is with
   | nil =>
@@ -2437,11 +2437,7 @@ lemma mfderiv_orderedOneParameterProduct_zero
       rw [show orderedOneParameterProduct φ (i::is) =
         fun x => f₁ x * f₂ x by rfl]
       rw [hprod, hpair, hmuladd, ih u, hφcoord]
-      by_cases hii : i ∈ is.toFinset
-      · simp [List.toFinset_cons, hii]
-        rw [Finset.sum_eq_add_sum_diff_singleton hii]
-        module
-      · simp [List.toFinset_cons, hii]
+      simp
 
 lemma mfderiv_orderedProductMap_zero
     {s : ℕ} (φ : Fin s → ℝ → Γ)
@@ -2452,7 +2448,7 @@ lemma mfderiv_orderedProductMap_zero
       generatorSynthesis (A := A) (Γ := Γ) φ u := by
   rw [orderedProductMap,
     mfderiv_orderedOneParameterProduct_zero φ hφ]
-  simp [generatorSynthesis]
+  simp [generatorSynthesis, List.sum_ofFn]
 
 /-- Fulton--Harris generation theorem quoted as Theorem 22. This is an
 external background result in Stage 1. -/
