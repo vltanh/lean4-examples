@@ -142,10 +142,10 @@ For each external field:
 
 ## 2D. Appendix H spectral closure
 
-- [ ] Eliminate the remaining spectral helper interfaces using Mathlib spectral/CFC machinery.
-- [ ] Prove the quadratic matrix identity by functional calculus/eigenvalue reduction.
-- [ ] Prove uniqueness of the positive-definite solution.
-- [ ] Recheck that Lemma 29 uses `LᵀL - RᵀR`.
+- [x] Eliminate the remaining spectral helper interfaces using Mathlib spectral/CFC machinery.
+- [x] Prove the quadratic matrix identity using the positive square root, commutation, and Mathlib CFC.
+- [x] Prove uniqueness of the positive-definite solution by constructing a second positive square root and invoking uniqueness of `CFC.sqrt`.
+- [x] Recheck that Lemma 29 uses `UᵀU - VᵀV` in the source notation (the corrected orientation).
 
 # Stage 3 — Compilation and Palomar-style audit
 
@@ -192,3 +192,15 @@ For each external field:
 - [x] Appendix numbered results Theorem 21, Theorem 22, Propositions 23–25, and Lemma 26 are present.
 - [x] Source scan: zero `sorry`, zero `admit`, zero custom `axiom`.
 - [ ] Final Stage-1 gate: elaborate/compile the paper layer against the pinned toolchain with the external dependency interfaces left abstract.
+
+
+## Stage-2 progress
+
+- [x] Appendix H spectral dependency discharged from Mathlib/CFC.
+  - [x] arbitrary positive square roots identified with `CFC.sqrt`;
+  - [x] square root commutes with the symmetric base matrix;
+  - [x] Gram candidate proved positive definite;
+  - [x] quadratic Gram identity proved;
+  - [x] positive-definite solution uniqueness proved;
+  - [x] `lemma29` and `lemma29_roots_exist` no longer quantify over the spectral dependency class.
+- [ ] Next: discharge a standard geometry/ODE dependency from Mathlib.
