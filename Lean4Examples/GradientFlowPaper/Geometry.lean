@@ -2665,6 +2665,61 @@ def LocallyCompletelyIntegrableOn
       LinearIndependent ℝ (fun i => gradient (h i) q) ∧
       Submodule.span ℝ (Set.range (fun i => gradient (h i) q)) = (D q)ᗮ)
 
+/-- Pointwise Gram--Schmidt for a family of smooth vector fields. -/
+def pointwiseGramSchmidt {n : ℕ} (f : Fin n → Field E) (i : Fin n) : Field E :=
+  fun q => InnerProductSpace.gramSchmidt ℝ (fun j => f j q) i
+
+/-- Gram--Schmidt depends smoothly on the base point as long as the input
+family remains linearly independent. The proof uses the triangular recursive
+formula and replaces the squared norm denominator by the smooth inner product. -/
+lemma pointwiseGramSchmidt_smooth {n : ℕ} {U : Set E}
+    (f : Fin n → Field E)
+    (hf : ∀ i, ContDiffOn ℝ ∞ (f i) U)
+    (hind : ∀ q ∈ U, LinearIndependent ℝ (fun i => f i q)) :
+    ∀ i, ContDiffOn ℝ ∞ (pointwiseGramSchmidt f i) U := by
+  intro i
+  apply wellFounded_lt.induction i
+  intro i ih
+  have hformula :
+      pointwiseGramSchmidt f i =
+        fun q => f i q -
+          ∑ j in Finset.Iio i,
+            (⟪pointwiseGramSchmidt f j q, f i q⟫_ℝ /
+                ⟪pointwiseGramSchmidt f j q,
+                  pointwiseGramSchmidt f j q⟫_ℝ) •
+              pointwiseGramSchmidt f j q := by
+    funext q
+    have hgs :=
+      InnerProductSpace.gramSchmidt_def'' ℝ (fun j : Fin n => f j q) i
+    simp only [pointwiseGramSchmidt] at *
+    simp only [← real_inner_self_eq_norm_sq] at hgs
+    exact (eq_sub_iff_add_eq).2 hgs.symm
+  rw [hformula]
+  apply (hf i).sub
+  apply ContDiffOn.sum
+  intro j hj
+  have hji : j < i := Finset.mem_Iio.mp hj
+  have hgj : ContDiffOn ℝ ∞ (pointwiseGramSchmidt f j) U :=
+    ih j hji
+  have hnum :
+      ContDiffOn ℝ ∞
+        (fun q => ⟪pointwiseGramSchmidt f j q, f i q⟫_ℝ) U :=
+    hgj.inner ℝ (hf i)
+  have hden :
+      ContDiffOn ℝ ∞
+        (fun q => ⟪pointwiseGramSchmidt f j q,
+          pointwiseGramSchmidt f j q⟫_ℝ) U :=
+    hgj.inner ℝ hgj
+  have hden_ne :
+      ∀ q ∈ U,
+        ⟪pointwiseGramSchmidt f j q,
+          pointwiseGramSchmidt f j q⟫_ℝ ≠ 0 := by
+    intro q hq
+    rw [real_inner_self_eq_norm_sq]
+    exact pow_ne_zero 2 (norm_ne_zero_iff.mpr <|
+      InnerProductSpace.gramSchmidt_ne_zero j (hind q hq))
+  exact (hnum.div hden hden_ne).smul hgj
+
 /-- Differential-geometric background still needed by Theorem 12.
 The easy direction of Frobenius is proved below; this interface now contains
 only the local-existence ingredients that require a genuine Frobenius/constant-
