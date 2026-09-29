@@ -782,20 +782,21 @@ theorem laws_conserved {U : Set (Param A)} {Y : Type*}
   rw [gradient_law A a p]
   simpa [real_inner_smul_left] using congrArg (fun z : ℝ => (2 : ℝ) * z) horth
 
-/-- The completeness step uses the local fibre description, not merely the
-observation that the displayed quantities are conserved. -/
-theorem conserved_gradient_spanned
+/-- Pointwise completeness at a regular parameter whose functional fibre is
+finite modulo scaling.  The local orbit chart itself is derived internally
+from `FiniteToOneAt`. -/
+theorem conserved_gradient_spanned_at_finite
     {U : Set (Param A)} (hU : IsOpen U)
     (hregular : ∀ p ∈ U, GenericPoint A p)
-    (hfinite : FiniteToOneOn A U)
     {Y : Type*} (ell : Output A → Y → ℝ) (hsep : SeparatesPredictions ell)
     (hL : RegularLossOn U (sampleLoss (model A) ell))
     {V : Set (Param A)} (hV : IsOpen V) (hVU : V ⊆ U)
     {h : Param A → ℝ} (hh : ContDiffOn ℝ ∞ h V)
-    (hc : IsConservedOn V (sampleLoss (model A) ell) h) :
-    ∀ p ∈ V, gradient h p ∈
-      Submodule.span ℝ (Set.range (fun a : Hidden A => gradient (law A a) p)) := by
-  intro p hp
+    (hc : IsConservedOn V (sampleLoss (model A) ell) h)
+    {p : Param A} (hp : p ∈ V) (hfinite : FiniteToOneAt A p) :
+    gradient h p ∈
+      Submodule.span ℝ
+        (Set.range (fun a : Hidden A => gradient (law A a) p)) := by
   have hregV := hL.mono hV hVU
   obtain ⟨ψ, -, hψloss⟩ := proposition9 hregV
     (smooth_gradient_on hV hh)
@@ -808,7 +809,7 @@ theorem conserved_gradient_spanned
   have hγ0 : γ 0 = p := ψ.initial p hp
   obtain ⟨W, hW, hpW, -, hfiber⟩ :=
     finiteToOneAt_local_scaling_orbit A
-      (hfinite p (hVU hp)) (hregular p (hVU hp))
+      hfinite (hregular p (hVU hp))
   have hγW : ∀ᶠ t in 𝓝 0, γ t ∈ W := by
     have hW0 : W ∈ 𝓝 (γ 0) := by
       simpa [hγ0] using hW.mem_nhds hpW
@@ -844,6 +845,7 @@ theorem conserved_gradient_spanned
       (Set.range (fun a : Hidden A => (2 : ℝ) • generator A a p))).smul_mem _
         (Submodule.subset_span ⟨a, rfl⟩)
   exact hle hspan
+
 
 /-- Proposition 19 at a point of a generic finite-identifiability
 neighborhood, intersected with the explicit dense-open regular locus used by
