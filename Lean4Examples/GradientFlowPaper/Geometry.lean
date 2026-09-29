@@ -2958,6 +2958,54 @@ lemma pointwiseGramSchmidt_lieWord {n : ℕ} {U : Set E} {D : Distribution E}
   exact LieWordOn.smul
     (hnum.div hden hden_ne) hgj
 
+/-- Expansion in a finite orthogonal nonzero family. This is the
+unnormalized orthogonal-basis formula used to obtain smooth coefficients for
+local sections of the Lie completion. -/
+lemma eq_sum_inner_div_self_smul_of_mem_span_orthogonal
+    {n : ℕ} (g : Fin n → E)
+    (horth : ∀ {i j : Fin n}, i ≠ j → ⟪g i, g j⟫_ℝ = 0)
+    (hne : ∀ i, g i ≠ 0) {z : E}
+    (hz : z ∈ Submodule.span ℝ (Set.range g)) :
+    z = ∑ i : Fin n, (⟪g i, z⟫_ℝ / ⟪g i, g i⟫_ℝ) • g i := by
+  let w : E := ∑ i : Fin n, (⟪g i, z⟫_ℝ / ⟪g i, g i⟫_ℝ) • g i
+  have hw : w ∈ Submodule.span ℝ (Set.range g) := by
+    apply Submodule.sum_mem
+    intro i hi
+    exact Submodule.smul_mem _ _
+      (Submodule.subset_span ⟨i, rfl⟩)
+  have hzw : z - w ∈ Submodule.span ℝ (Set.range g) :=
+    Submodule.sub_mem _ hz hw
+  have hzworth : z - w ∈ (Submodule.span ℝ (Set.range g))ᗮ := by
+    rw [Submodule.mem_orthogonal']
+    intro y hy
+    induction hy using Submodule.span_induction with
+    | mem y hy =>
+        obtain ⟨j, rfl⟩ := hy
+        have hden : ⟪g j, g j⟫_ℝ ≠ 0 := by
+          rw [real_inner_self_eq_norm_sq]
+          exact pow_ne_zero 2 (norm_ne_zero_iff.mpr (hne j))
+        simp only [w, inner_sub_left, inner_sum_left, real_inner_smul_left]
+        rw [Finset.sum_eq_single j]
+        · rw [real_inner_comm z (g j), div_mul_cancel₀ _ hden, sub_self]
+        · intro i hi hij
+          rw [horth hij]
+          simp
+        · simp
+    | zero => simp
+    | add x y hx hy ihx ihy =>
+        simp [inner_add_right, ihx, ihy]
+    | smul a x hx ih =>
+        simp [inner_smul_right, ih]
+  have hzero : z - w = 0 := by
+    have hmem :
+        z - w ∈
+          Submodule.span ℝ (Set.range g) ⊓
+            (Submodule.span ℝ (Set.range g))ᗮ :=
+      ⟨hzw, hzworth⟩
+    rw [Submodule.inf_orthogonal_eq_bot] at hmem
+    exact hmem
+  exact sub_eq_zero.mp hzero
+
 /-- Differential-geometric background still needed by Theorem 12.
 The easy direction of Frobenius is proved below; this interface now contains
 only the local-existence ingredients that require a genuine Frobenius/constant-
