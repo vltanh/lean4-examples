@@ -1114,6 +1114,131 @@ def CompleteLawsOn {ι : Type*} (Ω : Set E) (L : S → E → ℝ)
       ∀ p ∈ V, gradient f p ∈
         Submodule.span ℝ (Set.range (fun i => gradient (h i) p)))
 
+lemma CompleteLawsOn.mono {ι : Type*} {L : S → E → ℝ} {h : ι → E → ℝ}
+    {U : Set E} (hc : CompleteLawsOn Ω L h)
+    (hU : IsOpen U) (hUΩ : U ⊆ Ω) :
+    CompleteLawsOn U L h := by
+  refine ⟨fun i => (hc.1 i).mono hUΩ, ?_, ?_, ?_⟩
+  · intro i n d hn I hI hconv γ hγ t ht u hu
+    exact hc.2.1 i n d hn I hI hconv γ
+      ⟨fun s hs => hUΩ (hγ.1 hs), hγ.2⟩ t ht u hu
+  · intro p hp
+    exact hc.2.2.1 p (hUΩ hp)
+  · intro V hV hVU f hf hfc p hp
+    exact hc.2.2.2 V hV (hVU.trans hUΩ) f hf hfc p hp
+
+section IsometryTransport
+
+variable {F : Type*} [NormedAddCommGroup F] [InnerProductSpace ℝ F]
+  [FiniteDimensional ℝ F] [CompleteSpace F]
+
+lemma gradient_comp_linearIsometryEquiv
+    (e : E ≃ₗᵢ[ℝ] F) {f : E → ℝ} {q : F}
+    (hf : DifferentiableAt ℝ f (e.symm q)) :
+    gradient (fun z : F => f (e.symm z)) q = e (gradient f (e.symm q)) := by
+  apply (InnerProductSpace.toDual ℝ F).injective
+  ext v
+  rw [toDual_gradient, ← inner_gradient_left]
+  have hcomp := hf.hasFDerivAt.comp q e.symm.toContinuousLinearEquiv.hasFDerivAt
+  rw [hcomp.fderiv]
+  simp only [ContinuousLinearMap.comp_apply]
+  rw [← inner_gradient_left]
+  exact e.inner_map_map (gradient f (e.symm q)) (e.symm v) |>.trans <| by simp
+
+lemma RegularLossOn.precomp_linearIsometryEquiv
+    (e : E ≃ₗᵢ[ℝ] F) {L : S → E → ℝ}
+    {U : Set E} (hL : RegularLossOn U L)
+    {V : Set F} (hV : IsOpen V) (hVU : ∀ q ∈ V, e.symm q ∈ U) :
+    RegularLossOn V (fun s q => L s (e.symm q)) := by
+  refine ⟨hV, ?_, ?_⟩
+  · intro s
+    exact (hL.c1 s).comp
+      e.symm.toContinuousLinearEquiv.contDiff.contDiffOn hVU
+  · intro s q hq
+    obtain ⟨W, hW, heW, hWU, K, hK⟩ :=
+      hL.localLip s (e.symm q) (hVU q hq)
+    let W' : Set F := V ∩ e '' W
+    have hW' : IsOpen W' :=
+      hV.inter (e.toHomeomorph.isOpenMap W hW)
+    have hqW' : q ∈ W' := ⟨hq, ⟨e.symm q, heW, by simp⟩⟩
+    refine ⟨W', hW', hqW', inter_subset_left, K, ?_⟩
+    intro x hx y hy
+    have hxW : e.symm x ∈ W := by
+      rcases hx.2 with ⟨x', hx', rfl⟩
+      simpa using hx'
+    have hyW : e.symm y ∈ W := by
+      rcases hy.2 with ⟨y', hy', rfl⟩
+      simpa using hy'
+    rw [gradient_comp_linearIsometryEquiv e
+      (differentiableAt_of_c1 hL.isOpen (hL.c1 s) (hWU hxW))]
+    rw [gradient_comp_linearIsometryEquiv e
+      (differentiableAt_of_c1 hL.isOpen (hL.c1 s) (hWU hyW))]
+    simpa using hK hxW hyW
+
+lemma CompleteLawsOn.pullback_linearIsometryEquiv
+    {ι : Type*} (e : E ≃ₗᵢ[ℝ] F)
+    {ΩF : Set F} {L : S → F → ℝ} {h : ι → F → ℝ}
+    (hc : CompleteLawsOn ΩF L h) :
+    CompleteLawsOn (e.symm '' ΩF)
+      (fun s p => L s (e p))
+      (fun i p => h i (e p)) := by
+  have hopen : IsOpen (e.symm '' ΩF) :=
+    e.symm.toHomeomorph.isOpenMap ΩF <| by
+      exact (hc.1 Classical.choice).isOpen_domain
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · intro i
+    exact (hc.1 i).comp e.toContinuousLinearEquiv.contDiff.contDiffOn
+      (fun p hp => by rcases hp with ⟨q,hq,rfl⟩; simpa using hq)
+  · intro i n d hn I hI hconv γ hγ t ht u hu
+    let η : ℝ → F := fun s => e (γ s)
+    have hη : IsIntegralCurveOn ΩF I
+        (empiricalField L d) η := by
+      refine ⟨?_, ?_⟩
+      · intro s hs
+        rcases hγ.1 hs with ⟨q,hq,heq⟩
+        simpa [η, heq] using hq
+      · intro s hs
+        have hdγ := hγ.2 s hs
+        simpa [η, empiricalField,
+          gradient_comp_linearIsometryEquiv e.symm] using hdγ.clm_apply
+            e.toContinuousLinearEquiv
+    exact hc.2.1 i n d hn I hI hconv η hη t ht u hu
+  · intro p hp
+    rcases hp with ⟨q,hq,rfl⟩
+    have hi := hc.2.2.1 q hq
+    simpa [FunctionallyIndependentOn,
+      gradient_comp_linearIsometryEquiv e.symm] using hi.map'
+      e.symm.injective
+  · intro V hV hVΩ f hf hfc p hp
+    let g : F → ℝ := fun q => f (e.symm q)
+    let W : Set F := e '' V
+    have hW : IsOpen W := e.toHomeomorph.isOpenMap V hV
+    have hWΩ : W ⊆ ΩF := by
+      rintro q ⟨x,hx,rfl⟩
+      rcases hVΩ hx with ⟨y,hy,hey⟩
+      simpa using hey ▸ hy
+    have hg : ContDiffOn ℝ ∞ g W :=
+      hf.comp e.symm.toContinuousLinearEquiv.contDiff.contDiffOn
+        (fun q hq => by rcases hq with ⟨x,hx,rfl⟩; simpa using hx)
+    have hgc : IsConservedOn W L g := by
+      intro n d hn I hI hconv γ hγ t ht u hu
+      let η : ℝ → E := fun s => e.symm (γ s)
+      have hη : IsIntegralCurveOn (e.symm '' ΩF) I
+          (empiricalField (fun s p => L s (e p)) d) η := by
+        refine ⟨?_, ?_⟩
+        · intro s hs
+          exact ⟨γ s, hWΩ (hγ.1 hs), by simp [η]⟩
+        · intro s hs
+          simpa [η, empiricalField,
+            gradient_comp_linearIsometryEquiv e] using
+              (hγ.2 s hs).clm_apply e.symm.toContinuousLinearEquiv
+      exact hfc n d hn I hI hconv η hη t ht u hu
+    rcases hp with ⟨q,hq,rfl⟩
+    have hs := hc.2.2.2 W hW hWΩ g hg hgc q ⟨e.symm q, hq, by simp⟩
+    simpa [g, gradient_comp_linearIsometryEquiv e.symm] using hs
+
+end IsometryTransport
+
 structure PartialSymmetry (Ω : Set E) (L : S → E → ℝ) where
   generator : Field E
   smooth_generator : ContDiffOn ℝ ∞ generator Ω
