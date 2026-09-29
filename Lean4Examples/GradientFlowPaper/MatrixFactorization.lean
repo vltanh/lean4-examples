@@ -520,6 +520,94 @@ def symmetricElementary {r : ℕ} (a : Upper r) : Mat r r := fun i j =>
   (if i = a.1.1 ∧ j = a.1.2 then 1 else 0) +
   (if i = a.1.2 ∧ j = a.1.1 then 1 else 0)
 
+
+
+def upperOfPair {r : ℕ} (i j : Fin r) : Upper r :=
+  ⟨(min i j, max i j), min_le_max _ _⟩
+
+def orderedSymmetricElementary {r : ℕ} (i j : Fin r) : Mat r r :=
+  Matrix.single i j 1 + Matrix.single j i 1
+
+lemma orderedSymmetricElementary_eq {r : ℕ} (i j : Fin r) :
+    orderedSymmetricElementary i j =
+      symmetricElementary (upperOfPair i j) := by
+  ext a b
+  rcases le_total i j with hij | hji
+  · simp [orderedSymmetricElementary, symmetricElementary, upperOfPair,
+      min_eq_left hij, max_eq_right hij, Matrix.single]
+  · simp [orderedSymmetricElementary, symmetricElementary, upperOfPair,
+      min_eq_right hji, max_eq_left hji, Matrix.single, and_comm, add_comm]
+
+/-- Averaging the ordered matrix-unit expansion with its transpose expresses
+every symmetric matrix in the upper-triangular symmetric-elementary family.
+The diagonal factor of two is handled by the uniform coefficient `Aᵢⱼ/2`. -/
+lemma symmetric_eq_sum_orderedElementary {r : ℕ} (A : Mat r r)
+    (hA : Aᵀ = A) :
+    A = ∑ i : Fin r, ∑ j : Fin r,
+      (A i j / 2) • orderedSymmetricElementary i j := by
+  ext a b
+  have hs : A b a = A a b := by
+    have := congrFun₂ hA a b
+    simpa [Matrix.transpose_apply] using this
+  simp [orderedSymmetricElementary, Matrix.single, hs]
+  ring
+
+lemma symmetric_mem_span_symmetricElementary {r : ℕ} (A : Mat r r)
+    (hA : Aᵀ = A) :
+    A ∈ Submodule.span ℝ
+      (Set.range (symmetricElementary : Upper r → Mat r r)) := by
+  rw [symmetric_eq_sum_orderedElementary A hA]
+  apply Submodule.sum_mem
+  intro i hi
+  apply Submodule.sum_mem
+  intro j hj
+  rw [orderedSymmetricElementary_eq]
+  exact Submodule.smul_mem _ _
+    (Submodule.subset_span ⟨upperOfPair i j, rfl⟩)
+
+/-- The upper-triangular symmetric elementary matrices are linearly
+independent.  On an off-diagonal entry only its ordered pair contributes;
+on a diagonal entry the unique contribution has coefficient two. -/
+lemma symmetricElementary_linearIndependent (r : ℕ) :
+    LinearIndependent ℝ
+      (symmetricElementary : Upper r → Mat r r) := by
+  classical
+  rw [Fintype.linearIndependent_iff]
+  intro c hsum a
+  let i := a.1.1
+  let j := a.1.2
+  have hij : i ≤ j := a.2
+  have hcoord := congrFun₂ hsum i j
+  have hother :
+      ∀ b : Upper r, b ≠ a →
+        symmetricElementary b i j = 0 := by
+    intro b hba
+    unfold symmetricElementary
+    have h₁ : ¬(i = b.1.1 ∧ j = b.1.2) := by
+      intro h
+      apply hba
+      apply Subtype.ext
+      exact Prod.ext h.1.symm h.2.symm
+    have h₂ : ¬(i = b.1.2 ∧ j = b.1.1) := by
+      rintro ⟨hi, hj⟩
+      have hji : j ≤ i := by
+        simpa [hi, hj] using b.2
+      have heq : i = j := le_antisymm hij hji
+      apply hba
+      apply Subtype.ext
+      subst j
+      exact Prod.ext hj.symm hi.symm
+    simp [h₁, h₂]
+  rw [Finset.sum_apply, Finset.sum_eq_single a] at hcoord
+  · by_cases hij' : i = j
+    · subst j
+      simp [symmetricElementary, i] at hcoord
+      linarith
+    · simp [symmetricElementary, i, j, hij'] at hcoord
+      exact hcoord
+  · intro b hb hba
+    simp [hother b hba]
+  · simp
 theorem gradient_law {m n r : ℕ} (a : Upper r) (p : Param m n r) :
     gradient (law a) p = gaugeGenerator (symmetricElementary a) p := by
   apply (InnerProductSpace.toDual ℝ (Param m n r)).injective
