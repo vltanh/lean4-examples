@@ -4842,8 +4842,57 @@ class HasAppendixHSpectralAlgebra : Prop where
           (H₀ * H₀ + (4 * α^2) • (1 : Mat 2 2)) R →
         P = gramCandidate H₀ R
 
+
+lemma positive_solution_unique_mathlib
+    (H : Mat 2 2) (hH : Hᵀ = H) (α : ℝ) (hα : α ≠ 0)
+    (P R : Mat 2 2)
+    (hP : Matrix.PosDef P)
+    (hPeq : P - α^2 • P⁻¹ = H)
+    (hR : PositiveSquareRoot
+      (H * H + (4 * α^2) • (1 : Mat 2 2)) R) :
+    P = gramCandidate H R := by
+  let T : Mat 2 2 := (2 : ℝ) • P - H
+  have hTform : T = P + α^2 • P⁻¹ := by
+    dsimp [T]
+    rw [← hPeq]
+    module
+  have hTpos : Matrix.PosDef T := by
+    rw [hTform]
+    exact hP.add (hP.inv.smul (sq_pos_of_ne_zero hα))
+  have hPunit : IsUnit P := hP.isUnit
+  have hPinvL : P⁻¹ * P = (1 : Mat 2 2) := by simp [hPunit]
+  have hPinvR : P * P⁻¹ = (1 : Mat 2 2) := by simp [hPunit]
+  have hTsq :
+      T * T = H * H + (4 * α^2) • (1 : Mat 2 2) := by
+    rw [hTform, ← hPeq]
+    simp only [add_mul, mul_add, sub_mul, mul_sub,
+      Algebra.smul_mul_assoc, Algebra.mul_smul_comm, smul_smul]
+    rw [hPinvL, hPinvR]
+    simp
+    ring
+  have hA :
+      Matrix.PosDef (H * H + (4 * α^2) • (1 : Mat 2 2)) :=
+    posDef_sq_add_scalar_one H hH
+      (by positivity [sq_pos_of_ne_zero hα])
+  have hTroot :
+      PositiveSquareRoot
+        (H * H + (4 * α^2) • (1 : Mat 2 2)) T :=
+    ⟨hTpos, hTsq⟩
+  have hTcfc := positiveSquareRoot_eq_cfc hA hTroot
+  have hRcfc := positiveSquareRoot_eq_cfc hA hR
+  have hTR : T = R := hTcfc.trans hRcfc.symm
+  unfold gramCandidate
+  rw [← hTR]
+  dsimp [T]
+  module
+
+instance appendixHSpectralAlgebra_mathlib : HasAppendixHSpectralAlgebra where
+  gramCandidate_posDef := gramCandidate_posDef_mathlib
+  gramCandidate_identity := gramCandidate_identity_mathlib
+  positive_solution_unique := positive_solution_unique_mathlib
+
 /-- The required positive square roots actually exist. -/
-theorem lemma29_roots_exist [HasAppendixHSpectralAlgebra] (H₀ : Mat 2 2) (hH : H₀ᵀ = H₀)
+theorem lemma29_roots_exist (H₀ : Mat 2 2) (hH : H₀ᵀ = H₀)
     (α : ℝ) (hα : α ≠ 0) :
     ∃ R S : Mat 2 2,
       PositiveSquareRoot (H₀ * H₀ + (4 * α^2) • (1 : Mat 2 2)) R ∧
@@ -4870,7 +4919,7 @@ theorem lemma29_roots_exist [HasAppendixHSpectralAlgebra] (H₀ : Mat 2 2) (hH :
 
 /-- Lemma 29. Supplying R and S by their unique positive-root properties
 expresses the explicit formula without relying on a specific CFC interface. -/
-theorem lemma29 [HasAppendixHSpectralAlgebra] (H₀ : Mat 2 2) (hH : H₀ᵀ = H₀)
+theorem lemma29 (H₀ : Mat 2 2) (hH : H₀ᵀ = H₀)
     (α : ℝ) (hα : α ≠ 0) (R S : Mat 2 2)
     (hR : PositiveSquareRoot (H₀ * H₀ + (4 * α^2) • (1 : Mat 2 2)) R)
     (hS : PositiveSquareRoot (gramCandidate H₀ R) S)
