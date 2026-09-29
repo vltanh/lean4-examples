@@ -177,6 +177,10 @@ theorem gauge_mul {m n r : ℕ} (s t : GL r) (p : Param m n r) :
 @[simp] theorem gauge_one {m n r : ℕ} (p : Param m n r) : gauge 1 p = p := by
   simp [gauge]
 
+/-- The true infinitesimal gauge action. -/
+def gaugeGenerator {m n r : ℕ} (A : Mat r r) (p : Param m n r) : Param m n r :=
+  pack (U p * A) (-(V p * Aᵀ))
+
 /-- Rectangular full-rank factorization uniqueness, cited in Appendix G.1.
 The proof is the standard full-rank factorization argument from Piziak–Odell:
 construct the change of basis from a right Gram inverse and then cancel the
@@ -510,10 +514,6 @@ def balance {m n r : ℕ} (p : Param m n r) : Mat r r :=
 
 def law {m n r : ℕ} (a : Upper r) (p : Param m n r) : ℝ :=
   balance p a.1.1 a.1.2
-
-/-- The true infinitesimal gauge action. -/
-def gaugeGenerator {m n r : ℕ} (A : Mat r r) (p : Param m n r) : Param m n r :=
-  pack (U p * A) (-(V p * Aᵀ))
 
 /-- E_ab + E_ba: diagonal entries correctly receive a factor of two. -/
 def symmetricElementary {r : ℕ} (a : Upper r) : Mat r r := fun i j =>
