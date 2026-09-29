@@ -473,9 +473,13 @@ variable {S : Type*} {Ω : Set E}
 
 lemma smooth_gradient_on {h : E → ℝ} (hΩ : IsOpen Ω)
     (hh : ContDiffOn ℝ ∞ h Ω) : ContDiffOn ℝ ∞ (gradient h) Ω := by
-  -- TODO[CALC-SMOOTH-GRAD]: smoothness of the derivative on an open set,
-  -- followed by the continuous linear Riesz identification.
-  sorry
+  have hD : ContDiffOn ℝ ∞ (fderiv ℝ h) Ω := by
+    exact ((contDiffOn_infty_iff_fderiv_of_isOpen hΩ).mp hh).2
+  rw [show gradient h =
+    (InnerProductSpace.toDual ℝ E).symm ∘ fderiv ℝ h by
+      ext p
+      simp [gradient]]
+  exact (InnerProductSpace.toDual ℝ E).symm.contDiff.comp_contDiffOn hD
 
 /-! ## Proposition 4: local factorization -/
 
@@ -676,9 +680,25 @@ def IsPotentialOn (Ω : Set E) (v : Field E) (h : E → ℝ) : Prop :=
 
 theorem gradient_isClosed (hΩ : IsOpen Ω) {h : E → ℝ}
     (hh : ContDiffOn ℝ 2 h Ω) : IsClosedFieldOn Ω (gradient h) := by
-  -- TODO[SCHWARZ]: symmetry of the second Fréchet derivative, with the
-  -- Riesz isomorphism converting it to symmetry of D(gradient h).
-  sorry
+  intro p hp a b
+  have hp2 : ContDiffAt ℝ 2 h p :=
+    (hh p hp).contDiffAt (hΩ.mem_nhds hp)
+  have hgrad :
+      HasFDerivAt (gradient h)
+        ((InnerProductSpace.toDual ℝ E).symm.toContinuousLinearMap.comp
+          (fderiv ℝ (fderiv ℝ h) p)) p := by
+    have hD :
+        HasFDerivAt (fderiv ℝ h) (fderiv ℝ (fderiv ℝ h) p) p :=
+      (hp2.fderiv_right (by norm_num)).hasFDerivAt
+    simpa [gradient, Function.comp_def] using
+      (InnerProductSpace.toDual ℝ E).symm.contDiff.contDiffAt.hasFDerivAt.comp p hD
+  rw [hgrad.fderiv]
+  simp only [ContinuousLinearMap.comp_apply]
+  have hs := hp2.isSymmSndFDerivAt (by norm_num)
+  change
+    (fderiv ℝ (fderiv ℝ h) p a) b =
+      (fderiv ℝ (fderiv ℝ h) p b) a
+  exact hs a b
 
 def radialPotential (v : Field E) (a p : E) : ℝ :=
   ∫ t in (0 : ℝ)..1, ⟪v (a + t • (p - a)), p - a⟫_ℝ
