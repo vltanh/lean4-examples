@@ -3625,6 +3625,66 @@ theorem FrobeniusSubmersionAt.firstIntegrals
   · intro q hq
     exact F.gradient_span hrank hq
 
+
+/-- Parameterized Gram--Schmidt for a smooth family of vectors.  Unlike
+`pointwiseGramSchmidt_smooth`, the parameter space and vector space may be
+different. -/
+def familyGramSchmidt
+    {X F : Type*} [NormedAddCommGroup X] [NormedSpace ℝ X]
+    [NormedAddCommGroup F] [InnerProductSpace ℝ F]
+    {n : ℕ} (f : Fin n → X → F) (i : Fin n) : X → F :=
+  fun x => InnerProductSpace.gramSchmidt ℝ (fun j => f j x) i
+
+lemma familyGramSchmidt_smooth
+    {X F : Type*} [NormedAddCommGroup X] [NormedSpace ℝ X]
+    [NormedAddCommGroup F] [InnerProductSpace ℝ F]
+    {n : ℕ} {U : Set X} (f : Fin n → X → F)
+    (hf : ∀ i, ContDiffOn ℝ ∞ (f i) U)
+    (hind : ∀ x ∈ U, LinearIndependent ℝ (fun i => f i x)) :
+    ∀ i, ContDiffOn ℝ ∞ (familyGramSchmidt f i) U := by
+  intro i
+  apply wellFounded_lt.induction i
+  intro i ih
+  have hformula :
+      familyGramSchmidt f i =
+        fun x => f i x -
+          ∑ j in Finset.Iio i,
+            (⟪familyGramSchmidt f j x, f i x⟫_ℝ /
+                ⟪familyGramSchmidt f j x,
+                  familyGramSchmidt f j x⟫_ℝ) •
+              familyGramSchmidt f j x := by
+    funext x
+    have hgs :=
+      InnerProductSpace.gramSchmidt_def'' ℝ (fun j : Fin n => f j x) i
+    simp only [familyGramSchmidt] at *
+    simp only [← real_inner_self_eq_norm_sq] at hgs
+    exact (eq_sub_iff_add_eq).2 hgs.symm
+  rw [hformula]
+  apply (hf i).sub
+  apply ContDiffOn.sum
+  intro j hj
+  have hji : j < i := Finset.mem_Iio.mp hj
+  have hgj : ContDiffOn ℝ ∞ (familyGramSchmidt f j) U :=
+    ih j hji
+  have hnum :
+      ContDiffOn ℝ ∞
+        (fun x => ⟪familyGramSchmidt f j x, f i x⟫_ℝ) U :=
+    hgj.inner ℝ (hf i)
+  have hden :
+      ContDiffOn ℝ ∞
+        (fun x => ⟪familyGramSchmidt f j x,
+          familyGramSchmidt f j x⟫_ℝ) U :=
+    hgj.inner ℝ hgj
+  have hden_ne :
+      ∀ x ∈ U,
+        ⟪familyGramSchmidt f j x,
+          familyGramSchmidt f j x⟫_ℝ ≠ 0 := by
+    intro x hx
+    rw [real_inner_self_eq_norm_sq]
+    exact pow_ne_zero 2 (norm_ne_zero_iff.mpr <|
+      InnerProductSpace.gramSchmidt_ne_zero j (hind x hx))
+  exact (hnum.div hden hden_ne).smul hgj
+
 /-- Pointwise Gram--Schmidt for a family of smooth vector fields. -/
 def pointwiseGramSchmidt {n : ℕ} (f : Fin n → Field E) (i : Fin n) : Field E :=
   fun q => InnerProductSpace.gramSchmidt ℝ (fun j => f j q) i
