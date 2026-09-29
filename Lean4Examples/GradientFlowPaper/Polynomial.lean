@@ -694,32 +694,23 @@ theorem tangent_mem_span_scaling_orbit
   exact fderiv_expGauge_mem_span A p (logBiasVelocity A p v)
 
 
-/-! The paper's proof of Proposition 19 uses the finite-to-one identifiability
-result directly; no auxiliary finite evaluation grid is needed here. -/
+/-! The paper's proof of Proposition 19 uses finite-to-one
+identifiability in a generic neighborhood.  The local scaling-orbit
+conclusion is **not** part of the external hypothesis: it is the theorem
+`finiteToOneAt_local_scaling_orbit` proved above. -/
 
-/-- The paper deliberately leaves “generic” implicit. Stage 1 therefore
-keeps its identifiability content as an abstract predicate. The concrete
-`GenericPoint` locus above is a separate dense-open regularity condition used
-only for the differential argument. Proposition 19 works on the intersection
-of these two loci rather than identifying them. -/
-class HasPNNGenericRegime
-    (A : Architecture) (Generic : Param A → Prop) : Prop where
-  local_regime :
-    ∀ {p₀ : Param A}, FiniteToOneAt A p₀ → Generic p₀ →
-      ∃ U : Set (Param A), IsOpen U ∧ p₀ ∈ U ∧
-        (∀ p ∈ U, ∀ q ∈ U,
-          FunctionalEquiv (model A) p q ↔
-            ∃ s : Hidden A → ℝˣ, q = diagonalGauge A s p)
+def FiniteToOneOn (U : Set (Param A)) : Prop :=
+  ∀ p ∈ U, FiniteToOneAt A p
 
-theorem local_scaling_identifiability
-    {Generic : Param A → Prop} [HasPNNGenericRegime A Generic]
-    {p₀ : Param A}
-    (hfinite : FiniteToOneAt A p₀) (hgeneric : Generic p₀) :
-    ∃ U : Set (Param A), IsOpen U ∧ p₀ ∈ U ∧
-      (∀ p ∈ U, ∀ q ∈ U,
-        FunctionalEquiv (model A) p q ↔
-          ∃ s : Hidden A → ℝˣ, q = diagonalGauge A s p) :=
-  HasPNNGenericRegime.local_regime hfinite hgeneric
+/-- Source-facing local witness for a generic finite-identifiability point.
+This contains only the identifiability property that must ultimately be
+supplied from Usevich et al.; it does not contain the desired fibre chart,
+generator independence, or tangent-space conclusion. -/
+structure GenericFiniteToOneAt (p : Param A) : Prop where
+  neighborhood : Set (Param A)
+  isOpen_neighborhood : IsOpen neighborhood
+  mem_neighborhood : p ∈ neighborhood
+  finiteToOneOn_neighborhood : FiniteToOneOn A neighborhood
 
 theorem law_smooth (a : Hidden A) : ContDiff ℝ ∞ (law A a) := by
   unfold law W bias
