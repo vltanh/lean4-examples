@@ -783,6 +783,34 @@ lemma gradient_mem_span_of_locallyFactors {k : ℕ} {r : ℕ∞ω}
           (Set.range (fun i => gradient (H i) p))).smul_mem _
           (Submodule.subset_span ⟨i, rfl⟩))
 
+
+lemma fderiv_vanishes_on_bundle_kernel {k : ℕ}
+    {Ω : Set E} (H : Fin k → E → ℝ) (h : E → ℝ)
+    {q u : E} (hq : q ∈ Ω)
+    (hH : ∀ i, DifferentiableAt ℝ (H i) q)
+    (hh : DifferentiableAt ℝ h q)
+    (hspan : gradient h q ∈
+      Submodule.span ℝ (Set.range (fun i => gradient (H i) q)))
+    (hu : u ∈ LinearMap.ker (fderiv ℝ (bundleFunctions H) q)) :
+    (fderiv ℝ h q) u = 0 := by
+  have horth : ∀ i, ⟪gradient (H i) q, u⟫_ℝ = 0 := by
+    intro i
+    have hcoord := fderiv_bundleFunctions_apply H hH i (u := u)
+    have hzero : (fderiv ℝ (bundleFunctions H) q u) i = 0 := by
+      rw [LinearMap.mem_ker.mp hu]
+      rfl
+    linarith
+  have hinner : ⟪gradient h q, u⟫_ℝ = 0 := by
+    induction hspan using Submodule.span_induction with
+    | mem x hx =>
+        obtain ⟨i, rfl⟩ := hx
+        exact horth i
+    | zero => simp
+    | add x y hx hy ihx ihy => simp [inner_add_left, ihx, ihy]
+    | smul a x hx ih => simp [inner_smul_left, ih]
+  rw [← inner_gradient_left]
+  exact hinner
+
 /-- Standard finite-dimensional constant-rank/submersion factorization
 principle used in Proposition 4.  Nguyen--Montúfar treat this as differential
 geometry background rather than proving it. Stage 2 will instantiate this
