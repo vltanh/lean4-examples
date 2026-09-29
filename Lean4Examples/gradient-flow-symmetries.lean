@@ -1503,6 +1503,12 @@ def injectLinear (j : B) : Vec (ι j) →ₗ[ℝ] Total ι where
     inject ι j (c • u) = c • inject ι j u :=
   (injectLinear ι j).map_smul c u
 
+@[simp] lemma norm_inject_eq (j : B) (u : Vec (ι j)) :
+    ‖inject ι j u‖ = ‖u‖ := by
+  rw [EuclideanSpace.norm_eq_sqrt_sum_sq, EuclideanSpace.norm_eq_sqrt_sum_sq]
+  congr 1
+  simp [inject, Finset.sum_sigma']
+
 @[simp] lemma block_inject_same (j : B) (u : Vec (ι j)) :
     block ι j (inject ι j u) = u := by
   ext a
