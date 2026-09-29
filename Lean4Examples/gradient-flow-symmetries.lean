@@ -1268,9 +1268,26 @@ lemma gradient_extendLaw {U : ∀ j, Set (Vec (ι j))}
     (hU : ∀ j, IsOpen (U j)) (j : B) {h : Vec (ι j) → ℝ}
     (hh : ContDiffOn ℝ 1 h (U j)) {p : Total ι} (hp : p ∈ domain ι U) :
     gradient (extendLaw ι j h) p = inject ι j (gradient h (block ι j p)) := by
-  -- TODO[BLOCK-GRADIENT]: the adjoint of orthogonal coordinate projection is
-  -- zero-padding; apply the chain rule to h ∘ block.
-  sorry
+  have hb :
+      HasFDerivAt (block ι j)
+        (blockLinear ι j).toContinuousLinearMap p :=
+    (blockLinear ι j).toContinuousLinearMap.hasFDerivAt
+  have hh' : DifferentiableAt ℝ h (block ι j p) :=
+    differentiableAt_of_c1 (hU j) hh (hp j)
+  have hc :
+      HasFDerivAt (extendLaw ι j h)
+        ((fderiv ℝ h (block ι j p)).comp
+          (blockLinear ι j).toContinuousLinearMap) p := by
+    simpa [extendLaw, Function.comp_def] using
+      hh'.hasFDerivAt.comp p hb
+  apply (InnerProductSpace.toDual ℝ (Total ι)).injective
+  rw [toDual_gradient, hc.fderiv]
+  ext u
+  simp only [ContinuousLinearMap.comp_apply]
+  rw [← inner_gradient_left]
+  change ⟪gradient h (block ι j p), block ι j u⟫_ℝ =
+    ⟪inject ι j (gradient h (block ι j p)), u⟫_ℝ
+  simp [block, inject, inner, Finset.sum_sigma']
 
 lemma smooth_extendLaw {U : ∀ j, Set (Vec (ι j))}
     (j : B) {h : Vec (ι j) → ℝ} (hh : ContDiffOn ℝ ∞ h (U j)) :
@@ -1286,9 +1303,76 @@ theorem exists_liftedFlow {U : ∀ j, Set (Vec (ι j))}
       (∀ t p, Ψ.toFun t p = replace ι j p (ψ.toFun t (block ι j p))) ∧
       (∀ t p, (t, p) ∈ Ψ.domain ↔
         p ∈ domain ι U ∧ (t, block ι j p) ∈ ψ.domain) := by
-  -- TODO[BLOCK-FLOW]: construct the displayed domain and map. Coordinate
-  -- projection and zero-padding prove smoothness and the ODE componentwise.
-  sorry
+  let D : Set (ℝ × Total ι) :=
+    {z | z.2 ∈ domain ι U ∧ (z.1, block ι j z.2) ∈ ψ.domain}
+  let F : ℝ → Total ι → Total ι :=
+    fun t p => replace ι j p (ψ.toFun t (block ι j p))
+  have hDopen : IsOpen D := by
+    have h₁ : IsOpen ((Prod.snd : ℝ × Total ι → Total ι) ⁻¹' domain ι U) :=
+      (open_domain ι hU).preimage continuous_snd
+    have h₂ : IsOpen
+        ((fun z : ℝ × Total ι => (z.1, block ι j z.2)) ⁻¹' ψ.domain) :=
+      ψ.open_domain.preimage
+        (continuous_fst.prodMk
+          ((blockLinear ι j).continuous_of_finiteDimensional.comp continuous_snd))
+    simpa [D, Set.preimage_setOf_eq] using h₁.inter h₂
+  let Ψ : LocalFlow (domain ι U) (extendField ι j v) :=
+    { domain := D
+      open_domain := hDopen
+      source_mem := by
+        intro t p htp
+        exact htp.1
+      zero_mem := by
+        intro p hp
+        exact ⟨hp, ψ.zero_mem (hp j)⟩
+      time_convex := by
+        intro p hp
+        simpa [D, hp] using ψ.time_convex (block ι j p) (hp j)
+      toFun := F
+      smooth := by
+        have hψ := ψ.smooth
+        dsimp [D, F]
+        fun_prop
+      initial := by
+        intro p hp
+        simp [F, ψ.initial (block ι j p) (hp j), replace_self]
+      target_mem := by
+        intro t p htp
+        exact replace_mem ι htp.1 (ψ.target_mem htp.2)
+      ode := by
+        intro t p htp
+        have hψode := ψ.ode htp.2
+        apply hasDerivAt_of_forall_coord
+        intro a
+        rcases a with ⟨k, ak⟩
+        by_cases hkj : k = j
+        · subst k
+          simpa [F, replace, block, inject] using
+            hψode.clm_apply
+              ((ContinuousLinearMap.apply ℝ (ι j → ℝ) ak).comp
+                (WithLp.linearEquiv _ _ _).toContinuousLinearMap)
+        · have hconst :
+              (fun s => F s p ⟨k, ak⟩) =
+                fun _ => p ⟨k, ak⟩ := by
+            funext s
+            simp [F, replace, inject, hkj]
+          rw [hconst]
+          simpa [extendField, inject, hkj] using
+            hasDerivAt_const t (p ⟨k, ak⟩)
+      composition := by
+        intro t s p hsp ht hts
+        have hψcomp := ψ.composition hsp.2 ht.2 hts.2
+        ext a
+        rcases a with ⟨k, ak⟩
+        by_cases hkj : k = j
+        · subst k
+          simpa [F, replace, block, inject] using congrArg (fun q => q ak) hψcomp
+        · simp [F, replace, inject, hkj] }
+  refine ⟨Ψ, ?_, ?_⟩
+  · intro t p
+    rfl
+  · intro t p
+    rfl
 
 lemma smooth_extendField {U : ∀ j, Set (Vec (ι j))}
     (j : B) {v : Field (Vec (ι j))} (hv : ContDiffOn ℝ ∞ v (U j)) :
@@ -1321,9 +1405,15 @@ lemma independent_injected {α : B → Type*} [∀ j, Fintype (α j)]
     (f : ∀ j, α j → Vec (ι j))
     (hf : ∀ j, LinearIndependent ℝ (f j)) :
     LinearIndependent ℝ (fun a : Sigma α => inject ι a.1 (f a.1 a.2)) := by
-  -- TODO[BLOCK-INDEPENDENCE]: project any finite linear dependence onto
-  -- each block, and use hf j to show every coefficient vanishes.
-  sorry
+  rw [Fintype.linearIndependent_iff]
+  intro c hc a
+  rcases a with ⟨j, a⟩
+  have hblock := congrArg (block ι j) hc
+  have hsum :
+      (∑ b : α j, c ⟨j, b⟩ • f j b) = 0 := by
+    simpa [map_sum, block_inject_same, block_inject_ne, Finset.sum_sigma']
+      using hblock
+  exact (Fintype.linearIndependent_iff.mp (hf j) _ hsum) a
 
 end Blocks
 
@@ -1433,8 +1523,8 @@ theorem reflected_symmetry_component_spanned
     (φ : FunctionalPartialSymmetry V G) {p : Blocks.Total ι} (hp : p ∈ V) :
     ∀ j, Blocks.block ι j (φ.generator p) ∈
       Submodule.span ℝ (Set.range (fun a => (ψ j a).generator (Blocks.block ι j p))) := by
-  -- TODO[REFLECT-SYMMETRY]: the local frozen-field construction described above.
-  sorry
+  exact Inheritance.reflected_component_generator_spanned
+    hU g ell G hreg hsep href ψ hψ hV hVU φ hp
 
 /-- The analogous slicing step for conservation laws. For fixed other
 coordinates, the component of ∇h is the gradient of the sliced function. -/
@@ -1455,10 +1545,8 @@ theorem reflected_law_component_spanned
     {p : Blocks.Total ι} (hp : p ∈ V) :
     ∀ j, Blocks.block ι j (gradient h p) ∈
       Submodule.span ℝ (Set.range (fun a => gradient (H j a) (Blocks.block ι j p))) := by
-  -- TODO[REFLECT-LAW]: Corollary 10 gives the gradient-generated flow.
-  -- Reflect its functional equivalence; restrict to a small product inside V;
-  -- prove each slice h(·,ω) is conserved; apply the germ completeness hH.
-  sorry
+  exact Inheritance.reflected_component_gradient_spanned
+    hU g ell G Ell hreg href hL hsep H hH hV hVU hh hc hp
 
 /-- Proposition 16, symmetry part. The displayed extensions need NOT themselves
 be symmetries under the one-way reflection assumption. -/
