@@ -177,11 +177,11 @@ For each external field:
 1. [x] Classify standard geometry, literature, and spectral inputs as explicit Stage-1 dependencies.
 2. [x] Inline GQA Step 1 from Theorem 27.
 3. [x] Inline GQA Steps 2–3 from Lemma 28 + Theorem 17.
-4. **Stage 1:** make the PNN “generic point” exactly source-faithful: do not identify it with nonzero biases unless the cited Usevich result proves that.
-5. **Stage 1:** add the remaining numbered appendix-facing statements (Lemma 26 audit is the last substantial one).
+4. [x] Keep the paper/Usevich identifiability-generic predicate separate from the concrete nonzero-bias regular locus; Proposition 19 now works on their explicit intersection rather than identifying them.
+5. [x] Add the remaining numbered appendix-facing statements, including the Lemma 26 audit.
 6. **Stage 1:** add/update the external dependency manifest and run a source-level coverage audit.
 7. Freeze Stage 1 at source level. Elaboration/compilation remains a later repair stage, per the requested uncompiled workflow.
-8. Begin Stage 2.
+8. [x] Begin Stage 2.
 
 
 ## Current Stage-1 checkpoint
@@ -203,7 +203,10 @@ For each external field:
   - [x] quadratic Gram identity proved;
   - [x] positive-definite solution uniqueness proved;
   - [x] `lemma29` and `lemma29_roots_exist` no longer quantify over the spectral dependency class.
-- [ ] Next: discharge a standard geometry/ODE dependency from Mathlib.
+- [x] Maximal smooth local-flow / ODE dependency discharged via the vendored TauCeti proof chain.
+- [x] Connected Lie-group generation dependency discharged internally.
+- [x] PNN scaling-orbit tangent dependency discharged internally on the concrete dense-open regular locus.
+- [ ] Next: Frobenius/local first integrals, smooth orthogonal frames, Lie-completion involutivity, then Marcotte / Tran / Usevich.
 
 
 ### Stage-2 geometry checkpoint
@@ -215,12 +218,13 @@ For each external field:
   - [x] the observable is constant on vertical fibres;
   - [x] the two directions of Proposition 4 are now proved directly.
 - [x] Star-shaped Poincaré dependency eliminated.
-- [ ] Next dependency target: maximal smooth local flows / ODE.
+- [x] Maximal smooth local flows / ODE discharged.
+- [x] Connected Lie-group infinitesimal invariance/generation discharged.
 
 
 ### Stage-2 Poincare checkpoint
 
-- [x] `HasStarPoincareLemma` removed.
+- [x] `HasStarPoincareLemma` removed, including the last stale typeclass parameter on `proposition8_star`.
 - [x] Explicit radial potential identified with a curve integral over the radial segment.
 - [x] Local triangle relation proved using Mathlib's convex Poincare theorem.
 - [x] Derivative of the radial potential proved to be the associated one-form.
@@ -236,4 +240,7 @@ For each external field:
 - [x] Local flow patches glued by uniqueness.
 - [x] Arbitrary nonempty families of local flows have a common smooth extension.
 - [x] The common extension of all local flows is maximal.
-- [ ] Next: eliminate the remaining Lie generation / Frobenius / Marcotte / Tran / PNN interfaces.
+- [x] Connected Lie-group generation interface eliminated.
+- [x] PNN `HasPNNScalingOrbitTangent` interface eliminated; `tangent_mem_span_scaling_orbit` is used directly.
+- [x] The Usevich-facing `HasPNNGenericRegime` interface now contains only the local functional-fibre / diagonal-scaling-orbit statement; generator independence is derived internally on `genericSet`.
+- [ ] Next: eliminate the remaining Frobenius / Marcotte / Tran / Usevich interfaces.
