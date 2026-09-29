@@ -1458,6 +1458,130 @@ lemma poincare_convex_open
     (contDiffOn_infty_iff_fderiv_of_isOpen hU).2 ⟨hdiff, hfderSmooth⟩
   exact ⟨h, hsmooth, hpot⟩
 
+
+lemma radialPotential_eq_curveIntegral (v : Field E) (a p : E) :
+    radialPotential v a p =
+      ∫ᶜ x in Path.segment a p, fieldOneForm v x := by
+  unfold radialPotential
+  rw [curveIntegral_segment]
+  apply intervalIntegral.integral_congr
+  intro t ht
+  simp [fieldOneForm, AffineMap.lineMap_apply, real_inner_comm]
+
+lemma convexHull_triple_subset_of_starConvex
+    {Ω : Set E} {a p q : E}
+    (hstar : StarConvex ℝ a Ω)
+    (hpq : segment ℝ p q ⊆ Ω) :
+    convexHull ℝ {a, p, q} ⊆ Ω := by
+  rw [← convexJoin_singleton_segment]
+  rintro x hx
+  rw [mem_convexJoin] at hx
+  obtain ⟨a', ha', y, hy, hxy⟩ := hx
+  simp only [mem_singleton_iff] at ha'
+  subst a'
+  exact hstar.segment_subset (hpq hy) hxy
+
+lemma radialPotential_hasFDerivAt
+    {Ω : Set E} (hΩ : IsOpen Ω) {v : Field E}
+    (hv : ContDiffOn ℝ ∞ v Ω) (hclosed : IsClosedFieldOn Ω v)
+    {a p : E} (ha : a ∈ Ω) (hstar : StarConvex ℝ a Ω)
+    (hp : p ∈ Ω) :
+    HasFDerivAt (radialPotential v a) (fieldOneForm v p) p := by
+  obtain ⟨ε, hε, hballΩ⟩ := Metric.isOpen_iff.mp hΩ p hp
+  let B : Set E := Metric.ball p ε
+  have hpB : p ∈ B := Metric.mem_ball_self hε
+  have hBopen : IsOpen B := isOpen_ball
+  have hBconv : Convex ℝ B := convex_ball p ε
+  have hBΩ : B ⊆ Ω := hballΩ
+  have hωcont : ContinuousOn (fieldOneForm v) B := by
+    exact ((InnerProductSpace.toDual ℝ E).continuous.comp_continuousOn
+      (hv.continuousOn.mono hBΩ))
+  have hsegWithin :
+      HasFDerivWithinAt
+        (fun q => ∫ᶜ x in Path.segment p q, fieldOneForm v x)
+        (fieldOneForm v p) B p :=
+    HasFDerivWithinAt.curveIntegral_segment_source hBconv hωcont hpB
+  have hseg :
+      HasFDerivAt
+        (fun q => ∫ᶜ x in Path.segment p q, fieldOneForm v x)
+        (fieldOneForm v p) p :=
+    hsegWithin.hasFDerivAt (hBopen.mem_nhds hpB)
+  have hsum :
+      HasFDerivAt
+        (fun q => radialPotential v a p +
+          ∫ᶜ x in Path.segment p q, fieldOneForm v x)
+        (fieldOneForm v p) p :=
+    hseg.const_add _
+  have heq :
+      radialPotential v a =ᶠ[𝓝 p]
+        (fun q => radialPotential v a p +
+          ∫ᶜ x in Path.segment p q, fieldOneForm v x) := by
+    filter_upwards [Metric.ball_mem_nhds p hε] with q hq
+    have hpqB : segment ℝ p q ⊆ B :=
+      hBconv.segment_subset hpB hq
+    have hpqΩ : segment ℝ p q ⊆ Ω := hpqB.trans hBΩ
+    let T : Set E := convexHull ℝ {a, p, q}
+    have hTconv : Convex ℝ T := convex_convexHull ℝ _
+    have hTΩ : T ⊆ Ω :=
+      convexHull_triple_subset_of_starConvex hstar hpqΩ
+    have haT : a ∈ T :=
+      subset_convexHull ℝ _ (by simp [T])
+    have hpT : p ∈ T :=
+      subset_convexHull ℝ _ (by simp [T])
+    have hqT : q ∈ T :=
+      subset_convexHull ℝ _ (by simp [T])
+    have hω :
+        ∀ x ∈ T,
+          HasFDerivWithinAt (fieldOneForm v)
+            (fderiv ℝ (fieldOneForm v) x) T x := by
+      intro x hx
+      have hxΩ := hTΩ hx
+      have hvx : DifferentiableAt ℝ v x :=
+        (hv.differentiableOn (by simp)).differentiableAt
+          (hΩ.mem_nhds hxΩ)
+      exact (hasFDerivAt_fieldOneForm hvx).hasFDerivWithinAt
+    have hsym :
+        ∀ x ∈ T, ∀ u ∈ tangentConeAt ℝ T x,
+          ∀ w ∈ tangentConeAt ℝ T x,
+            fderiv ℝ (fieldOneForm v) x u w =
+              fderiv ℝ (fieldOneForm v) x w u := by
+      intro x hx u hu w hw
+      exact fieldOneForm_fderiv_symmetric hΩ hv hclosed
+        x (hTΩ hx) u w
+    have htri :=
+      hTconv.curveIntegral_segment_add_eq_of_hasFDerivWithinAt_symmetric
+        hω hsym haT hpT hqT
+    rw [radialPotential_eq_curveIntegral, radialPotential_eq_curveIntegral]
+    exact htri.symm
+  exact hsum.congr_of_eventuallyEq heq
+
+lemma poincare_star_mathlib
+    {Ω : Set E} (hΩ : IsOpen Ω) {v : Field E}
+    (hv : ContDiffOn ℝ ∞ v Ω) (hclosed : IsClosedFieldOn Ω v)
+    {a : E} (ha : a ∈ Ω) (hstar : StarConvex ℝ a Ω) :
+    ContDiffOn ℝ ∞ (radialPotential v a) Ω ∧
+      IsPotentialOn Ω v (radialPotential v a) := by
+  have hder :
+      ∀ p ∈ Ω,
+        HasFDerivAt (radialPotential v a) (fieldOneForm v p) p :=
+    fun p hp => radialPotential_hasFDerivAt hΩ hv hclosed ha hstar hp
+  have hpot : IsPotentialOn Ω v (radialPotential v a) := by
+    intro p hp
+    apply (InnerProductSpace.toDual ℝ E).injective
+    rw [toDual_gradient, (hder p hp).fderiv]
+    rfl
+  have hdiff : DifferentiableOn ℝ (radialPotential v a) Ω :=
+    fun p hp => (hder p hp).differentiableAt.differentiableWithinAt
+  have hωsmooth : ContDiffOn ℝ ∞ (fieldOneForm v) Ω := by
+    exact (InnerProductSpace.toDual ℝ E).contDiff.comp_contDiffOn hv
+      (fun _ _ => Set.mem_univ _)
+  have hfder :
+      ContDiffOn ℝ ∞ (fderiv ℝ (radialPotential v a)) Ω :=
+    hωsmooth.congr (fun p hp => (hder p hp).fderiv)
+  have hsmooth : ContDiffOn ℝ ∞ (radialPotential v a) Ω :=
+    (contDiffOn_infty_iff_fderiv_of_isOpen hΩ).2 ⟨hdiff, hfder⟩
+  exact ⟨hsmooth, hpot⟩
+
 /-- Star-shaped Poincaré lemma in exactly the form used by the paper. -/
 class HasStarPoincareLemma
     (E : Type*) [NormedAddCommGroup E] [InnerProductSpace ℝ E]
