@@ -2429,17 +2429,312 @@ theorem theorem27 [HasTranAttentionIdentifiability]
     ∀ i, B i = 0 :=
   HasTranAttentionIdentifiability.identifiability hD A B hdistinct hzero
 
+/-- Reindex Theorem 27 by an arbitrary finite head type. -/
+theorem theorem27_fintype [HasTranAttentionIdentifiability]
+    {I : Type*} [Fintype I] [DecidableEq I] {D : ℕ} (hD : 0 < D)
+    (A B : I → Mat D D) (hdistinct : Function.Injective A)
+    (hzero : ∀ (L : ℕ+) (X : Mat (L : ℕ) D),
+      (∑ i, rowSoftmax (X * A i * Xᵀ) * X * B i) = 0) :
+    ∀ i, B i = 0 := by
+  let e : Fin (Fintype.card I) ≃ I := (Fintype.equivFin I).symm
+  have hfin := theorem27 hD (fun i => A (e i)) (fun i => B (e i))
+    (hdistinct.comp e.injective) (by
+      intro L X
+      simpa [e, Equiv.sum_comp] using hzero L X)
+  intro i
+  simpa using hfin (e.symm i)
+
+/-- Grouping lemma used in Appendix G.1, Step 1.  It is the finite
+"combine equal attention matrices" step that is implicit in the prose proof. -/
+theorem theorem27_matching [HasTranAttentionIdentifiability]
+    {I : Type*} [Fintype I] [DecidableEq I] {D : ℕ} (hD : 0 < D)
+    (A B A' B' : I → Mat D D)
+    (hA : Function.Injective A) (hA' : Function.Injective A')
+    (hcross : ∀ i j, A i = A' j → i = j)
+    (hB : ∀ i, B i ≠ 0) (hB' : ∀ i, B' i ≠ 0)
+    (hzero : ∀ (L : ℕ+) (X : Mat (L : ℕ) D),
+      (∑ i, rowSoftmax (X * A i * Xᵀ) * X * B i) -
+        (∑ i, rowSoftmax (X * A' i * Xᵀ) * X * B' i) = 0) :
+    ∀ i, A i = A' i ∧ B i = B' i := by
+  classical
+  let values : Finset (Mat D D) :=
+    Finset.univ.image A ∪ Finset.univ.image A'
+  let J := {M : Mat D D // M ∈ values}
+  let C : J → Mat D D := fun M =>
+    (∑ i with A i = M.1, B i) - (∑ i with A' i = M.1, B' i)
+  have hgroup : ∀ (L : ℕ+) (X : Mat (L : ℕ) D),
+      (∑ M : J, rowSoftmax (X * M.1 * Xᵀ) * X * C M) = 0 := by
+    intro L X
+    have hleft :
+        (∑ M : J, rowSoftmax (X * M.1 * Xᵀ) * X *
+          (∑ i with A i = M.1, B i)) =
+          ∑ i, rowSoftmax (X * A i * Xᵀ) * X * B i := by
+      classical
+      simp [J, values, Finset.mul_sum, Finset.sum_filter, Finset.sum_sigma']
+    have hright :
+        (∑ M : J, rowSoftmax (X * M.1 * Xᵀ) * X *
+          (∑ i with A' i = M.1, B' i)) =
+          ∑ i, rowSoftmax (X * A' i * Xᵀ) * X * B' i := by
+      classical
+      simp [J, values, Finset.mul_sum, Finset.sum_filter, Finset.sum_sigma']
+    rw [show (∑ M : J, rowSoftmax (X * M.1 * Xᵀ) * X * C M) =
+      (∑ M : J, rowSoftmax (X * M.1 * Xᵀ) * X *
+        (∑ i with A i = M.1, B i)) -
+      (∑ M : J, rowSoftmax (X * M.1 * Xᵀ) * X *
+        (∑ i with A' i = M.1, B' i)) by
+          simp [C, Matrix.mul_sub, Finset.sum_sub_distrib]]
+    simpa [hleft, hright] using hzero L X
+  have hC : ∀ M : J, C M = 0 :=
+    theorem27_fintype hD (fun M : J => M.1) C
+      (fun M N h => Subtype.ext h) hgroup
+  intro i
+  have hmatch : A i = A' i := by
+    by_contra hne
+    let M : J := ⟨A i, by
+      apply Finset.mem_union_left
+      exact Finset.mem_image.mpr ⟨i, Finset.mem_univ _, rfl⟩⟩
+    have hfirst : (∑ j with A j = M.1, B j) = B i := by
+      rw [Finset.sum_eq_single i]
+      · simp [M]
+      · intro j _ hj hji
+        exact (hj (hA (by simpa [M] using hji))).elim
+      · simp
+    have hsecond : (∑ j with A' j = M.1, B' j) = 0 := by
+      apply Finset.sum_eq_zero
+      intro j hj
+      have hij : i = j := hcross i j (by simpa [M] using hj)
+      subst j
+      exact (hne (by simpa [M] using hj)).elim
+    have := hC M
+    rw [C, hfirst, hsecond, sub_zero] at this
+    exact hB i this
+  refine ⟨hmatch, ?_⟩
+  let M : J := ⟨A i, by
+    apply Finset.mem_union_left
+    exact Finset.mem_image.mpr ⟨i, Finset.mem_univ _, rfl⟩⟩
+  have hfirst : (∑ j with A j = M.1, B j) = B i := by
+    rw [Finset.sum_eq_single i]
+    · simp [M]
+    · intro j _ hj hji
+      exact (hj (hA (by simpa [M] using hji))).elim
+    · simp
+  have hsecond : (∑ j with A' j = M.1, B' j) = B' i := by
+    rw [Finset.sum_eq_single i]
+    · simp [M, hmatch]
+    · intro j _ hj hji
+      have hij := hcross i j (by simpa [M] using hji.symm)
+      exact (hj hij.symm).elim
+    · simp
+  have := hC M
+  rw [C, hfirst, hsecond, sub_eq_zero] at this
+  exact this
+
+abbrev Head (nG k : ℕ) := Fin nG × Fin k
+
+def scoreHead (p : Param nG k D dh) (a : Head nG k) : Mat D D :=
+  score p a.1 a.2
+
+def weightHead (p : Param nG k D dh) (a : Head nG k) : Mat D D :=
+  weight p a.1 a.2
+
+lemma fullColumnRank_open_preimage_Q (j : Fin nG) (i : Fin k) :
+    IsOpen {p : Param nG k D dh | FullColumnRank (Q p j i)} := by
+  have heq :
+      {p : Param nG k D dh | FullColumnRank (Q p j i)} =
+        {p | Matrix.det ((Q p j i)ᵀ * Q p j i) ≠ 0} := by
+    ext p
+    constructor
+    · intro hp
+      exact (Matrix.isUnit_iff_isUnit_det _).mp hp.gram_isUnit |>
+        (isUnit_iff_ne_zero.mp)
+    · intro hp
+      have hgram : IsUnit ((Q p j i)ᵀ * Q p j i) :=
+        (Matrix.isUnit_iff_isUnit_det _).mpr (isUnit_iff_ne_zero.mpr hp)
+      have hinjGram : Function.Injective (((Q p j i)ᵀ * Q p j i).mulVec) :=
+        Matrix.mulVec_injective_of_isUnit hgram
+      apply (Matrix.mulVec_injective_iff).mp
+      intro x y hxy
+      apply hinjGram
+      simp [Matrix.mulVec_mulVec, hxy]
+  rw [heq]
+  exact isOpen_compl_singleton.preimage (by fun_prop)
+
+lemma fullColumnRank_open_preimage_K (j : Fin nG) :
+    IsOpen {p : Param nG k D dh | FullColumnRank (K p j)} := by
+  simpa [K] using
+    (fullColumnRank_open_preimage_Q (nG := nG) (k := 1) (D := D) (dh := dh)
+      j (0 : Fin 1))
+
+lemma fullColumnRank_open_preimage_V (j : Fin nG) :
+    IsOpen {p : Param nG k D dh | FullColumnRank (V p j)} := by
+  change IsOpen {p : Param nG k D dh |
+    FullColumnRank (fun a b => p (j, Slot.value, a, b))}
+  simpa only [] using
+    (isOpen_ne_fun
+      (by fun_prop : Continuous (fun p : Param nG k D dh =>
+        Matrix.det (((V p j)ᵀ * V p j))))
+      continuous_const)
+
+lemma fullColumnRank_open_preimage_O (j : Fin nG) (i : Fin k) :
+    IsOpen {p : Param nG k D dh | FullColumnRank (O p j i)} := by
+  change IsOpen {p : Param nG k D dh |
+    FullColumnRank (fun a b => p (j, Slot.output i, a, b))}
+  simpa only [] using
+    (isOpen_ne_fun
+      (by fun_prop : Continuous (fun p : Param nG k D dh =>
+        Matrix.det (((O p j i)ᵀ * O p j i))))
+      continuous_const)
+
+lemma weightHead_ne_zero (hh : 0 < dh) {p : Param nG k D dh}
+    (hp : p ∈ regular) (a : Head nG k) : weightHead p a ≠ 0 := by
+  intro hz
+  have hV := (hp.1 a.1 a.2).2.2.1
+  have hO := (hp.1 a.1 a.2).2.2.2
+  have hgram := hO.gram_isUnit
+  have hzero :
+      V p a.1 * ((O p a.1 a.2)ᵀ * O p a.1 a.2) = 0 := by
+    simpa [weightHead, weight, Matrix.mul_assoc] using
+      congrArg (fun M => M * O p a.1 a.2) hz
+  have hVzero : V p a.1 = 0 := by
+    calc
+      V p a.1 = V p a.1 * 1 := by simp
+      _ = V p a.1 *
+          (((O p a.1 a.2)ᵀ * O p a.1 a.2) *
+            (((O p a.1 a.2)ᵀ * O p a.1 a.2)⁻¹)) := by
+              simp [hgram]
+      _ = 0 := by
+        rw [← Matrix.mul_assoc, hzero, zero_mul]
+  have hne := hV.ne_zero ⟨0, hh⟩
+  simpa [hVzero] using hne
+
+
 /-- A local neighborhood excludes head permutations by keeping distinct
 score matrices in pairwise-disjoint balls (Appendix G.1, Step 1). -/
-theorem local_product_identifiability (hg : 0 < nG) (hk : 0 < k)
+theorem local_product_identifiability [HasTranAttentionIdentifiability]
+    (hg : 0 < nG) (hk : 0 < k)
     (hh : 0 < dh) (hd : dh ≤ D)
     {p₀ : Param nG k D dh} (hp₀ : p₀ ∈ regular) :
     ∃ U : Set (Param nG k D dh), IsOpen U ∧ p₀ ∈ U ∧ U ⊆ regular ∧
       ∀ p ∈ U, ∀ q ∈ U,
         FunctionalEquiv model p q ↔
           (∀ j i, score p j i = score q j i ∧ weight p j i = weight q j i) := by
-  exact AttentionIdentifiability.exists_local_product_chart
-    hg hk hh hd hp₀ theorem27
+  classical
+  let U : Set (Param nG k D dh) :=
+    regular ∩
+      ⋂ a : Head nG k, ⋂ b : Head nG k,
+        if h : a = b then Set.univ else
+          {p | dist (scoreHead p a) (scoreHead p₀ a) <
+            dist (scoreHead p₀ a) (scoreHead p₀ b) / 3}
+  have hUopen : IsOpen U := by
+    apply (by
+      have hregopen : IsOpen (regular : Set (Param nG k D dh)) := by
+        unfold regular
+        apply IsOpen.and
+        · apply isOpen_iInter_of_finite
+          intro j
+          apply isOpen_iInter_of_finite
+          intro i
+          exact (((fullColumnRank_open_preimage_Q (nG:=nG) (k:=k) (D:=D) (dh:=dh) j i)
+            .inter (fullColumnRank_open_preimage_K (nG:=nG) (k:=k) (D:=D) (dh:=dh) j))
+            .inter (fullColumnRank_open_preimage_V (nG:=nG) (k:=k) (D:=D) (dh:=dh) j))
+            .inter (fullColumnRank_open_preimage_O (nG:=nG) (k:=k) (D:=D) (dh:=dh) j i)
+        · apply isOpen_iInter_of_finite
+          intro a
+          apply isOpen_iInter_of_finite
+          intro b
+          by_cases hab : a = b
+          · simp [hab]
+          · exact isOpen_ne_fun (by fun_prop) (by fun_prop)
+      exact hregopen.inter <|
+        isOpen_iInter_of_finite fun a =>
+          isOpen_iInter_of_finite fun b => by
+            split_ifs with hab
+            · exact isOpen_univ
+            · exact isOpen_lt
+                (continuous_dist.comp
+                  ((by fun_prop).prod_mk continuous_const))
+                continuous_const)
+  have hpU : p₀ ∈ U := by
+    refine ⟨hp₀, ?_⟩
+    intro a
+    intro b
+    by_cases hab : a = b
+    · simp [hab]
+    · simp [hab]
+      have hne : scoreHead p₀ a ≠ scoreHead p₀ b :=
+        hp₀.2 hab
+      have hpos : 0 < dist (scoreHead p₀ a) (scoreHead p₀ b) :=
+        dist_pos.mpr hne
+      linarith
+  refine ⟨U, hUopen, hpU, fun p hp => hp.1, ?_⟩
+  intro p hp q hq
+  have hcross : ∀ a b : Head nG k,
+      scoreHead p a = scoreHead q b → a = b := by
+    intro a b he
+    by_contra hab
+    have hpa := hp.2 a b
+    have hqb := hq.2 b a
+    simp [hab] at hpa
+    have hba : b ≠ a := Ne.symm hab
+    simp [hba] at hqb
+    have htri :
+        dist (scoreHead p₀ a) (scoreHead p₀ b) ≤
+          dist (scoreHead p₀ a) (scoreHead p a) +
+          dist (scoreHead q b) (scoreHead p₀ b) := by
+      simpa [he, dist_comm] using
+        dist_triangle (scoreHead p₀ a) (scoreHead p a) (scoreHead p₀ b)
+    linarith
+  constructor
+  · intro heq
+    let scale : ℝ := (Real.sqrt (dh : ℝ))⁻¹
+    have hscale : scale ≠ 0 := by
+      exact inv_ne_zero (Real.sqrt_ne_zero'.mpr (by positivity))
+    have hD : 0 < D := lt_of_lt_of_le hh hd
+    have hzero : ∀ (L : ℕ+) (X : Mat (L : ℕ) D),
+        (∑ a : Head nG k,
+          rowSoftmax (X * (scale • scoreHead p a) * Xᵀ) * X * weightHead p a) -
+        (∑ a : Head nG k,
+          rowSoftmax (X * (scale • scoreHead q a) * Xᵀ) * X * weightHead q a) = 0 := by
+      intro L X
+      have hout := congrArg Sigma.snd
+        (heq ⟨(L : ℕ), X⟩)
+      simpa [model, run, scoreHead, weightHead, scale,
+        Finset.sum_product, sub_eq_zero] using hout
+    have hpInj : Function.Injective (fun a : Head nG k => scale • scoreHead p a) := by
+      intro a b h
+      apply hp.1.2
+      apply hscale.smul_left_cancel
+      exact h
+    have hqInj : Function.Injective (fun a : Head nG k => scale • scoreHead q a) := by
+      intro a b h
+      apply hq.1.2
+      apply hscale.smul_left_cancel
+      exact h
+    have hcrossScaled : ∀ a b : Head nG k,
+        scale • scoreHead p a = scale • scoreHead q b → a = b := by
+      intro a b h
+      apply hcross a b
+      exact hscale.smul_left_cancel h
+    have hm := theorem27_matching hD
+      (fun a : Head nG k => scale • scoreHead p a) (weightHead p)
+      (fun a : Head nG k => scale • scoreHead q a) (weightHead q)
+      hpInj hqInj hcrossScaled
+      (weightHead_ne_zero hh hp.1) (weightHead_ne_zero hh hq.1) hzero
+    intro j i
+    have hi := hm (j, i)
+    refine ⟨?_, hi.2⟩
+    exact hscale.smul_left_cancel hi.1
+  · intro hprod X
+    rcases X with ⟨L, X⟩
+    apply Sigma.ext rfl
+    simp only [model]
+    congr 1
+    simp only [run]
+    apply Finset.sum_congr rfl
+    intro j _
+    apply Finset.sum_congr rfl
+    intro i _
+    rw [(hprod j i).1, (hprod j i).2]
 
 /-- Shared full-rank K and V force the per-head changes of basis to agree. -/
 theorem gauge_of_equal_products (hk : 0 < k)
@@ -2529,7 +2824,8 @@ theorem gauge_of_equal_products (hk : 0 < k)
       simpa [gauge, O] using congrFun₂ (ht_all j i).2 x y
 
 /-- Proposition 18, the full local functional-equivalence characterization. -/
-theorem proposition18_symmetries (hg : 0 < nG) (hk : 0 < k)
+theorem proposition18_symmetries [HasTranAttentionIdentifiability]
+    (hg : 0 < nG) (hk : 0 < k)
     (hh : 0 < dh) (hd : dh ≤ D)
     {p₀ : Param nG k D dh} (hp₀ : p₀ ∈ regular) :
     ∃ U : Set (Param nG k D dh), IsOpen U ∧ p₀ ∈ U ∧ U ⊆ regular ∧
