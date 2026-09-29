@@ -811,6 +811,80 @@ lemma fderiv_vanishes_on_bundle_kernel {k : ℕ}
   rw [← inner_gradient_left]
   exact hinner
 
+
+lemma constant_on_vertical_implicit_slice
+    {F K : Type*}
+    [NormedAddCommGroup F] [NormedSpace ℝ F] [FiniteDimensional ℝ F]
+    [NormedAddCommGroup K] [NormedSpace ℝ K] [CompleteSpace K]
+    {U : Set F} {Z : Set K}
+    (hU : IsOpen U) (hZ : IsOpen Z) (hZconn : IsPreconnected Z)
+    (φ : F × K → E) (B : E → F) (h : E → ℝ)
+    (hφ : ContDiffOn ℝ 1 φ (U ×ˢ Z))
+    (hBφ : ∀ y ∈ U, ∀ z ∈ Z, B (φ (y,z)) = y)
+    (hh : ∀ y ∈ U, ∀ z ∈ Z, DifferentiableAt ℝ h (φ (y,z)))
+    (hker : ∀ y ∈ U, ∀ z ∈ Z, ∀ u : E,
+      (fderiv ℝ B (φ (y,z))) u = 0 →
+      (fderiv ℝ h (φ (y,z))) u = 0) :
+    ∀ y ∈ U, ∃ c : ℝ, ∀ z ∈ Z, h (φ (y,z)) = c := by
+  intro y hy
+  let g : K → ℝ := fun z => h (φ (y,z))
+  have hgdiff : DifferentiableOn ℝ g Z := by
+    intro z hz
+    have hφz : DifferentiableAt ℝ (fun w : K => φ (y,w)) z := by
+      have hpair : DifferentiableAt ℝ (fun w : K => (y,w)) z := by fun_prop
+      have hφat : DifferentiableAt ℝ φ (y,z) :=
+        (hφ.differentiableOn (by norm_num)).differentiableAt
+          ((hU.prod hZ).mem_nhds ⟨hy,hz⟩)
+      exact hφat.comp z hpair
+    exact (hh y hy z hz).comp z hφz |>.differentiableWithinAt
+  have hgzero : Z.EqOn (fderiv ℝ g) 0 := by
+    intro z hz
+    apply ContinuousLinearMap.ext
+    intro w
+    have hpair :
+        HasFDerivAt (fun u : K => (y,u))
+          (ContinuousLinearMap.inr ℝ F K) z := by
+      fun_prop
+    have hφat : DifferentiableAt ℝ φ (y,z) :=
+      (hφ.differentiableOn (by norm_num)).differentiableAt
+        ((hU.prod hZ).mem_nhds ⟨hy,hz⟩)
+    have hsliceφ :
+        HasFDerivAt (fun u : K => φ (y,u))
+          ((fderiv ℝ φ (y,z)).comp (ContinuousLinearMap.inr ℝ F K)) z :=
+      hφat.hasFDerivAt.comp z hpair
+    have hBslice :
+        (fun u : K => B (φ (y,u))) =ᶠ[𝓝 z] (fun _ => y) := by
+      filter_upwards [hZ.mem_nhds hz] with u hu
+      exact hBφ y hy u hu
+    have hBderiv :
+        fderiv ℝ (fun u : K => B (φ (y,u))) z = 0 :=
+      hBslice.fderiv_eq.trans (fderiv_const (c := y))
+    have hBchain :
+        fderiv ℝ (fun u : K => B (φ (y,u))) z =
+          (fderiv ℝ B (φ (y,z))).comp
+            ((fderiv ℝ φ (y,z)).comp (ContinuousLinearMap.inr ℝ F K)) := by
+      have hBat : DifferentiableAt ℝ B (φ (y,z)) := by
+        have hconst : DifferentiableAt ℝ (fun u : K => B (φ (y,u))) z :=
+          hBslice.differentiableAt_iff.mpr differentiableAt_const
+        exact differentiableAt_of_comp_iff hsliceφ hconst
+      exact (hBat.hasFDerivAt.comp z hsliceφ).fderiv.symm
+    have hvertical :
+        (fderiv ℝ B (φ (y,z)))
+          ((fderiv ℝ φ (y,z)) (0,w)) = 0 := by
+      have := congrArg (fun T : K →L[ℝ] F => T w)
+        (hBchain.symm.trans hBderiv)
+      simpa [ContinuousLinearMap.comp_apply] using this
+    have hhchain :
+        fderiv ℝ g z =
+          (fderiv ℝ h (φ (y,z))).comp
+            ((fderiv ℝ φ (y,z)).comp (ContinuousLinearMap.inr ℝ F K)) := by
+      exact ((hh y hy z hz).hasFDerivAt.comp z hsliceφ).fderiv.symm
+    rw [hhchain]
+    simp only [ContinuousLinearMap.comp_apply, ContinuousLinearMap.inr_apply,
+      ContinuousLinearMap.zero_apply]
+    exact hker y hy z hz _ hvertical
+  exact hZ.exists_is_const_of_fderiv_eq_zero hZconn hgdiff hgzero
+
 /-- Standard finite-dimensional constant-rank/submersion factorization
 principle used in Proposition 4.  Nguyen--Montúfar treat this as differential
 geometry background rather than proving it. Stage 2 will instantiate this
