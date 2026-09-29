@@ -1394,6 +1394,70 @@ theorem gradient_isClosed (hΩ : IsOpen Ω) {h : E → ℝ}
 def radialPotential (v : Field E) (a p : E) : ℝ :=
   ∫ t in (0 : ℝ)..1, ⟪v (a + t • (p - a)), p - a⟫_ℝ
 
+def fieldOneForm (v : Field E) (p : E) : E →L[ℝ] ℝ :=
+  (InnerProductSpace.toDual ℝ E) (v p)
+
+lemma hasFDerivAt_fieldOneForm {v : Field E} {p : E}
+    (hv : DifferentiableAt ℝ v p) :
+    HasFDerivAt (fieldOneForm v)
+      ((InnerProductSpace.toDual ℝ E).toContinuousLinearMap.comp
+        (fderiv ℝ v p)) p := by
+  exact (InnerProductSpace.toDual ℝ E).contDiff.contDiffAt.hasFDerivAt.comp
+    p hv.hasFDerivAt
+
+lemma fderiv_fieldOneForm_apply {v : Field E} {p : E}
+    (hv : DifferentiableAt ℝ v p) (x y : E) :
+    (fderiv ℝ (fieldOneForm v) p x) y =
+      ⟪fderiv ℝ v p x, y⟫_ℝ := by
+  rw [(hasFDerivAt_fieldOneForm hv).fderiv]
+  simp [fieldOneForm, ContinuousLinearMap.comp_apply]
+
+lemma fieldOneForm_fderiv_symmetric {v : Field E}
+    (hΩ : IsOpen Ω) (hv : ContDiffOn ℝ ∞ v Ω)
+    (hclosed : IsClosedFieldOn Ω v) :
+    ∀ p ∈ Ω, ∀ x y : E,
+      fderiv ℝ (fieldOneForm v) p x y =
+        fderiv ℝ (fieldOneForm v) p y x := by
+  intro p hp x y
+  have hvp : DifferentiableAt ℝ v p :=
+    (hv.differentiableOn (by simp)).differentiableAt (hΩ.mem_nhds hp)
+  rw [fderiv_fieldOneForm_apply hvp, fderiv_fieldOneForm_apply hvp]
+  exact (hclosed p hp x y).trans real_inner_comm
+
+lemma poincare_convex_open
+    {U : Set E} (hU : IsOpen U) (hconv : Convex ℝ U)
+    {v : Field E} (hv : ContDiffOn ℝ ∞ v U)
+    (hclosed : IsClosedFieldOn U v) :
+    ∃ h : E → ℝ, ContDiffOn ℝ ∞ h U ∧ IsPotentialOn U v h := by
+  have hωdiff : DifferentiableOn ℝ (fieldOneForm v) U := by
+    intro p hp
+    have hvp : DifferentiableAt ℝ v p :=
+      (hv.differentiableOn (by simp)).differentiableAt (hU.mem_nhds hp)
+    exact (hasFDerivAt_fieldOneForm hvp).differentiableAt.differentiableWithinAt
+  have hωsym :
+      ∀ p ∈ U, ∀ x y : E,
+        fderiv ℝ (fieldOneForm v) p x y =
+          fderiv ℝ (fieldOneForm v) p y x :=
+    fieldOneForm_fderiv_symmetric hU hv hclosed
+  obtain ⟨h, hh⟩ :=
+    hconv.exists_forall_hasFDerivAt_of_fderiv_symmetric
+      hU hωdiff hωsym
+  have hpot : IsPotentialOn U v h := by
+    intro p hp
+    apply (InnerProductSpace.toDual ℝ E).injective
+    rw [toDual_gradient, (hh p hp).fderiv]
+    rfl
+  have hdiff : DifferentiableOn ℝ h U :=
+    fun p hp => (hh p hp).differentiableAt.differentiableWithinAt
+  have hωsmooth : ContDiffOn ℝ ∞ (fieldOneForm v) U := by
+    exact (InnerProductSpace.toDual ℝ E).contDiff.comp_contDiffOn hv
+      (fun _ _ => Set.mem_univ _)
+  have hfderSmooth : ContDiffOn ℝ ∞ (fderiv ℝ h) U :=
+    hωsmooth.congr (fun p hp => (hh p hp).fderiv)
+  have hsmooth : ContDiffOn ℝ ∞ h U :=
+    (contDiffOn_infty_iff_fderiv_of_isOpen hU).2 ⟨hdiff, hfderSmooth⟩
+  exact ⟨h, hsmooth, hpot⟩
+
 /-- Star-shaped Poincaré lemma in exactly the form used by the paper. -/
 class HasStarPoincareLemma
     (E : Type*) [NormedAddCommGroup E] [InnerProductSpace ℝ E]
@@ -1415,7 +1479,7 @@ theorem poincare_star [HasStarPoincareLemma E]
   HasStarPoincareLemma.radial_potential hΩ hv hclosed ha hstar
 
 /-- Local Poincaré lemma, with a connected ball and uniqueness modulo constants. -/
-theorem poincare_local [HasStarPoincareLemma E] (hΩ : IsOpen Ω) {v : Field E}
+theorem poincare_local (hΩ : IsOpen Ω) {v : Field E}
     (hv : ContDiffOn ℝ ∞ v Ω) (hclosed : IsClosedFieldOn Ω v)
     {p : E} (hp : p ∈ Ω) :
     ∃ (U : Set E) (h : E → ℝ),
@@ -1423,10 +1487,10 @@ theorem poincare_local [HasStarPoincareLemma E] (hΩ : IsOpen Ω) {v : Field E}
       ContDiffOn ℝ ∞ h U ∧ IsPotentialOn U v h := by
   obtain ⟨ε, hε, hball⟩ := Metric.isOpen_iff.mp hΩ p hp
   have hpball : p ∈ Metric.ball p ε := Metric.mem_ball_self hε
-  obtain ⟨hh, hpot⟩ := poincare_star isOpen_ball (hv.mono hball)
-    (fun q hq => hclosed q (hball hq)) hpball
-    ((convex_ball p ε).starConvex hpball)
-  exact ⟨Metric.ball p ε, radialPotential v p, isOpen_ball, hpball,
+  obtain ⟨h, hh, hpot⟩ :=
+    poincare_convex_open isOpen_ball (convex_ball p ε)
+      (hv.mono hball) (fun q hq => hclosed q (hball hq))
+  exact ⟨Metric.ball p ε, h, isOpen_ball, hpball,
     hball, (convex_ball p ε).isPreconnected, hh, hpot⟩
 
 theorem potential_unique_mod_constant (hΩ : IsOpen Ω) (hc : IsPreconnected Ω)
@@ -1471,7 +1535,7 @@ lemma RegularLossOn.mono {L : S → E → ℝ} (hL : RegularLossOn Ω L)
   exact ⟨U ∩ V, hU.inter hV, ⟨hp, hpV⟩, Set.inter_subset_left,
     K, hK.mono Set.inter_subset_right⟩
 
-theorem corollary10_reverse [HasStarPoincareLemma E]
+theorem corollary10_reverse
     {L : S → E → ℝ}
     (hL : RegularLossOn Ω L) {v : Field E}
     (hv : ContDiffOn ℝ ∞ v Ω) (ψ : LocalFlow Ω v)
@@ -1488,7 +1552,7 @@ theorem corollary10_reverse [HasStarPoincareLemma E]
   exact (corollary7 hL ψ).mp hsym q (hsub hq)
 
 /-- Proposition 8, local reverse direction, directly from a closed field. -/
-theorem proposition8_local [HasMaximalSmoothLocalFlows] [HasStarPoincareLemma E]
+theorem proposition8_local [HasMaximalSmoothLocalFlows]
     {L : S → E → ℝ}
     (hL : RegularLossOn Ω L) {v : Field E}
     (hv : ContDiffOn ℝ ∞ v Ω) (hclosed : IsClosedFieldOn Ω v)
