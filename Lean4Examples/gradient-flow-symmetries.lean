@@ -574,15 +574,15 @@ end LocalFlow
 
 /-- Standard autonomous-ODE background used by Proposition 9.  This is an
 explicit Stage-1 dependency, not an assumed theorem constant. -/
-class HasMaximalSmoothLocalFlows
-    (E : Type*) [NormedAddCommGroup E] [InnerProductSpace ℝ E]
-    [FiniteDimensional ℝ E] [CompleteSpace E] : Prop where
+class HasMaximalSmoothLocalFlows : Prop where
   exists_maximal :
-    ∀ {Ω : Set E} {v : Field E}, IsOpen Ω → ContDiffOn ℝ ∞ v Ω →
-      ∃ ψ : LocalFlow Ω v, ψ.IsMaximal
+    ∀ {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E]
+      [FiniteDimensional ℝ E] [CompleteSpace E]
+      {Ω : Set E} {v : Field E}, IsOpen Ω → ContDiffOn ℝ ∞ v Ω →
+        ∃ ψ : LocalFlow Ω v, ψ.IsMaximal
 
 /-- Standard ODE/local-flow background required by Proposition 9. -/
-theorem exists_maximal_localFlow [HasMaximalSmoothLocalFlows E] (hΩ : IsOpen Ω) {v : Field E}
+theorem exists_maximal_localFlow [HasMaximalSmoothLocalFlows] (hΩ : IsOpen Ω) {v : Field E}
     (hv : ContDiffOn ℝ ∞ v Ω) :
     ∃ ψ : LocalFlow Ω v, ψ.IsMaximal :=
   HasMaximalSmoothLocalFlows.exists_maximal hΩ hv
@@ -648,7 +648,7 @@ theorem corollary7 {L : S → E → ℝ} (hL : RegularLossOn Ω L)
     exact (mem_symmetryDistribution_iff L p (v p)).mp (hv p hp) s
 
 /-- Proposition 9, existence plus invariance. -/
-theorem proposition9 [HasMaximalSmoothLocalFlows E]
+theorem proposition9 [HasMaximalSmoothLocalFlows]
     {L : S → E → ℝ} (hL : RegularLossOn Ω L)
     {v : Field E} (hv : ContDiffOn ℝ ∞ v Ω)
     (hvorth : ∀ p ∈ Ω, v p ∈ symmetryDistribution L p) :
@@ -802,7 +802,7 @@ theorem proposition8_forward {L : S → E → ℝ}
 
 /-- Corollary 10: a smooth conserved potential generates a unique maximal
 partial symmetry. Arbitrary restrictions of that flow are not claimed unique. -/
-theorem corollary10_forward [HasMaximalSmoothLocalFlows E]
+theorem corollary10_forward [HasMaximalSmoothLocalFlows]
     {L : S → E → ℝ}
     (hL : RegularLossOn Ω L) {h : E → ℝ}
     (hh : ContDiffOn ℝ ∞ h Ω)
@@ -840,7 +840,7 @@ theorem corollary10_reverse [HasStarPoincareLemma E]
   exact (corollary7 hL ψ).mp hsym q (hsub hq)
 
 /-- Proposition 8, local reverse direction, directly from a closed field. -/
-theorem proposition8_local [HasMaximalSmoothLocalFlows E] [HasStarPoincareLemma E]
+theorem proposition8_local [HasMaximalSmoothLocalFlows] [HasStarPoincareLemma E]
     {L : S → E → ℝ}
     (hL : RegularLossOn Ω L) {v : Field E}
     (hv : ContDiffOn ℝ ∞ v Ω) (hclosed : IsClosedFieldOn Ω v)
@@ -1266,7 +1266,7 @@ lemma orthogonal_local_frame [HasFrobeniusBackground E]
   HasFrobeniusBackground.orthogonalFrame hΩ hframe hrank hp
 
 /-- Theorem 12(i)--(ii). `rLie` is the paper's barred r, distinct from r. -/
-theorem theorem12 [HasMaximalSmoothLocalFlows E] [HasFrobeniusBackground E]
+theorem theorem12 [HasMaximalSmoothLocalFlows] [HasFrobeniusBackground E]
     {L : S → E → ℝ} (hL : SmoothLossOn Ω L)
     {r rLie : ℕ}
     (hW : HasLocalSmoothFrame Ω (gradientDistribution L))
@@ -1407,6 +1407,8 @@ open Set Function Filter
 open scoped BigOperators Topology InnerProductSpace ContDiff
 
 namespace GradientFlowPaper
+
+variable [HasMaximalSmoothLocalFlows]
 
 section FunctionalSymmetries
 
@@ -3353,6 +3355,8 @@ open scoped BigOperators Topology InnerProductSpace ContDiff Matrix
 namespace GradientFlowPaper
 namespace PolynomialNetwork
 
+variable [HasMaximalSmoothLocalFlows]
+
 structure Architecture where
   depth : ℕ
   depth_pos : 0 < depth
@@ -3811,6 +3815,8 @@ open scoped BigOperators Topology InnerProductSpace ContDiff Matrix
 
 namespace GradientFlowPaper
 namespace DeepLinear
+
+variable [HasMaximalSmoothLocalFlows]
 
 abbrev Index (L D : ℕ) := Fin L × Fin D × Fin D
 abbrev Param (L D : ℕ) := Vec (Index L D)
