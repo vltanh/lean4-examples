@@ -1274,6 +1274,71 @@ variable {A Γ : Type*} [NormedAddCommGroup A] [NormedSpace ℝ A]
   [FiniteDimensional ℝ A] [Group Γ] [TopologicalSpace Γ]
   [ChartedSpace A Γ] [LieGroup (𝓘(ℝ, A)) ∞ Γ] [ConnectedSpace Γ]
 
+
+lemma isLocallyConstant_of_mfderiv_eq_zero
+    {M H : Type*} [NormedAddCommGroup H] [NormedSpace ℝ H]
+    [TopologicalSpace M] [ChartedSpace H M]
+    (I : ModelWithCorners ℝ H H)
+    [IsManifold I 1 M]
+    (F : M → ℝ)
+    (hF : ContMDiff I 𝓘(ℝ, ℝ) 1 F)
+    (hzero : ∀ x, mfderiv I 𝓘(ℝ, ℝ) F x = 0) :
+    IsLocallyConstant F := by
+  rw [IsLocallyConstant.iff_exists_open]
+  intro x
+  let e := extChartAt I x
+  have hxsrc : x ∈ e.source := mem_extChartAt_source x
+  have hxtgt : e x ∈ e.target := e.map_source hxsrc
+  obtain ⟨ε, hε, hball⟩ :=
+    Metric.isOpen_iff.mp e.open_target (e x) hxtgt
+  let B : Set H := Metric.ball (e x) ε
+  have hBopen : IsOpen B := isOpen_ball
+  have hxB : e x ∈ B := Metric.mem_ball_self hε
+  have hBtgt : B ⊆ e.target := hball
+  let G : H → ℝ := fun y => F (e.symm y)
+  have hGdiff : DifferentiableOn ℝ G B := by
+    intro y hy
+    have hyt := hBtgt hy
+    have hsymmMD :
+        MDiffAt I I (e.symm) y :=
+      e.mdifferentiableAt_symm hyt
+    have hFMD :
+        MDiffAt I 𝓘(ℝ, ℝ) F (e.symm y) :=
+      hF.mdifferentiableAt (by norm_num)
+    have hcomp := hFMD.comp y hsymmMD
+    simpa [G, mdifferentiableAt_iff_differentiableAt] using hcomp
+  have hGzero : B.EqOn (fderiv ℝ G) 0 := by
+    intro y hy
+    have hyt := hBtgt hy
+    have hsymmMD :
+        MDiffAt I I (e.symm) y :=
+      e.mdifferentiableAt_symm hyt
+    have hFMD :
+        MDiffAt I 𝓘(ℝ, ℝ) F (e.symm y) :=
+      hF.mdifferentiableAt (by norm_num)
+    have hchain :=
+      mfderiv_comp (I' := I) y hFMD hsymmMD
+    rw [hzero] at hchain
+    have hmfzero :
+        mfderiv I 𝓘(ℝ, ℝ) G y = 0 := by
+      simpa [G, ContinuousLinearMap.zero_comp] using hchain
+    simpa [mfderiv_eq_fderiv] using hmfzero
+  obtain ⟨c₀, hc₀⟩ :=
+    hBopen.exists_is_const_of_fderiv_eq_zero
+      (convex_ball (e x) ε).isPreconnected hGdiff hGzero
+  let U : Set M := e.symm '' B
+  have hUopen : IsOpen U :=
+    e.symm.isOpen_image_of_subset_source hBopen hBtgt
+  have hxU : x ∈ U := by
+    refine ⟨e x, hxB, ?_⟩
+    exact e.left_inv hxsrc
+  refine ⟨U, hUopen, hxU, ?_⟩
+  intro z hz
+  rcases hz with ⟨y, hy, rfl⟩
+  have hyeq : G y = G (e x) := by
+    exact (hc₀ y hy).trans (hc₀ (e x) hxB).symm
+  simpa [G, e.left_inv hxsrc] using hyeq
+
 /-- Connected-Lie-group infinitesimal invariance principle used in
 Proposition 5. The paper treats this as standard Lie theory. -/
 class HasConnectedLieGroupInfinitesimalPrinciple
