@@ -1296,6 +1296,34 @@ lemma smooth_extendLaw {U : ∀ j, Set (Vec (ι j))}
   apply hh.comp (blockLinear ι j).toContinuousLinearMap.contDiff.contDiffOn
   exact fun _ hp => hp j
 
+/-- Gradient of a scalar function restricted to one affine parameter block. -/
+lemma gradient_sliceLaw {V : Set (Total ι)} (hV : IsOpen V)
+    (j : B) (p : Total ι) {h : Total ι → ℝ}
+    (hh : ContDiffOn ℝ 1 h V) {u : Vec (ι j)}
+    (hu : replace ι j p u ∈ V) :
+    gradient (sliceLaw ι j p h) u =
+      block ι j (gradient h (replace ι j p u)) := by
+  let R : Vec (ι j) → Total ι := fun z => replace ι j p z
+  have hR :
+      HasFDerivAt R (injectLinear ι j).toContinuousLinearMap u := by
+    simpa [R, replace] using
+      (injectLinear ι j).toContinuousLinearMap.hasFDerivAt.const_add
+        (p - inject ι j (block ι j p))
+  have hh' : DifferentiableAt ℝ h (R u) :=
+    differentiableAt_of_c1 hV hh hu
+  have hc :
+      HasFDerivAt (sliceLaw ι j p h)
+        ((fderiv ℝ h (R u)).comp
+          (injectLinear ι j).toContinuousLinearMap) u := by
+    simpa [sliceLaw, R, Function.comp_def] using
+      hh'.hasFDerivAt.comp u hR
+  apply (InnerProductSpace.toDual ℝ (Vec (ι j))).injective
+  rw [toDual_gradient, hc.fderiv]
+  ext z
+  simp only [ContinuousLinearMap.comp_apply]
+  rw [← inner_gradient_left, ← inner_gradient_left]
+  simp [R, block, inject, inner, Finset.sum_sigma']
+
 /-- A lifted flow leaves every other orthogonal parameter block fixed. -/
 theorem exists_liftedFlow {U : ∀ j, Set (Vec (ι j))}
     (hU : ∀ j, IsOpen (U j)) (j : B) {v : Field (Vec (ι j))}
@@ -1505,10 +1533,57 @@ theorem proposition15_law (hU : ∀ j, IsOpen (U j)) (j : B)
   have hm := (corollary7 hL Ψ.flow).mp hloss p hp
   simpa only [hgen, Blocks.extendField, ψ] using hm
 
+/-- Infinitesimal form of the reflection hypothesis.  It is proved by
+differentiating the reflected functional equivalence along the coupled flow. -/
+lemma reflected_generator_component_infinitesimal
+    (hU : ∀ j, IsOpen (U j))
+    (g : ∀ j, Vec (ι j) → Xb j → Zb j)
+    (ell : ∀ j, Zb j → Yb j → ℝ)
+    (G : Blocks.Total ι → X → Z)
+    (hreg : ∀ j, RegularLossOn (U j) (sampleLoss (g j) (ell j)))
+    (href : ReflectsBlockEquivalence (U := U) g G)
+    {V : Set (Blocks.Total ι)} (hV : IsOpen V) (hVU : V ⊆ Blocks.domain ι U)
+    (φ : FunctionalPartialSymmetry V G) {p : Blocks.Total ι} (hp : p ∈ V) :
+    ∀ j, Blocks.block ι j (φ.generator p) ∈
+      symmetryDistribution (sampleLoss (g j) (ell j)) (Blocks.block ι j p) := by
+  intro j
+  rw [mem_symmetryDistribution_iff]
+  rintro s
+  let γ : ℝ → Vec (ι j) :=
+    fun t => Blocks.block ι j (φ.flow.toFun t p)
+  have hγ :
+      HasDerivAt γ (Blocks.block ι j (φ.generator p)) 0 := by
+    have hode := φ.flow.ode (φ.flow.zero_mem p hp)
+    have hb := hode.clm_apply
+      (Blocks.blockLinear ι j).toContinuousLinearMap
+    simpa [γ, φ.flow.initial p hp] using hb
+  have heq :
+      (fun t => sampleLoss (g j) (ell j) s (γ t)) =ᶠ[𝓝 0]
+        (fun _ => sampleLoss (g j) (ell j) s (Blocks.block ι j p)) := by
+    filter_upwards [
+      (φ.flow.open_times p).mem_nhds (φ.flow.zero_mem p hp)
+    ] with t ht
+    have htargetV : φ.flow.toFun t p ∈ V := φ.flow.target_mem ht
+    have heG : FunctionalEquiv G (φ.flow.toFun t p) p :=
+      φ.invariant t p ht
+    have hej := href (φ.flow.toFun t p) (hVU htargetV) p (hVU hp) heG j
+    have hpred := hej s.1
+    simpa [sampleLoss, γ] using
+      congrArg (fun z => ell j z s.2) hpred
+  have hconst :
+      HasDerivAt (fun t => sampleLoss (g j) (ell j) s (γ t)) 0 0 :=
+    (hasDerivAt_const 0
+      (sampleLoss (g j) (ell j) s (Blocks.block ι j p))).congr_of_eventuallyEq
+        heq.symm
+  have hdiff :
+      DifferentiableAt ℝ (sampleLoss (g j) (ell j) s) (Blocks.block ι j p) :=
+    differentiableAt_of_c1 (hU j) ((hreg j).c1 s) ((hVU hp) j)
+  have hchain := hasDerivAt_observable hdiff hγ
+  have hz := hchain.unique hconst
+  simpa [γ, real_inner_comm] using hz
+
 /-- Differential step from Appendix F.4. A component of a coupled flow is
-NOT itself asserted to be an autonomous flow. Instead, freeze the other
-initial coordinates, differentiate invariance, and integrate the resulting
-smooth component field on a smaller product neighborhood. -/
+integrated after freezing the other initial coordinates. -/
 theorem reflected_symmetry_component_spanned
     (hU : ∀ j, IsOpen (U j))
     (g : ∀ j, Vec (ι j) → Xb j → Zb j)
@@ -1524,8 +1599,42 @@ theorem reflected_symmetry_component_spanned
     (φ : FunctionalPartialSymmetry V G) {p : Blocks.Total ι} (hp : p ∈ V) :
     ∀ j, Blocks.block ι j (φ.generator p) ∈
       Submodule.span ℝ (Set.range (fun a => (ψ j a).generator (Blocks.block ι j p))) := by
-  exact Inheritance.reflected_component_generator_spanned
-    hU g ell G hreg hsep href ψ hψ hV hVU φ hp
+  intro j
+  let W : Set (Vec (ι j)) :=
+    {u | Blocks.replace ι j p u ∈ V}
+  have hreplace_cont :
+      Continuous (fun u : Vec (ι j) => Blocks.replace ι j p u) := by
+    unfold Blocks.replace
+    fun_prop
+  have hW : IsOpen W := hV.preimage hreplace_cont
+  have hpW : Blocks.block ι j p ∈ W := by
+    simpa [W, Blocks.replace_self] using hp
+  have hWU : W ⊆ U j := by
+    intro u hu
+    have hdom := hVU hu
+    simpa [W] using hdom j
+  let w : Field (Vec (ι j)) :=
+    fun u => Blocks.block ι j
+      (φ.generator (Blocks.replace ι j p u))
+  have hw : ContDiffOn ℝ ∞ w W := by
+    exact (Blocks.blockLinear ι j).toContinuousLinearMap.contDiff.comp_contDiffOn
+      (φ.smooth_generator.comp
+        (by
+          unfold Blocks.replace
+          fun_prop)
+        (fun _ hu => hu))
+  have hworth : ∀ u ∈ W,
+      w u ∈ symmetryDistribution (sampleLoss (g j) (ell j)) u := by
+    intro u hu
+    have hi := reflected_generator_component_infinitesimal
+      hU g ell G hreg href hV hVU φ hu j
+    simpa [w, Blocks.block_replace_same] using hi
+  have hregW := (hreg j).mono hW hWU
+  obtain ⟨flow, -, hflow⟩ := proposition9 hregW hw hworth
+  let φj : FunctionalPartialSymmetry W (g j) :=
+    ⟨w, hw, flow, proposition14 (g j) (ell j) (hsep j) flow hflow⟩
+  have hspan := (hψ j).2 W hW hWU φj (Blocks.block ι j p) hpW
+  simpa [φj, w, Blocks.replace_self] using hspan
 
 /-- The analogous slicing step for conservation laws. For fixed other
 coordinates, the component of ∇h is the gradient of the sliced function. -/
@@ -1546,8 +1655,45 @@ theorem reflected_law_component_spanned
     {p : Blocks.Total ι} (hp : p ∈ V) :
     ∀ j, Blocks.block ι j (gradient h p) ∈
       Submodule.span ℝ (Set.range (fun a => gradient (H j a) (Blocks.block ι j p))) := by
-  exact Inheritance.reflected_component_gradient_spanned
-    hU g ell G Ell hreg href hL hsep H hH hV hVU hh hc hp
+  have hregV := hL.mono hV hVU
+  obtain ⟨flow, -, hflow⟩ := proposition9 hregV
+    (smooth_gradient_on hV hh)
+    ((proposition2 hregV (hh.of_le (by simp))).mp hc)
+  let φ : FunctionalPartialSymmetry V G :=
+    ⟨gradient h, smooth_gradient_on hV hh, flow,
+      proposition14 G Ell hsep flow hflow⟩
+  intro j
+  let W : Set (Vec (ι j)) :=
+    {u | Blocks.replace ι j p u ∈ V}
+  have hreplace_cont :
+      Continuous (fun u : Vec (ι j) => Blocks.replace ι j p u) := by
+    unfold Blocks.replace
+    fun_prop
+  have hW : IsOpen W := hV.preimage hreplace_cont
+  have hpW : Blocks.block ι j p ∈ W := by
+    simpa [W, Blocks.replace_self] using hp
+  have hWU : W ⊆ U j := by
+    intro u hu
+    have hdom := hVU hu
+    simpa [W] using hdom j
+  let hs : Vec (ι j) → ℝ := Blocks.sliceLaw ι j p h
+  have hhs : ContDiffOn ℝ ∞ hs W := by
+    exact hh.comp
+      (by
+        unfold Blocks.replace
+        fun_prop)
+      (fun _ hu => hu)
+  have hcons : IsConservedOn W (sampleLoss (g j) (ell j)) hs := by
+    apply (proposition2 ((hreg j).mono hW hWU) (hhs.of_le (by simp))).mpr
+    intro u hu
+    rw [Blocks.gradient_sliceLaw ι hV j p (hh.of_le (by simp)) hu]
+    have hi := reflected_generator_component_infinitesimal
+      hU g ell G hreg href hV hVU φ hu j
+    simpa [φ] using hi
+  have hspan := (hH j).2.2.2 W hW hWU hs hhs hcons
+    (Blocks.block ι j p) hpW
+  rw [Blocks.gradient_sliceLaw ι hV j p (hh.of_le (by simp)) hp] at hspan
+  simpa [hs, Blocks.replace_self] using hspan
 
 /-- Proposition 16, symmetry part. The displayed extensions need NOT themselves
 be symmetries under the one-way reflection assumption. -/
