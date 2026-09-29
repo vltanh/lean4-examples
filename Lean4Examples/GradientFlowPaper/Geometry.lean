@@ -3562,6 +3562,21 @@ lemma FrobeniusSubmersionAt.gradient_span
   · infer_instance
 
 
+
+/-- Rank-indexed Frobenius submersion property, quantified over the ambient
+finite-dimensional Euclidean space so the induction may pass to a transverse
+hyperplane. -/
+def FrobeniusSubmersionProperty (r : ℕ) : Prop :=
+  ∀ {F : Type*} [NormedAddCommGroup F] [InnerProductSpace ℝ F]
+    [FiniteDimensional ℝ F] [CompleteSpace F]
+    {ΩF : Set F} {DF : Distribution F},
+    IsOpen ΩF →
+    HasLocalSmoothFrame ΩF DF →
+    ConstantRankOn ΩF DF r →
+    InvolutiveOn ΩF DF →
+    ∀ {p : F}, p ∈ ΩF →
+      FrobeniusSubmersionAt ΩF DF r p
+
 /-- Rank-zero Frobenius is just linear coordinates: a zero-dimensional
 distribution is the zero subspace, and the standard orthonormal
 representation is a submersion with trivial kernel. -/
@@ -3602,6 +3617,13 @@ theorem exists_frobeniusSubmersionAt_rank_zero
       simpa [H] using b.repr.toContinuousLinearEquiv.hasFDerivAt.fderiv
     rw [hf, hDzero q hq]
     exact LinearMap.ker_eq_bot.mpr b.repr.injective
+
+
+lemma frobeniusSubmersionProperty_zero :
+    FrobeniusSubmersionProperty 0 := by
+  intro F _ _ _ _ ΩF DF hΩ hframe hrank hinv p hp
+  exact exists_frobeniusSubmersionAt_rank_zero hΩ hrank hp
+
 
 /-- A Frobenius submersion immediately supplies the exact family of first
 integrals used by Theorem 21. -/
