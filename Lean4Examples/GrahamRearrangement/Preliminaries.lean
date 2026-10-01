@@ -430,6 +430,14 @@ theorem ep_eq_stdAddChar {p : ℕ} [NeZero p] (x : ZMod p) :
   simpa [ep, Complex.div_re, Complex.ofReal_natCast, mul_assoc,
     ZMod.natCast_zmod_val] using h.symm
 
+theorem stdAddChar_re_eq_cos {p : ℕ} [NeZero p] (x : ZMod p) :
+    (ZMod.stdAddChar x).re =
+      Real.cos (2 * Real.pi * ((x.val : ℝ) / (p : ℝ))) := by
+  rw [← ep_eq_stdAddChar]
+  unfold ep
+  simp [Complex.exp_re, mul_assoc]
+  ring_nf
+
 /-- Fact 2.5. -/
 theorem fact2_5 {p : ℕ} [NeZero p] (hp : p.Prime) (x : ZMod p) :
     (ep p x).re ≤ 1 - 2 * zmodNorm x ^ 2 := by
