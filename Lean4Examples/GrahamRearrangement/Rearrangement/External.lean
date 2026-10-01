@@ -234,6 +234,17 @@ axiom disjoint_swaps_reconstruct
     (hperm : swapsPermList P.toList = swapsPermList Q.toList) :
     P = Q
 
+/-- A product of support-disjoint swaps fixes every point outside all swap
+supports. -/
+axiom disjoint_swaps_fix_outside_support
+    {α : Type*} [DecidableEq α]
+    (P : Finset (α × α))
+    (hP : P.toSet.Pairwise fun q r =>
+      q.1 ≠ r.1 ∧ q.1 ≠ r.2 ∧ q.2 ≠ r.1 ∧ q.2 ≠ r.2)
+    (i : α)
+    (hi : ∀ q ∈ P, i ≠ q.1 ∧ i ≠ q.2) :
+    swapsPermList P.toList i = i
+
 /-- Generic trimming principle for disjoint transpositions: swaps crossing none
 of a finite family of index sets can be deleted without changing the image of
 any of those sets. -/
@@ -419,35 +430,6 @@ axiom fixed_tail_tuple_conditional_chainBound
             (u i) (x i) = 0) ≤
       chainUpperBound p (S \ indexImageSet τ F).card
         C (tailSizes b' x)
-
-/-- Abstract finite greedy repair principle. If bad positions are processed in
-strictly decreasing order, every step has at least one local candidate outside
-three forbidden sets and every nonblocked swap removes the current endpoint
-without creating a new earlier endpoint, then all bad positions can be removed. -/
-axiom finite_descending_greedy_repair
-    {n p D : ℕ} (hD : 0 < D)
-    (σ : Fin n → ZMod p)
-    (B : Finset (Fin n))
-    (hB : B = badRightEndpoints σ)
-    (hfar : ∀ b ∈ B, paperPos b + 5 * D ≤ n)
-    (hlocal : ∀ z : Fin n,
-      (B ∩ symmetricWindow z (10 * D)).card ≤ D)
-    (hblocked :
-      ∀ b ∈ B, ∀ π : Equiv.Perm (Fin n),
-        IsAdmissiblePermutation D π →
-        FixedBelow b π →
-        (blockedCandidates D σ b π).card < 2 * D)
-    (hpreserve :
-      ∀ b y π,
-        b ∈ B →
-        IsAdmissiblePermutation D π →
-        FixedThrough b π →
-        y ∈ forwardWindow b (5 * D) →
-        ¬ IsBlockedAt D σ b π y →
-        True) :
-    ∃ π : Equiv.Perm (Fin n),
-      IsAdmissiblePermutation D π ∧
-      HasNoZeroPaperSegments (applyPositionPerm σ π)
 
 /-- Crude count for the parameter triples (b,J,J') in Lemma 5.4. -/
 axiom bad0_parameter_count {n D : ℕ} :
