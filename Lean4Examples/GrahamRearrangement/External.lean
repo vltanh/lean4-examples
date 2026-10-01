@@ -190,15 +190,200 @@ theorem log_two_ge_half : (1 / 2 : ℝ) ≤ Real.log 2 := by
 
 /-- Generic weighted dyadic split: small shells are controlled by a square-root
 bound and the at most 22 remaining shells by the trivial bound. -/
-axiom weighted_dyadic_split (m : ℕ) (p K : ℝ) (E : ℕ → ℝ)
-    (hp : 0 < p)
+theorem dyadic_weight_le_geometric (l : ℕ) :
+    Real.sqrt ((2 : ℝ) ^ l) * Real.exp (-(2 : ℝ) ^ l) ≤
+      (1 / 2 : ℝ) ^ l := by
+  cases l with
+  | zero =>
+      simp
+      exact le_trans (le_of_lt Real.exp_neg_one_lt_half) (by norm_num)
+  | succ l =>
+      by_cases hl : l < 3
+      · interval_cases l <;>
+          norm_num [pow_succ, Real.sqrt_mul (by norm_num : (0:ℝ) ≤ 2),
+            Real.exp_neg] <;>
+          nlinarith [Real.exp_one_gt_two, Real.sqrt_two_lt_two]
+      · let x : ℝ := (2 : ℝ) ^ (l + 1)
+        have hx16 : (16 : ℝ) ≤ x := by
+          dsimp [x]
+          exact_mod_cast Nat.pow_le_pow_right (by omega)
+            (show 4 ≤ l + 1 by omega)
+        have hx0 : 0 < x := by positivity
+        have hlog :=
+          Real.log_le_rpow_div (le_of_lt hx0)
+            (show (0 : ℝ) < 1 / 2 by norm_num)
+        have hroot : Real.sqrt x = x ^ (1 / 2 : ℝ) := Real.sqrt_eq_rpow
+        have h4root : 4 * Real.sqrt x ≤ x := by
+          have hs : (4 : ℝ) ≤ Real.sqrt x := by
+            apply (le_sqrt hx0.le).2
+            nlinarith
+          nlinarith [Real.sq_sqrt hx0.le]
+        have h2log : 2 * Real.log x ≤ x := by
+          rw [hroot] at hlog
+          nlinarith
+        have hx2exp : x ^ 2 ≤ Real.exp x := by
+          have hlogx2 :
+              Real.log (x ^ 2) ≤ x := by
+            rw [Real.log_pow]
+            simpa using h2log
+          exact (Real.log_le_iff_le_exp (by positivity)).mp hlogx2
+        have hexpinv :
+            Real.exp (-x) ≤ 1 / x ^ 2 := by
+          rw [Real.exp_neg]
+          exact inv_le_inv₀ (by positivity) hx2exp
+        have hsqrtle : Real.sqrt x ≤ x := Real.sqrt_le_self (by positivity) (by linarith)
+        calc
+          Real.sqrt ((2 : ℝ) ^ (l + 1)) *
+              Real.exp (-(2 : ℝ) ^ (l + 1))
+            = Real.sqrt x * Real.exp (-x) := rfl
+          _ ≤ Real.sqrt x * (1 / x ^ 2) := by gcongr
+          _ ≤ 1 / x := by
+                have : 0 < x := hx0
+                field_simp
+                nlinarith
+          _ = (1 / 2 : ℝ) ^ (l + 1) := by
+                dsimp [x]
+                rw [one_div, inv_pow]
+                ring
+
+theorem dyadic_weight_sum_le_two (N : ℕ) :
+    (∑ l ∈ Finset.range N,
+      Real.sqrt ((2 : ℝ) ^ l) * Real.exp (-(2 : ℝ) ^ l)) ≤ 2 := by
+  calc
+    _ ≤ ∑ l ∈ Finset.range N, (1 / 2 : ℝ) ^ l := by
+          gcongr with l hl
+          exact dyadic_weight_le_geometric l
+    _ ≤ ∑' l : ℕ, (1 / 2 : ℝ) ^ l :=
+      (summable_geometric_two.sum_le_tsum
+        (fun l hl => by positivity) (Finset.range N))
+    _ = 2 := tsum_geometric_two
+
+theorem terminal_dyadic_indices_card_le
+    (m : ℕ) :
+    ((Finset.range (Nat.log2 m + 1)).filter
+      fun l => m / 2 ^ 22 < 2 ^ l).card ≤ 22 := by
+  classical
+  let L := Nat.log2 m
+  have hsub :
+      (Finset.range (L + 1)).filter
+          (fun l => m / 2 ^ 22 < 2 ^ l) ⊆
+        Finset.Icc (L + 1 - 22) L := by
+    intro l hl
+    rcases Finset.mem_filter.mp hl with ⟨hlrange, htail⟩
+    have hlL : l ≤ L := by
+      simpa using Nat.lt_succ_iff.mp (Finset.mem_range.mp hlrange)
+    refine Finset.mem_Icc.mpr ⟨?_,hlL⟩
+    by_contra hlow
+    have hl22 : l + 22 ≤ L := by omega
+    have hm0 : m ≠ 0 := by
+      intro hm
+      subst m
+      simp at htail
+    have hpw : 2 ^ (l + 22) ≤ m := by
+      rw [Nat.log2_eq_log_two] at hl22
+      exact Nat.pow_le_of_le_log hm0 hl22
+    have : 2 ^ l ≤ m / 2 ^ 22 := by
+      apply (Nat.le_div_iff_mul_le (by positivity)).2
+      simpa [pow_add, mul_comm] using hpw
+    omega
+  calc
+    _ ≤ (Finset.Icc (L + 1 - 22) L).card := Finset.card_le_card hsub
+    _ ≤ 22 := by
+      rw [Nat.card_Icc]
+      omega
+
+/-- The final dyadic split in the proof of Theorem 1.3. -/
+theorem weighted_dyadic_split (m : ℕ) (p K : ℝ) (E : ℕ → ℝ)
+    (hp : 0 < p) (hK : 0 ≤ K)
     (hsmall : ∀ l, 2 ^ l ≤ m / 2 ^ 22 →
       E l ≤ p * K * Real.sqrt ((2 : ℝ) ^ l))
     (htriv : ∀ l, E l ≤ p) :
     (1 / p) *
         ∑ l ∈ Finset.range (Nat.log2 m + 1),
           E l * Real.exp (-(2 : ℝ) ^ l)
-      ≤ 2 * K + 22 * Real.exp (-(m : ℝ) / 2 ^ 22)
+      ≤ 2 * K + 22 * Real.exp (-(m : ℝ) / 2 ^ 22) := by
+  classical
+  let I := Finset.range (Nat.log2 m + 1)
+  let Ismall := I.filter fun l => 2 ^ l ≤ m / 2 ^ 22
+  let Itail := I.filter fun l => m / 2 ^ 22 < 2 ^ l
+  have hpartition : I = Ismall ∪ Itail := by
+    ext l
+    simp [I,Ismall,Itail]
+    omega
+  have hdisj : Disjoint Ismall Itail := by
+    rw [Finset.disjoint_left]
+    intro l hs ht
+    simp [Ismall,Itail] at hs ht
+    omega
+  rw [hpartition, Finset.sum_union hdisj, mul_add]
+  apply add_le_add
+  · calc
+      (1 / p) * ∑ l ∈ Ismall,
+          E l * Real.exp (-(2 : ℝ) ^ l)
+        ≤ K * ∑ l ∈ Ismall,
+          Real.sqrt ((2 : ℝ) ^ l) *
+            Real.exp (-(2 : ℝ) ^ l) := by
+            apply Finset.sum_le_sum
+            intro l hl
+            have hs := (Finset.mem_filter.mp hl).2
+            have he := hsmall l hs
+            have hexp : 0 ≤ Real.exp (-(2 : ℝ) ^ l) := Real.exp_nonneg _
+            have hp0 : 0 < p := hp
+            field_simp
+            nlinarith
+      _ ≤ K * 2 := by
+            gcongr
+            apply le_trans
+              (Finset.sum_le_sum_of_subset
+                (by exact Finset.filter_subset _ _)
+                (by intro l hl hnot; positivity))
+              (dyadic_weight_sum_le_two (Nat.log2 m + 1))
+      _ = 2 * K := by ring
+  · have hcard : Itail.card ≤ 22 := by
+      simpa [Itail,I] using terminal_dyadic_indices_card_le m
+    have hterm : ∀ l ∈ Itail,
+        (1 / p) * (E l * Real.exp (-(2 : ℝ) ^ l)) ≤
+          Real.exp (-(m : ℝ) / 2 ^ 22) := by
+      intro l hl
+      have hI := (Finset.mem_filter.mp hl).1
+      have htail := (Finset.mem_filter.mp hl).2
+      have he := htriv l
+      have hreal :
+          (m : ℝ) / 2 ^ 22 ≤ (2 : ℝ) ^ l := by
+        have hdiv :
+            (m : ℝ) / 2 ^ 22 <
+              (m / 2 ^ 22 : ℕ) + 1 := by
+          have hmod := Nat.mod_lt m (by positivity : 0 < 2^22)
+          have hdec := Nat.div_add_mod m (2^22)
+          exact (div_lt_iff₀ (by positivity : (0:ℝ)<2^22)).2
+            (by exact_mod_cast (by omega :
+              m < (m / 2^22 + 1) * 2^22))
+        have hint : (m / 2^22 : ℕ) + 1 ≤ 2^l := by omega
+        exact le_trans (le_of_lt hdiv) (by exact_mod_cast hint)
+      have hexp :=
+        exp_antitone hreal
+      have hp0 := hp
+      calc
+        _ ≤ (1 / p) * (p * Real.exp (-(2 : ℝ) ^ l)) := by
+              gcongr
+              positivity
+        _ = Real.exp (-(2 : ℝ) ^ l) := by field_simp
+        _ ≤ _ := hexp
+    calc
+      (1 / p) * ∑ l ∈ Itail,
+          E l * Real.exp (-(2 : ℝ) ^ l)
+        = ∑ l ∈ Itail,
+            (1 / p) * (E l * Real.exp (-(2 : ℝ) ^ l)) := by
+              rw [Finset.mul_sum]
+      _ ≤ ∑ _l ∈ Itail,
+          Real.exp (-(m : ℝ) / 2 ^ 22) := by
+            gcongr with l hl
+            exact hterm l hl
+      _ = (Itail.card : ℝ) *
+          Real.exp (-(m : ℝ) / 2 ^ 22) := by simp
+      _ ≤ 22 * Real.exp (-(m : ℝ) / 2 ^ 22) := by
+            gcongr
+            exact_mod_cast hcard
 
 /-- Elementary floor estimate used with k=floor(sqrt x). -/
 theorem natFloor_ge_half {x : ℝ} (hx : 1 ≤ x) :
