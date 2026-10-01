@@ -90,6 +90,12 @@ The external concentration/Fourier inputs are isolated in
    The formalization uses the quotient/remainder partition intended by the
    argument: each block has size `floor(n/m)` or `floor(n/m)+1`, and exactly
    `n % m` labelled blocks have the larger size.
+3. In the proof of Lemma 3.2 the PDF/HTML prints the bound
+   `|S ∩ J_{χ,t}| · 265t/m`, but the next displayed line bounds four times
+   this contribution by `1024t/m`. Since `J_{χ,t}` is defined by radius
+   `16√(t/m)`, the direct squared bound is `256t/m`, and
+   `4·256=1024`. The formalization uses `256`; reproducing the printed
+   `265` would make the following inequality false.
 
 ## Section 4 — Combinatorial anticoncentration
 
