@@ -734,6 +734,78 @@ theorem remaining_invariant_under_history
   simp [historyKey,hi] at this
   exact this
 
+theorem history_component_eq {p k : ℕ} [NeZero p]
+    (L : Finset (Fin (k + 1)))
+    {Δ Γ : Fin (k + 1) → Finset (ZMod p)}
+    (hkey : historyKey L Δ = historyKey L Γ)
+    {i : Fin (k + 1)} (hi : i ∈ L) :
+    Δ i = Γ i := by
+  have h := congrFun hkey i
+  simp [historyKey,hi] at h
+  exact h
+
+theorem exposedUnion_eq_of_history {p k : ℕ} [NeZero p]
+    (L : Finset (Fin (k + 1)))
+    {Δ Γ : Fin (k + 1) → Finset (ZMod p)}
+    (hkey : historyKey L Δ = historyKey L Γ) :
+    exposedUnion L Δ = exposedUnion L Γ := by
+  unfold exposedUnion
+  apply Finset.biUnion_congr rfl
+  intro i hi
+  exact history_component_eq L hkey hi
+
+theorem exposed_subset_S {p k : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (m : Fin k → ℕ)
+    {Δ : Fin (k + 1) → Finset (ZMod p)}
+    (hΔ : Δ ∈ incrementPartitionFamily S m)
+    (L : Finset (Fin (k + 1))) :
+    exposedUnion L Δ ⊆ S := by
+  intro x hx
+  simp [exposedUnion] at hx
+  rcases hx with ⟨i,hiL,hxi⟩
+  exact ((Finset.mem_filter.mp hΔ).2.1 i).1 hxi
+
+theorem exposed_not_remaining {p k : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (m : Fin k → ℕ)
+    {Δ : Fin (k + 1) → Finset (ZMod p)}
+    (hΔ : Δ ∈ incrementPartitionFamily S m)
+    (L : Finset (Fin (k + 1)))
+    {x : ZMod p} (hx : x ∈ exposedUnion L Δ) :
+    x ∉ remainingAfter S L Δ := by
+  intro hxrem
+  exact (Finset.mem_sdiff.mp hxrem).2 hx
+
+theorem perm_fix_exposed_of_fix_outside_remaining
+    {p k : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (m : Fin k → ℕ)
+    (L : Finset (Fin (k + 1)))
+    {Δ : Fin (k + 1) → Finset (ZMod p)}
+    (hΔ : Δ ∈ incrementPartitionFamily S m)
+    (π : Equiv.Perm (ZMod p))
+    (hfix : ∀ x ∉ remainingAfter S L Δ, π x = x) :
+    ∀ x ∈ exposedUnion L Δ, π x = x := by
+  intro x hx
+  exact hfix x (exposed_not_remaining S m hΔ L hx)
+
+theorem perm_fix_outside_S_of_fix_outside_remaining
+    {p k : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (m : Fin k → ℕ)
+    (L : Finset (Fin (k + 1)))
+    {Δ : Fin (k + 1) → Finset (ZMod p)}
+    (π : Equiv.Perm (ZMod p))
+    (hfix : ∀ x ∉ remainingAfter S L Δ, π x = x) :
+    ∀ x ∉ S, π x = x := by
+  intro x hxS
+  apply hfix
+  intro hxU
+  exact hxS (Finset.mem_sdiff.mp hxU).1
+
+theorem symm_fixes_of_fixes {α : Type*}
+    (π : Equiv.Perm α) {x : α} (h : π x = x) :
+    π.symm x = x := by
+  apply π.injective
+  simp [h]
+
 theorem component_fiber_equipotent
     {p k : ℕ} [NeZero p]
     (S : Finset (ZMod p)) (m : Fin k → ℕ)
@@ -775,8 +847,8 @@ theorem component_fiber_equipotent
             exact by
               simp at this
               exact this hxS
-          exact exposed_points_fixed_by_perm_of_remaining
-            U Δ₀ L π hπfix x hxExp
+          exact perm_fix_exposed_of_fix_outside_remaining
+            S m L hΔ₀ π (by simpa [U] using hπfix) x hxExp
         · exact hπfix x (by
             intro hx; exact hxS
               (Finset.mem_sdiff.mp hx).1)
@@ -789,9 +861,11 @@ theorem component_fiber_equipotent
     apply Finset.mem_filter.mpr
     refine ⟨partitionPermMap_mem S m π hπS hmem, ?_, ?_⟩
     · rw [partitionPermMap_history_fixed L π
-        (fun x hx => exposed_points_fixed_by_perm_of_remaining
-          U Δ₀ L π hπfix x
-          (history_exposed_mem_transfer hH hkey hx))]
+        (fun x hx => perm_fix_exposed_of_fix_outside_remaining
+          S m L hΔ₀ π (by simpa [U] using hπfix) x
+          (by
+            rw [exposedUnion_eq_of_history L (hkey.trans hH.symm)]
+            exact hx))]
       exact hkey
     · simp [partitionPermMap,hAi,hπA]
   · intro Δ hΔ Γ hΓ hEq
@@ -810,7 +884,15 @@ theorem component_fiber_equipotent
           (by simpa using congrArg (Finset.image π.symm) hπS) hmem,
         ?_, ?_⟩
       · exact partitionPermMap_history_fixed L π.symm
-          (history_points_fixed_symm hH hkey hπfix)
+          ((by
+            intro x hx
+            have hx0 : x ∈ exposedUnion L Δ₀ := by
+              rw [← exposedUnion_eq_of_history L (hkey.trans hH.symm)]
+              exact hx
+            have hfx :=
+              perm_fix_exposed_of_fix_outside_remaining
+                S m L hΔ₀ π (by simpa [U] using hπfix) x hx0
+            exact symm_fixes_of_fixes π hfx))
           |>.trans hkey
       · simp [Δ,partitionPermMap,hBi,hπA]
     · funext r
