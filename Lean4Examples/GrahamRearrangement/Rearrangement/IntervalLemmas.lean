@@ -191,6 +191,107 @@ theorem valid_iff_noZeroPaperSegments {p : ℕ}
         simp [paperPos, a]
       exact hseg a b ha2 hproper hzeroInterval
 
+theorem swap_interval_split_right {n p : ℕ}
+    (τ : Fin n → ZMod p) (b b' y s t : Fin n)
+    (hby : paperPos b < paperPos y)
+    (hyb' : paperPos y ≤ paperPos b')
+    (hbs : paperPos b < paperPos s)
+    (hsy : paperPos s ≤ paperPos y)
+    (hb't : paperPos b' < paperPos t) :
+    indexedIntervalSum (applyPositionPerm τ (Equiv.swap b y)) s t =
+      indexSetSum τ ((indexInterval s b').image (Equiv.swap b y)) +
+        indexSetSum τ (indexOpenClosed b' t) := by
+  have hst : s.val ≤ t.val := by
+    simp [paperPos] at hsy hyb' hb't ⊢
+    omega
+  rw [← indexSetSum_indexInterval]
+  rw [indexSetSum_applyPositionPerm_image]
+  have hsplit :
+      indexInterval s t =
+        indexInterval s b' ∪ indexOpenClosed b' t := by
+    ext i
+    simp [indexInterval, indexOpenClosed, paperPos] at *
+    omega
+  rw [hsplit, Finset.image_union, Finset.sum_union]
+  · congr 1
+    unfold indexSetSum
+    rw [Finset.sum_image]
+    · apply Finset.sum_congr rfl
+      intro i hi
+      have hib : i ≠ b := by
+        simp [indexOpenClosed, paperPos] at hi hby hyb'
+        omega
+      have hiy : i ≠ y := by
+        simp [indexOpenClosed, paperPos] at hi hyb'
+        omega
+      rw [Equiv.swap_apply_of_ne_of_ne hib hiy]
+    · intro i hi j hj hij
+      exact (Equiv.swap b y).injective hij
+  · rw [Finset.disjoint_left]
+    intro z hz1 hz2
+    rcases Finset.mem_image.1 hz1 with ⟨i, hi, rfl⟩
+    simp [indexInterval, indexOpenClosed, paperPos] at hi hz2 hby hyb'
+    by_cases hib : i = b
+    · subst i
+      simp at hz2
+      omega
+    · by_cases hiy : i = y
+      · subst i
+        simp at hz2
+        omega
+      · rw [Equiv.swap_apply_of_ne_of_ne hib hiy] at hz2
+        omega
+
+theorem swap_interval_split_left {n p : ℕ}
+    (τ : Fin n → ZMod p) (b y s t : Fin n)
+    (hby : paperPos b < paperPos y)
+    (hsb : paperPos s < paperPos b)
+    (hbt : paperPos b ≤ paperPos t)
+    (hty : paperPos t < paperPos y) :
+    indexedIntervalSum (applyPositionPerm τ (Equiv.swap b y)) s t =
+      indexSetSum τ (indexHalfOpen s b) +
+        indexSetSum τ ((indexInterval b t).image (Equiv.swap b y)) := by
+  have hst : s.val ≤ t.val := by
+    simp [paperPos] at hsb hbt ⊢
+    omega
+  rw [← indexSetSum_indexInterval]
+  rw [indexSetSum_applyPositionPerm_image]
+  have hsplit :
+      indexInterval s t =
+        indexHalfOpen s b ∪ indexInterval b t := by
+    ext i
+    simp [indexInterval, indexHalfOpen, paperPos] at *
+    omega
+  rw [hsplit, Finset.image_union, Finset.sum_union]
+  · congr 1
+    unfold indexSetSum
+    rw [Finset.sum_image]
+    · apply Finset.sum_congr rfl
+      intro i hi
+      have hib : i ≠ b := by
+        simp [indexHalfOpen] at hi
+        omega
+      have hiy : i ≠ y := by
+        simp [indexHalfOpen, paperPos] at hi hby
+        omega
+      rw [Equiv.swap_apply_of_ne_of_ne hib hiy]
+    · intro i hi j hj hij
+      exact (Equiv.swap b y).injective hij
+  · rw [Finset.disjoint_left]
+    intro z hz1 hz2
+    rcases Finset.mem_image.1 hz1 with ⟨i, hi, rfl⟩
+    simp [indexHalfOpen, indexInterval, paperPos] at hi hz2 hby hty
+    by_cases hib : i = b
+    · subst i
+      simp at hz2
+      omega
+    · by_cases hiy : i = y
+      · subst i
+        simp at hi
+        omega
+      · rw [Equiv.swap_apply_of_ne_of_ne hib hiy] at hz2
+        omega
+
 end IndexedIntervals
 
 end GrahamRearrangement
