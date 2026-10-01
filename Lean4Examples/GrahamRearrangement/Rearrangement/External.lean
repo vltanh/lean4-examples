@@ -212,19 +212,164 @@ theorem disjoint_swaps_commute {α : Type*} [DecidableEq α]
   · subst x; simp [hab,hcd,hac,had,hbc,hbd]
   simp [Equiv.swap_apply_of_ne_of_ne,hxa,hxb,hxc,hxd]
 
-/-- Generic permutation fact: the product of a finite family of pairwise
-support-disjoint transpositions is independent of the enumeration. -/
-axiom disjoint_swaps_order_independent {α : Type*} [DecidableEq α]
+theorem nodup_toFinset_eq_perm {α : Type*} [DecidableEq α]
+    {l r : List α} (hl : l.Nodup) (hr : r.Nodup)
+    (hset : l.toFinset = r.toFinset) :
+    l.Perm r := by
+  induction l generalizing r with
+  | nil =>
+      have : r = [] := by
+        apply List.eq_nil_iff_forall_not_mem.mpr
+        intro x hx
+        have : x ∈ r.toFinset := by simpa using hx
+        simpa [hset] using this
+      simp [this]
+  | cons a l ih =>
+      have hal : a ∉ l := (List.nodup_cons.mp hl).1
+      have hln : l.Nodup := (List.nodup_cons.mp hl).2
+      have har : a ∈ r := by
+        have : a ∈ r.toFinset := by
+          rw [← hset]
+          simp
+        simpa using this
+      let r' := r.erase a
+      have hr' : r'.Nodup := hr.erase _
+      have hset' : l.toFinset = r'.toFinset := by
+        ext x
+        by_cases hxa : x = a
+        · subst x; simp [hal,r',hr]
+        · have hcons :
+              x ∈ (a :: l).toFinset ↔ x ∈ l.toFinset := by simp [hxa]
+          have herase :
+              x ∈ r'.toFinset ↔ x ∈ r.toFinset := by
+            simp [r',hxa]
+          rw [← hcons, hset, herase]
+      have hp := ih hln hr' hset'
+      have hconsperm : a :: r' ~ r := by
+        exact List.Perm.cons_erase a har
+      exact (List.Perm.cons a hp).trans hconsperm
+
+theorem swapsPermList_perm_of_disjoint
+    {α : Type*} [DecidableEq α]
+    {l r : List (α × α)}
+    (hperm : l.Perm r)
+    (hpair :
+      ∀ q ∈ l, ∀ s ∈ l, q ≠ s →
+        q.1 ≠ s.1 ∧ q.1 ≠ s.2 ∧ q.2 ≠ s.1 ∧ q.2 ≠ s.2)
+    (hord : ∀ q ∈ l, q.1 ≠ q.2) :
+    swapsPermList l = swapsPermList r := by
+  induction hperm with
+  | nil => rfl
+  | @cons a l r hperm ih =>
+      have hpair' :
+          ∀ q ∈ l, ∀ s ∈ l, q ≠ s →
+            q.1 ≠ s.1 ∧ q.1 ≠ s.2 ∧ q.2 ≠ s.1 ∧ q.2 ≠ s.2 := by
+        intro q hq s hs hne
+        exact hpair q (by simp [hq]) s (by simp [hs]) hne
+      have hord' : ∀ q ∈ l, q.1 ≠ q.2 := by
+        intro q hq
+        exact hord q (by simp [hq])
+      simp [swapsPermList,ih hpair' hord']
+  | @swap a b l =>
+      have hab : a ≠ b := by
+        intro h; subst b
+        have hd := hpair a (by simp) a (by simp) (by simp)
+        exact hd.1 rfl
+      have haord := hord a (by simp)
+      have hbord := hord b (by simp)
+      have hd := hpair a (by simp) b (by simp) hab
+      have hcomm :=
+        disjoint_swaps_commute
+          a.1 a.2 b.1 b.2 haord hbord
+          hd.1 hd.2.1 hd.2.2.1 hd.2.2.2
+      simp [swapsPermList]
+      rw [hcomm]
+  | @trans l r s h₁ h₂ ih₁ ih₂ =>
+      have hset₁ : r.toFinset = l.toFinset := by
+        exact Finset.ext fun x => by
+          simpa using h₁.mem_iff.symm
+      have hpairR :
+          ∀ q ∈ r, ∀ t ∈ r, q ≠ t →
+            q.1 ≠ t.1 ∧ q.1 ≠ t.2 ∧ q.2 ≠ t.1 ∧ q.2 ≠ t.2 := by
+        intro q hq t ht hne
+        apply hpair q
+        · exact h₁.symm.mem_iff.mp hq
+        · exact h₁.symm.mem_iff.mp ht
+        · exact hne
+      have hordR : ∀ q ∈ r, q.1 ≠ q.2 := by
+        intro q hq
+        exact hord q (h₁.symm.mem_iff.mp hq)
+      exact (ih₁ hpair hord).trans (ih₂ hpairR hordR)
+
+/-- The product of support-disjoint transpositions is independent of the
+enumeration. -/
+theorem disjoint_swaps_order_independent {α : Type*} [DecidableEq α]
     (P : Finset (α × α))
     (hP : P.toSet.Pairwise fun q r =>
       q.1 ≠ r.1 ∧ q.1 ≠ r.2 ∧ q.2 ≠ r.1 ∧ q.2 ≠ r.2)
     (l : List (α × α)) (hl : l.toFinset = P) (hln : l.Nodup) :
-    swapsPermList l = swapsPermList P.toList
+    swapsPermList l = swapsPermList P.toList := by
+  have hperm :=
+    nodup_toFinset_eq_perm hln P.nodup_toList hl
+  apply swapsPermList_perm_of_disjoint hperm
+  · intro q hq r hr hne
+    exact hP (by simpa [← hl] using hq)
+      (by simpa [← hl] using hr) hne
+  · intro q hq
+    by_contra heq
+    have hself :
+        q.1 ≠ q.1 ∧ q.1 ≠ q.2 ∧ q.2 ≠ q.1 ∧ q.2 ≠ q.2 := by
+      have qmem : q ∈ P := by simpa [← hl] using hq
+      have : False := by
+        exact hP qmem qmem (by
+          intro h; exact (not_false_eq_true.mpr trivial) (congrArg id h))
+      contradiction
+    exact hself.2.1 heq
 
-/-- Generic permutation fact: a finite collection of disjoint nontrivial
-transpositions is recovered from the resulting permutation once each pair is
-oriented by a fixed strict order. -/
-axiom disjoint_swaps_reconstruct
+theorem swapsPermList_pair_action
+    {α : Type*} [LinearOrder α] [DecidableEq α]
+    (P : Finset (α × α))
+    (hPpair : P.toSet.Pairwise fun q r =>
+      q.1 ≠ r.1 ∧ q.1 ≠ r.2 ∧ q.2 ≠ r.1 ∧ q.2 ≠ r.2)
+    (hord : ∀ q ∈ P, q.1 < q.2)
+    {q : α × α} (hq : q ∈ P) :
+    swapsPermList P.toList q.1 = q.2 ∧
+      swapsPermList P.toList q.2 = q.1 := by
+  let l := q :: (P.erase q).toList
+  have hln : l.Nodup := by
+    simp [l]
+  have hset : l.toFinset = P := by
+    simp [l,hq]
+  have horder :=
+    disjoint_swaps_order_independent P hPpair l hset hln
+  have hrest1 :
+      swapsPermList (P.erase q).toList q.1 = q.1 := by
+    apply disjoint_swaps_fix_outside_support (P.erase q)
+    · exact hPpair.mono (by intro a ha; exact Finset.mem_of_mem_erase ha)
+    · intro r hr
+      have hrP := Finset.mem_of_mem_erase hr
+      have hrne := Finset.ne_of_mem_erase hr
+      have hd := hPpair hq hrP hrne.symm
+      exact ⟨hd.1,hd.2.1⟩
+  have hrest2 :
+      swapsPermList (P.erase q).toList q.2 = q.2 := by
+    apply disjoint_swaps_fix_outside_support (P.erase q)
+    · exact hPpair.mono (by intro a ha; exact Finset.mem_of_mem_erase ha)
+    · intro r hr
+      have hrP := Finset.mem_of_mem_erase hr
+      have hrne := Finset.ne_of_mem_erase hr
+      have hd := hPpair hq hrP hrne.symm
+      exact ⟨hd.2.2.1,hd.2.2.2⟩
+  have hqne : q.1 ≠ q.2 := ne_of_lt (hord q hq)
+  constructor
+  · rw [← horder]
+    simp [l,swapsPermList,hqne,hrest2]
+  · rw [← horder]
+    simp [l,swapsPermList,hqne,hrest1]
+
+/-- A finite collection of disjoint, oriented nontrivial transpositions is
+recovered from the resulting permutation. -/
+theorem disjoint_swaps_reconstruct
     {α : Type*} [LinearOrder α] [DecidableEq α]
     (P Q : Finset (α × α))
     (hPpair : P.toSet.Pairwise fun q r =>
@@ -234,7 +379,86 @@ axiom disjoint_swaps_reconstruct
     (hPord : ∀ q ∈ P, q.1 < q.2)
     (hQord : ∀ q ∈ Q, q.1 < q.2)
     (hperm : swapsPermList P.toList = swapsPermList Q.toList) :
-    P = Q
+    P = Q := by
+  apply Finset.Subset.antisymm
+  · intro q hq
+    have hactP := swapsPermList_pair_action P hPpair hPord hq
+    have hmoveQ :
+        swapsPermList Q.toList q.1 = q.2 := by
+      rw [← hperm]
+      exact hactP.1
+    have hqne : q.1 ≠ q.2 := ne_of_lt (hPord q hq)
+    by_contra hqQ
+    have hsupport :
+        ∃ r ∈ Q, q.1 = r.1 ∨ q.1 = r.2 := by
+      by_contra hnone
+      push_neg at hnone
+      have hfix :=
+        disjoint_swaps_fix_outside_support Q hQpair q.1
+          (by
+            intro r hr
+            exact ⟨hnone r hr |>.1, hnone r hr |>.2⟩)
+      rw [hfix] at hmoveQ
+      exact hqne hmoveQ
+    rcases hsupport with ⟨r,hr,hr1 | hr2⟩
+    · have hactQ := swapsPermList_pair_action Q hQpair hQord hr
+      rw [hr1] at hactQ
+      have : r.2 = q.2 := by
+        rw [← hmoveQ]
+        exact hactQ.1.symm
+      have : r = q := by
+        apply Prod.ext
+        · exact hr1.symm
+        · exact this
+      exact hqQ (this ▸ hr)
+    · have hactQ := swapsPermList_pair_action Q hQpair hQord hr
+      have hEq : r.1 = q.2 := by
+        rw [hr2] at hactQ
+        rw [hactQ.2] at hmoveQ
+        exact hmoveQ
+      have hrord := hQord r hr
+      have hqord := hPord q hq
+      rw [hr2,hEq] at hrord
+      exact (not_lt_of_ge (le_of_lt hqord)) hrord
+  · intro q hq
+    have hsym : swapsPermList Q.toList = swapsPermList P.toList :=
+      hperm.symm
+    exact Finset.mem_of_subset
+      (by
+        intro r hr
+        have hactQ := swapsPermList_pair_action Q hQpair hQord hr
+        have hmoveP : swapsPermList P.toList r.1 = r.2 := by
+          rw [← hsym]
+          exact hactQ.1
+        have hrne : r.1 ≠ r.2 := ne_of_lt (hQord r hr)
+        by_contra hrP
+        have hsupport :
+            ∃ s ∈ P, r.1 = s.1 ∨ r.1 = s.2 := by
+          by_contra hnone
+          push_neg at hnone
+          have hfix :=
+            disjoint_swaps_fix_outside_support P hPpair r.1
+              (by intro s hs; exact ⟨(hnone s hs).1,(hnone s hs).2⟩)
+          rw [hfix] at hmoveP
+          exact hrne hmoveP
+        rcases hsupport with ⟨s,hs,hs1 | hs2⟩
+        · have hactP := swapsPermList_pair_action P hPpair hPord hs
+          rw [hs1] at hactP
+          have hsnd : s.2 = r.2 := by
+            rw [← hmoveP]
+            exact hactP.1.symm
+          have : s = r := Prod.ext hs1.symm hsnd
+          exact hrP (this ▸ hs)
+        · have hactP := swapsPermList_pair_action P hPpair hPord hs
+          have hfst : s.1 = r.2 := by
+            rw [hs2] at hactP
+            rw [hactP.2] at hmoveP
+            exact hmoveP
+          have hsord := hPord s hs
+          have hrord := hQord r hr
+          rw [hs2,hfst] at hsord
+          exact (not_lt_of_ge (le_of_lt hrord)) hsord)
+      hq
 
 /-- A product of support-disjoint swaps fixes every point outside all swap
 supports. -/
