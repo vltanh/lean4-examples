@@ -327,6 +327,71 @@ axiom chainUpperBound_sum_le_lemma43
     (∑ θ ∈ X, chainUpperBound p n C (m θ)) ≤
       lemma43LHS p n k C
 
+/-- If an interesting transposition does not start near the exposed local window,
+then crossing one of the constrained interval images forces it to start in the
+backward 5D-window ending at the corresponding right endpoint. -/
+axiom interesting_crossing_forces_tail_start
+    {n D : ℕ} (hD : 0 < D)
+    (b b' : Fin n)
+    (hgap : paperPos b' - paperPos b = 5 * D)
+    (u x : Fin D → Fin n)
+    (πi : Fin D → Equiv.Perm (Fin n))
+    (hu : ∀ i,
+      paperPos b ≤ paperPos (u i) ∧
+        paperPos (u i) ≤ paperPos b')
+    (hfix : ∀ i, FixedOutside b b' (πi i))
+    (q : Fin n × Fin n) (i : Fin D)
+    (hlen :
+      paperPos q.1 < paperPos q.2 ∧
+        paperPos q.2 - paperPos q.1 ≤ 5 * D)
+    (hcross : SwapCrosses q (constraintSet u x πi i))
+    (hnotlocal : q.1 ∉ symmetricWindow b (5 * D)) :
+    q.1 ∈ backwardWindow (x i) (5 * D)
+
+/-- The right-tail size tuple associated with a strictly increasing tail tuple is
+a valid chain-size tuple in the remaining ground set. -/
+axiom tailSizes_valid
+    {n D s : ℕ}
+    (b b' : Fin n)
+    (hgap : paperPos b' - paperPos b = 5 * D)
+    (x : Fin D → Fin n)
+    (hx : x ∈ tailTuples b' D)
+    (hs : s = n - (5 * D + 1)) :
+    IsChainSizeTuple s (tailSizes b' x)
+
+/-- After exposing [b,b'], a fixed right-tail tuple has exactly the nested-chain
+law on the remaining values. The bound supplied as hchain is therefore inherited
+by the corresponding interval-sum event. -/
+axiom fixed_tail_tuple_conditional_chainBound
+    {p D : ℕ} [NeZero p]
+    (S : Finset (ZMod p))
+    (τ : Fin S.card → ZMod p) (hτ : IsIndexedOrdering S τ)
+    (F : Finset (Fin S.card))
+    (b b' : Fin S.card)
+    (u x : Fin D → Fin S.card)
+    (πi : Fin D → Equiv.Perm (Fin S.card))
+    (hu : ∀ i,
+      paperPos b ≤ paperPos (u i) ∧
+        paperPos (u i) ≤ paperPos b')
+    (hfix : ∀ i, FixedOutside b b' (πi i))
+    (C : ℝ)
+    (hm : IsChainSizeTuple
+      (S \ indexImageSet τ F).card (tailSizes b' x))
+    (hchain :
+      chainMass (S \ indexImageSet τ F)
+          (tailSizes b' x) (fun _ => 0) ≤
+        chainUpperBound p (S \ indexImageSet τ F).card
+          C (tailSizes b' x)) :
+    orderingConditionalMass S
+      (fun σ => AgreesOn F σ τ)
+      (fun σ =>
+        ∀ i,
+          indexedIntervalSum
+            (applyPositionPerm σ (πi i))
+            (u i) (x i) = 0) ≤
+      chainUpperBound p (S \ indexImageSet τ F).card
+        C (tailSizes b' x)
+
 /-- Reversal transports a family of left-tail interval constraints into the
 corresponding right-tail constraints, preserving admissibility and event mass. -/
 axiom reversal_transports_tail_constraints
