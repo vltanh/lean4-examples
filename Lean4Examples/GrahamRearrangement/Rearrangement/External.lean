@@ -316,6 +316,17 @@ axiom two_neg_alpha_pow_le_cube
     (2 * (n : ℝ) ^ (-α)) ^ D ≤
       (2 : ℝ) ^ D / (n : ℝ) ^ 3
 
+/-- Reindex an injective finite family of valid chain-size tuples into the full
+sum occurring in Lemma 4.3. -/
+axiom chainUpperBound_sum_le_lemma43
+    {Θ : Type*} [DecidableEq Θ]
+    {p n k : ℕ} (C : ℝ)
+    (X : Finset Θ) (m : Θ → Fin k → ℕ)
+    (hvalid : ∀ θ ∈ X, IsChainSizeTuple n (m θ))
+    (hinj : Set.InjOn m X) :
+    (∑ θ ∈ X, chainUpperBound p n C (m θ)) ≤
+      lemma43LHS p n k C
+
 /-- Reversal transports a family of left-tail interval constraints into the
 corresponding right-tail constraints, preserving admissibility and event mass. -/
 axiom reversal_transports_tail_constraints
