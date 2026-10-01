@@ -541,6 +541,29 @@ axiom repair_side_parameter_count {n D : ℕ} :
             paperPos (θ.2.2.2 i) ≤ paperPos θ.2.1))
       |>.card ≤ n * (5 * D) ^ (2 * D)
 
+axiom rightRepairParameters_card_le {n D : ℕ} :
+    (rightRepairParameters n D).card ≤ n * (5 * D) ^ (2 * D)
+
+axiom leftRepairParameters_card_le {n D : ℕ} :
+    (leftRepairParameters n D).card ≤ n * (5 * D) ^ (2 * D)
+
+/-- Local nonzero subset sums are inherited from failure of B0 after an
+admissible permutation fixing the prefix. This is generic support bookkeeping:
+the permutation moves the 5D-window only inside the 10D-window. -/
+axiom local_nonzero_after_admissible
+    {n p D : ℕ}
+    (σ : Fin n → ZMod p) (b : Fin n)
+    (hb : b ∈ badRightEndpoints σ)
+    (hbfar : paperPos b + 30 * D ≤ n)
+    (h0 : ¬ BadEvent0 D σ)
+    (π : Equiv.Perm (Fin n))
+    (hadm : IsAdmissiblePermutation D π)
+    (hfix : FixedBelow b π) :
+    ∀ J : Finset (Fin n),
+      J.Nonempty →
+      J ⊆ forwardWindow b (5 * D) →
+      indexSetSum (applyPositionPerm σ π) J ≠ 0
+
 /-- Generic finite choice principle used in the greedy repair: a finite candidate
 set of cardinality 5D with three forbidden subsets of sizes at most 2D,D,D
 has a remaining element when D>0. -/
