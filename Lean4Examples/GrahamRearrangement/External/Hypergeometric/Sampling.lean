@@ -64,7 +64,7 @@ theorem withoutReplacementExpectation_const
     {α : Type*} [DecidableEq α]
     (U : Finset α) {k : ℕ} (hk : k ≤ U.card) (c : ℝ) :
     withoutReplacementExpectation U k (fun _ => c) = c := by
-  induction k generalizing U E with
+  induction k generalizing U with
   | zero => simp [withoutReplacementExpectation]
   | succ k ih =>
       have hU : U.Nonempty := by
@@ -367,7 +367,7 @@ theorem withoutReplacementMass_toFinset
     (E : Finset α → Prop) [DecidablePred E] :
     withoutReplacementMass U k (fun xs => E xs.toFinset) =
       uniformMass (U.powersetCard k) E := by
-  induction k generalizing U with
+  induction k generalizing U E with
   | zero =>
       simp [withoutReplacementMass,withoutReplacementExpectation,
         uniformMass,subsetSum]
