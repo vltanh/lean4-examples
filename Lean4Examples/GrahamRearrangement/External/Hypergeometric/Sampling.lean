@@ -298,7 +298,9 @@ theorem headTail_event_card
     _ = ∑ T ∈ (U.powersetCard (k+1)).filter E, k + 1 := by
       apply Finset.sum_congr rfl
       intro T hT
-      exact headTail_fiber_card U k (Finset.mem_filter.mp hT).1
+      have hET := (Finset.mem_filter.mp hT).2
+      simpa [Finset.filter_filter, hET, and_left_comm, and_assoc] using
+        headTail_fiber_card U k (Finset.mem_filter.mp hT).1
     _ = _ := by simp [mul_comm]
 
 /-- Uniform (k+1)-subset sampling can be exposed by one uniform head followed
@@ -349,13 +351,24 @@ theorem uniformSubset_head_tail
     have h := Nat.add_one_mul_choose_eq (U.card - 1) k
     rw [hpred] at h
     simpa [mul_comm] using h
-  simp_rw [hinnerCard]
-  rw [← Finset.sum_div]
-  rw [hsum,headTail_event_card U k E]
-  rw [Finset.card_powersetCard,Finset.card_powersetCard]
+  have hdenRewrite :
+      (∑ x ∈ U,
+        (((U.erase x).powersetCard k).filter
+          (fun R => E (insert x R))).card /
+          (((U.erase x).powersetCard k).card : ℝ)) =
+      ∑ x ∈ U,
+        (((U.erase x).powersetCard k).filter
+          (fun R => E (insert x R))).card /
+          (Nat.choose (U.card - 1) k : ℝ) := by
+    apply Finset.sum_congr rfl
+    intro x hx
+    rw [hinnerCard x hx]
+  rw [hdenRewrite,← Finset.sum_div,hsum,
+    headTail_event_card U k E]
+  rw [Finset.card_powersetCard]
+  have hchild : 0 < Nat.choose (U.card - 1) k :=
+    Nat.choose_pos (by omega)
   have hdenU : (0 : ℝ) < U.card := by exact_mod_cast hU.card_pos
-  have hchild : 0 < Nat.choose (U.card - 1) k := by
-    exact Nat.choose_pos (by omega)
   have hdenChild : (0 : ℝ) < Nat.choose (U.card - 1) k := by
     exact_mod_cast hchild
   field_simp
