@@ -254,6 +254,55 @@ def SwapCrosses {n : ℕ} (q : Fin n × Fin n)
     (I : Finset (Fin n)) : Prop :=
   (q.1 ∈ I ∧ q.2 ∉ I) ∨ (q.1 ∉ I ∧ q.2 ∈ I)
 
+/-- The transpositions in an admissible collection commute because their
+supports are disjoint, exactly as stated in Section 5. -/
+theorem admissible_transpositions_commute {n D : ℕ}
+    {P : Finset (Fin n × Fin n)}
+    (hP : IsAdmissibleCollection D P)
+    {q r : Fin n × Fin n} (hq : q ∈ P) (hr : r ∈ P)
+    (hqr : q ≠ r) :
+    (Equiv.swap q.1 q.2).trans (Equiv.swap r.1 r.2) =
+      (Equiv.swap r.1 r.2).trans (Equiv.swap q.1 q.2) := by
+  have hd := hP.1 hq hr hqr
+  have hqne : q.1 ≠ q.2 := by
+    have := (hP.2 q hq).1
+    simpa [paperPos] using ne_of_lt this
+  have hrne : r.1 ≠ r.2 := by
+    have := (hP.2 r hr).1
+    simpa [paperPos] using ne_of_lt this
+  exact Section5External.disjoint_swaps_commute
+    q.1 q.2 r.1 r.2 hqne hrne
+    hd.1 hd.2.1 hd.2.2.1 hd.2.2.2
+
+/-- Consequently, `π_P` is independent of the enumeration of the admissible
+collection `P`. -/
+theorem collectionPerm_order_independent {n D : ℕ}
+    {P : Finset (Fin n × Fin n)}
+    (hP : IsAdmissibleCollection D P)
+    (l : List (Fin n × Fin n))
+    (hl : l.toFinset = P) (hln : l.Nodup) :
+    swapsPermList l = collectionPerm P := by
+  unfold collectionPerm
+  exact Section5External.disjoint_swaps_order_independent
+    P hP.1 l hl hln
+
+/-- The paper's observation that an admissible collection can be uniquely
+reconstructed from its permutation. -/
+theorem admissibleCollection_reconstruct {n D : ℕ}
+    {P Q : Finset (Fin n × Fin n)}
+    (hP : IsAdmissibleCollection D P)
+    (hQ : IsAdmissibleCollection D Q)
+    (hperm : collectionPerm P = collectionPerm Q) :
+    P = Q := by
+  unfold collectionPerm at hperm
+  apply Section5External.disjoint_swaps_reconstruct
+    P Q hP.1 hQ.1
+  · intro q hq
+    simpa [paperPos] using (hP.2 q hq).1
+  · intro q hq
+    simpa [paperPos] using (hQ.2 q hq).1
+  · exact hperm
+
 def IsAdmissiblePermutation {n : ℕ} (D : ℕ)
     (π : Equiv.Perm (Fin n)) : Prop :=
   ∃ P : Finset (Fin n × Fin n),
