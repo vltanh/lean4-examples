@@ -61,6 +61,16 @@ end Orderings
 def subsetSum {G : Type*} [AddCommMonoid G] (S : Finset G) : G :=
   ∑ x ∈ S, x
 
+theorem subsetSum_insert {G : Type*} [AddCommMonoid G] [DecidableEq G]
+    (S : Finset G) (x : G) (hx : x ∉ S) :
+    subsetSum (insert x S) = x + subsetSum S := by
+  simp [subsetSum, hx, add_comm]
+
+theorem subsetSum_union_disjoint {G : Type*} [AddCommMonoid G] [DecidableEq G]
+    {A B : Finset G} (h : Disjoint A B) :
+    subsetSum (A ∪ B) = subsetSum A + subsetSum B := by
+  simp [subsetSum, Finset.sum_union h]
+
 /-- Conjecture 1.1. -/
 def Conjecture11Statement : Prop :=
   ∀ (p : ℕ), p.Prime →
