@@ -88,6 +88,22 @@ axiom joint_event_le_of_fiber_bound
       uniformConditionalMass space (fun ω => key ω = κ) B ≤ b) :
     uniformMass space (fun ω => A ω ∧ B ω) ≤ a * b
 
+/-- Fiber multiplication specialized to exposing a set of positions in a
+uniform random ordering. -/
+axiom joint_event_le_of_agreesOn_fibers {p : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (F : Finset (Fin S.card))
+    (A B : (Fin S.card → ZMod p) → Prop)
+    [DecidablePred A] [DecidablePred B]
+    (a b : ℝ)
+    (hA : orderingEventMass S A ≤ a)
+    (hdetermined :
+      ∀ σ τ, AgreesOn F σ τ → (A σ ↔ A τ))
+    (hfiber :
+      ∀ τ, IsIndexedOrdering S τ → A τ →
+        orderingConditionalMass S
+          (fun σ => AgreesOn F σ τ) B ≤ b) :
+    orderingEventMass S (fun σ => A σ ∧ B σ) ≤ a * b
+
 /-- Union bound over a finite set of possible parameter records. -/
 axiom finite_parameter_union_bound
     {Ω Θ : Type*} [DecidableEq Ω] [DecidableEq Θ]
