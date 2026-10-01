@@ -38,6 +38,31 @@ def balancedPartitions {p m : ℕ} [NeZero p]
   classical
   exact Finset.univ.filter (IsBalancedPartition S)
 
+/-- The block index containing `x` in a balanced partition; arbitrary outside
+well-formed inputs. -/
+def blockIndex {p m : ℕ} [NeZero p] (S : Finset (ZMod p))
+    (P : Fin m → Finset (ZMod p)) (x : ZMod p) : Fin m := by
+  classical
+  by_cases hm : 0 < m
+  · by_cases hP : IsBalancedPartition S P ∧ x ∈ S
+    · have hex : ∃ i : Fin m, x ∈ P i := (hP.1.2.2 x).1 hP.2
+      exact Classical.choose hex
+    · exact ⟨0, hm⟩
+  · exact Fin.elim0 (by simpa [Nat.not_lt] using hm)
+
+theorem mem_blockIndex {p m : ℕ} [NeZero p] (S : Finset (ZMod p))
+    (P : Fin m → Finset (ZMod p)) (x : ZMod p)
+    (hm : 0 < m) (hP : IsBalancedPartition S P) (hx : x ∈ S) :
+    x ∈ P (blockIndex S P x) := by
+  classical
+  unfold blockIndex
+  simp [hm, hP, hx, Classical.choose_spec]
+
+/-- The block containing a given point. -/
+def pointBlock {p m : ℕ} [NeZero p] (S : Finset (ZMod p))
+    (P : Fin m → Finset (ZMod p)) (x : ZMod p) : Finset (ZMod p) :=
+  P (blockIndex S P x)
+
 /-- Conditional choices of one point from each block. -/
 def blockChoices {p m : ℕ} [NeZero p]
     (P : Fin m → Finset (ZMod p)) : Finset (Fin m → ZMod p) :=
