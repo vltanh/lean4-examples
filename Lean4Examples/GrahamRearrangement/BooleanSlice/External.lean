@@ -94,6 +94,19 @@ axiom partitionExpectation_filter_le {p m : ℕ} [NeZero p]
       (fun P => ((T.filter fun χ => E χ P).card : ℝ)) ≤
         (T.card : ℝ) / (S.card : ℝ) ^ 9
 
+/-- Generic double counting over the rows of a partition energy. -/
+axiom partition_energy_lower_by_rows {α ι : Type*}
+    [Fintype ι] [DecidableEq α]
+    (S : Finset α) (P : ι → Finset α)
+    (hpartition : (∀ i, P i ⊆ S) ∧
+      (∀ i j, i ≠ j → Disjoint (P i) (P j)) ∧
+      (∀ x, x ∈ S ↔ ∃ i, x ∈ P i))
+    (w : α → α → ℝ) (rowLower : α → ℝ)
+    (hrow : ∀ i, ∀ x ∈ P i,
+      rowLower x ≤ ∑ y ∈ P i, w x y) :
+    ∑ i, ∑ x ∈ P i, ∑ y ∈ P i, w x y ≥
+      ∑ x ∈ S, rowLower x
+
 /-- Pair-uniform expectation expands into the double average over `S×S`. -/
 axiom pair_uniform_expectation {α : Type*} [DecidableEq α]
     (S : Finset α) (hS : S.Nonempty) (f : α → α → ℝ) :
