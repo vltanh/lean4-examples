@@ -62,6 +62,23 @@ def chainSizeTuples (n k : ℕ) : Finset (Fin k → ℕ) := by
   classical
   exact Finset.univ.filter (IsChainSizeTuple n)
 
+/-- Generic weighted sum over increasing h-tuples, using only the first h
+gaps (from 0 to m₁, ..., m_{h-1} to m_h). -/
+def prefixKernelSum (n h : ℕ) (w : ℕ → ℝ) : ℝ :=
+  ∑ m ∈ chainSizeTuples n h,
+    ∏ i : Fin h,
+      w (chainGap n m ⟨i.val, Nat.lt.step i.isLt⟩)
+
+/-- Generic sum with one of the k+1 consecutive gaps omitted. -/
+def omittedKernelSum (n k : ℕ) (w : ℕ → ℝ)
+    (j : Fin (k + 1)) : ℝ :=
+  ∑ m ∈ chainSizeTuples n k,
+    ∏ i ∈ Finset.univ.erase j, w (chainGap n m i)
+
+/-- The kernel appearing in Lemma 4.3. -/
+def lemma43Kernel (p n : ℕ) (C : ℝ) (d : ℕ) : ℝ :=
+  chainFactor p n C d
+
 /-- The summand in Lemma 4.3 for a single increasing k-tuple. -/
 def lemma43Summand {k : ℕ} (p n : ℕ) (C : ℝ)
     (m : Fin k → ℕ) : ℝ :=
