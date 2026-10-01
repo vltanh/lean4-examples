@@ -213,43 +213,6 @@ theorem indexedIntervalSum_eq_listIntervalSum {n p : ℕ}
   have hin : i < n := lt_of_le_of_lt (Finset.mem_Icc.1 hi).2 b.isLt
   simp [hin]
 
-/-- Distinct partial sums are equivalent to the absence of zero proper intervals
-starting at paper position at least 2, provided the entries themselves are nonzero. -/
-theorem valid_iff_noZeroPaperSegments {p : ℕ}
-    {S : Finset (ZMod p)} (hzero : 0 ∉ S)
-    {σ : Fin S.card → ZMod p} (hσ : IsIndexedOrdering S σ) :
-    IsValidOrdering S (indexedToList σ) ↔ HasNoZeroPaperSegments σ := by
-  have hord := indexedToList_isOrdering hσ
-  rw [IsValidOrdering]
-  simp only [hord, true_and]
-  rw [List.nodup_iff_pairwise_ne]
-  constructor
-  · intro hps a b ha hab hsum
-    have hab0 : a.val < b.val := by simpa [paperPos] using hab
-    have hcollision :
-        (partialSums (indexedToList σ))[a.val - 1]? =
-          (partialSums (indexedToList σ))[b.val]? := by
-      exact partialSums_collision_of_intervalSum_zero
-        σ a b ha hab hsum
-    exact hps hcollision
-  · intro hseg
-    intro i hi j hj hij
-    by_cases hijOrd : i < j
-    · have hzeroInterval :=
-        intervalSum_zero_of_partialSums_collision σ i j hijOrd hij
-      by_cases hi0 : i = 0
-      · subst hi0
-        have hxS : σ ⟨j, by simpa [indexedToList] using hj⟩ ∈ S :=
-          (hσ.2 _).2 ⟨_, rfl⟩
-        exact hzero hxS (single_or_prefix_zero hzeroInterval)
-      · have ha : 2 ≤ paperPos ⟨i, by simpa [indexedToList] using hi⟩ := by
-          simp [paperPos]
-          omega
-        exact hseg _ _ ha (by simp [paperPos, hijOrd]) hzeroInterval
-    · have hji : j < i := lt_of_le_of_ne (Nat.le_of_not_gt hijOrd) (by
-        intro h; subst h; exact hi.ne hj)
-      exact (h _ hj _ hi (by simpa [eq_comm] using hij)).symm
-
 end
 
 end GrahamRearrangement
