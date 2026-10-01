@@ -331,10 +331,10 @@ theorem corollary14 : Corollary14Statement := by
             (by simpa [hm12] using hmS)]
         have houter :
             (S.powersetCard m₁).Nonempty :=
-          Section4External.powersetCard_nonempty S
+          powersetCard_nonempty S
             (le_trans (Nat.sub_le _ _) hmS)
         apply le_trans
-          (Section4External.uniformExpectation_le_const
+          (uniformExpectation_le_const
             (S.powersetCard m₁) houter _ _ ?_)
         · have hcoef :
               50 * C * ε ^ (-3 / 2 : ℝ) ≤ Cε := by
@@ -349,7 +349,7 @@ theorem corollary14 : Corollary14Statement := by
           let U := S \ R₁
           have hR₁sub : R₁ ⊆ S := (Finset.mem_powersetCard.1 hR₁).1
           have hR₁card : R₁.card = m₁ :=
-            Section4External.mem_powersetCard_card hR₁
+            mem_powersetCard_card hR₁
           have hUcard : U.card = S.card - m₁ := by
             dsimp [U]
             rw [Finset.card_sdiff hR₁sub, hR₁card]
@@ -366,7 +366,7 @@ theorem corollary14 : Corollary14Statement := by
           have hlogU :
               Real.log (U.card : ℝ) ≤
                 Real.log (S.card : ℝ) :=
-            Section4External.log_card_sdiff_le hR₁sub hUne
+            log_card_sdiff_le hR₁sub hUne
           have hm2pos : 0 < m₂ := by
             have : (0 : ℝ) < m₂ := lt_of_lt_of_le
               (mul_pos (by positivity)
