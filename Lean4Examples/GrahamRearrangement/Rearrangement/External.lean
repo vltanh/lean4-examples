@@ -61,12 +61,6 @@ axiom distinct_index_subset_sums_mass_le {p : ℕ} [NeZero p]
     orderingEventMass S (fun σ => indexSetSum σ J = indexSetSum σ J') ≤
       1 / ((S.card - W.card + 1 : ℕ) : ℝ)
 
-/-- Conditional union bound for a finite family of fixed index sets disjoint from
-an exposed set. Each image is a uniform subset of the remaining values. -/
-axiom conditional_index_family_sumMass_le
-    {p Θ : Type*} :
-    True
-
 /-- Specialized finite form of the preceding sampling fact for ZMod orderings. -/
 axiom conditional_index_family_sumMass_le_zmod
     {p : ℕ} [NeZero p] (S : Finset (ZMod p))
@@ -392,12 +386,6 @@ axiom fixed_tail_tuple_conditional_chainBound
             (u i) (x i) = 0) ≤
       chainUpperBound p (S \ indexImageSet τ F).card
         C (tailSizes b' x)
-
-/-- Reversal transports a family of left-tail interval constraints into the
-corresponding right-tail constraints, preserving admissibility and event mass. -/
-axiom reversal_transports_tail_constraints
-    {p : ℕ} [NeZero p] (S : Finset (ZMod p)) :
-    True
 
 /-- Abstract finite greedy repair principle. If bad positions are processed in
 strictly decreasing order, every step has at least one local candidate outside
