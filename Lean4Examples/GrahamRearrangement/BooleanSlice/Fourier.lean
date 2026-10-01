@@ -355,6 +355,68 @@ theorem psi_le_m {p m : ℕ} [NeZero p]
             _ = 1 := by field_simp
     _ = m := by simp
 
+theorem dyadic_exp_sum_bound
+    {α : Type*} [Fintype α] [DecidableEq α]
+    (f : α → ℝ) (A0 : Finset α) (At : ℕ → Finset α) (m : ℕ)
+    (hnonneg : ∀ a, 0 ≤ f a)
+    (hcover : ∀ a, a ∈ A0 ∨ ∃ l < Nat.log2 m + 1, a ∈ At (2 ^ l))
+    (hA0 : ∀ a ∈ A0, f a < 1)
+    (hAt : ∀ l a, a ∈ At (2 ^ l) →
+      (2 : ℝ) ^ l ≤ f a) :
+    (∑ a : α, Real.exp (-f a)) ≤
+      (A0.card : ℝ) +
+        ∑ l ∈ Finset.range (Nat.log2 m + 1),
+          (At (2 ^ l)).card * Real.exp (-(2 : ℝ) ^ l) := by
+  classical
+  have hpoint : ∀ a : α,
+      Real.exp (-f a) ≤
+        (if a ∈ A0 then 1 else 0) +
+          ∑ l ∈ Finset.range (Nat.log2 m + 1),
+            if a ∈ At (2 ^ l) then
+              Real.exp (-(2 : ℝ) ^ l) else 0 := by
+    intro a
+    rcases hcover a with ha0 | ⟨l,hl,hAtmem⟩
+    · have hexp : Real.exp (-f a) ≤ 1 := by
+        rw [← Real.exp_zero]
+        exact Real.exp_le_exp.mpr (by nlinarith [hnonneg a])
+      simp [ha0,hexp]
+    · by_cases ha0 : a ∈ A0
+      · have hexp : Real.exp (-f a) ≤ 1 := by
+          rw [← Real.exp_zero]
+          exact Real.exp_le_exp.mpr (by nlinarith [hnonneg a])
+        simp [ha0,hexp]
+      · have hexp :
+            Real.exp (-f a) ≤ Real.exp (-(2 : ℝ) ^ l) :=
+          Real.exp_le_exp.mpr (by
+            have := hAt l a hAtmem
+            linarith)
+        have hsingle :
+            Real.exp (-(2 : ℝ) ^ l) ≤
+              ∑ r ∈ Finset.range (Nat.log2 m + 1),
+                if a ∈ At (2 ^ r) then
+                  Real.exp (-(2 : ℝ) ^ r) else 0 := by
+          apply Finset.single_le_sum
+          · intro r hr
+            positivity
+          · exact Finset.mem_range.mpr hl
+          · simp [hAtmem]
+        simp [ha0]
+        exact le_trans hexp hsingle
+  calc
+    (∑ a : α, Real.exp (-f a))
+      ≤ ∑ a : α,
+          ((if a ∈ A0 then 1 else 0) +
+            ∑ l ∈ Finset.range (Nat.log2 m + 1),
+              if a ∈ At (2 ^ l) then
+                Real.exp (-(2 : ℝ) ^ l) else 0) := by
+          gcongr with a
+          exact hpoint a
+    _ = (A0.card : ℝ) +
+        ∑ l ∈ Finset.range (Nat.log2 m + 1),
+          (At (2 ^ l)).card * Real.exp (-(2 : ℝ) ^ l) := by
+          rw [Finset.sum_add_distrib, Finset.sum_comm]
+          simp [Finset.sum_boole, mul_comm]
+
 /-- The dyadic decomposition bound before averaging over partitions. -/
 theorem dyadic_conditional_bound {p m : ℕ} (hp : p.Prime)
     (S : Finset (ZMod p)) (hS : 2 ≤ S.card)
@@ -404,7 +466,7 @@ theorem dyadic_conditional_bound {p m : ℕ} (hp : p.Prime)
           (2 : ℝ) ^ l ≤ psi P a := by
         intro l a ha
         simpa [At] using (Finset.mem_filter.1 ha).2.1
-      exact External.dyadic_exp_sum_bound
+      exact dyadic_exp_sum_bound
         (psi P) (A0 P) (At P) m hnonneg hcover hA0 hAt
 
 /-- Equation (3.4): average the preceding inequality over the random partition. -/
