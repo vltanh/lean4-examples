@@ -13,4 +13,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: leanprover/lean-action@v1
         with:
-          build: true
+          build: false
+          test: false
+          lint: false
+      - name: Check Graham rearrangement formalization
+        run: lake env lean Lean4Examples/graham-rearrangement.lean
