@@ -308,33 +308,101 @@ axiom conditional_suffix_chain_union_bound
 
 /-- If a remaining ground set has size between n/2 and n, the Lemma 4.3 base
 is bounded by twice the ambient n^{-α} bound used in Section 5. -/
-axiom half_ground_lemma43Base_le
+theorem half_ground_lemma43Base_le
     {n s p : ℕ} {α C : ℝ}
     (hn : 2 ≤ n) (hhalf : n / 2 ≤ s) (hsn : s ≤ n)
     (hp : (n : ℝ) / p ≤ (n : ℝ) ^ (-α))
     (hC :
       4 * C * Real.sqrt (Real.log (n : ℝ)) /
         Real.sqrt (n : ℝ) ≤ (n : ℝ) ^ (-α)) :
-    lemma43Base p s C ≤ 2 * (n : ℝ) ^ (-α)
+    lemma43Base p s C ≤ 2 * (n : ℝ) ^ (-α) := by
+  unfold lemma43Base
+  have hnR : 0 < (n : ℝ) := by positivity
+  have hsR : 0 < (s : ℝ) := by
+    have : 1 ≤ s := by omega
+    exact_mod_cast this
+  have hsp : (s : ℝ) / p ≤ (n : ℝ) / p := by
+    gcongr
+  have hlog :
+      Real.sqrt (Real.log (s : ℝ)) ≤
+        Real.sqrt (Real.log (n : ℝ)) := by
+    apply Real.sqrt_le_sqrt
+    exact Real.strictMonoOn_log.monotoneOn
+      (by positivity) (by exact_mod_cast hsn)
+  have hroot :
+      Real.sqrt (n : ℝ) ≤ 2 * Real.sqrt (s : ℝ) := by
+    have hhalfR : (n : ℝ) / 2 ≤ s := by exact_mod_cast hhalf
+    have hsqrt :=
+      Real.sqrt_le_sqrt (show (n : ℝ) ≤ 4 * s by nlinarith)
+    have hs0 := Real.sqrt_nonneg (s : ℝ)
+    nlinarith
+  have hterm :
+      2 * C * Real.sqrt (Real.log (s : ℝ)) /
+          Real.sqrt (s : ℝ) ≤
+        4 * C * Real.sqrt (Real.log (n : ℝ)) /
+          Real.sqrt (n : ℝ) := by
+    have hsnlog : 0 ≤ Real.sqrt (Real.log (n : ℝ)) :=
+      Real.sqrt_nonneg _
+    have hslog : 0 ≤ Real.sqrt (Real.log (s : ℝ)) :=
+      Real.sqrt_nonneg _
+    have hsroot : 0 < Real.sqrt (s : ℝ) := Real.sqrt_pos.2 hsR
+    have hnroot : 0 < Real.sqrt (n : ℝ) := Real.sqrt_pos.2 hnR
+    by_cases hC0 : C ≤ 0
+    · have hleft : 2 * C * Real.sqrt (Real.log (s : ℝ)) /
+          Real.sqrt (s : ℝ) ≤ 0 := by positivity
+      have hright : 0 ≤
+          4 * C * Real.sqrt (Real.log (n : ℝ)) /
+            Real.sqrt (n : ℝ) := by
+        have := hC
+        nlinarith [show 0 < (n : ℝ) ^ (-α) by positivity]
+      linarith
+    · have hCpos : 0 < C := lt_of_not_ge hC0
+      apply (div_le_div_iff₀ hsroot hnroot).2
+      nlinarith [hlog,hroot]
+  nlinarith [hsp,hp,hterm,hC]
 
 /-- The exponent comparison αD≥3 used in the D-fold chain bounds. -/
-axiom two_neg_alpha_pow_le_cube
+theorem two_neg_alpha_pow_le_cube
     {n D : ℕ} {α : ℝ}
     (hn : 1 ≤ n) (hα0 : 0 < α)
     (hαD : 3 ≤ α * D) :
     (2 * (n : ℝ) ^ (-α)) ^ D ≤
-      (2 : ℝ) ^ D / (n : ℝ) ^ 3
+      (2 : ℝ) ^ D / (n : ℝ) ^ 3 := by
+  have hnR : (1 : ℝ) ≤ n := by exact_mod_cast hn
+  rw [mul_pow]
+  have hrpow :
+      ((n : ℝ) ^ (-α)) ^ D =
+        (n : ℝ) ^ (-(α * D)) := by
+    rw [← Real.rpow_natCast]
+    congr 1
+    ring
+  rw [hrpow]
+  have hexp : -(α * D) ≤ (-3 : ℝ) := by nlinarith
+  have hmono :=
+    External.rpow_exponent_mono_of_one_le hnR hexp
+  have hneg3 :
+      (n : ℝ) ^ (-3 : ℝ) = 1 / (n : ℝ) ^ 3 := by
+    rw [Real.rpow_neg (by positivity), Real.rpow_natCast]
+    rfl
+  rw [hneg3] at hmono
+  nlinarith
 
 /-- Reindex an injective finite family of valid chain-size tuples into the full
 sum occurring in Lemma 4.3. -/
-axiom chainUpperBound_sum_le_lemma43
+theorem chainUpperBound_sum_le_lemma43
     {Θ : Type*} [DecidableEq Θ]
     {p n k : ℕ} (C : ℝ)
     (X : Finset Θ) (m : Θ → Fin k → ℕ)
     (hvalid : ∀ θ ∈ X, IsChainSizeTuple n (m θ))
     (hinj : Set.InjOn m X) :
     (∑ θ ∈ X, chainUpperBound p n C (m θ)) ≤
-      lemma43LHS p n k C
+      lemma43LHS p n k C := by
+  unfold lemma43LHS lemma43Summand
+  rw [← Finset.sum_image hinj]
+  apply Finset.sum_le_sum_of_subset
+  intro μ hμ
+  rcases Finset.mem_image.mp hμ with ⟨θ,hθ,rfl⟩
+  exact Finset.mem_filter.mpr ⟨Finset.mem_univ _,hvalid θ hθ⟩
 
 /-- The right-tail size tuple associated with a strictly increasing tail tuple is
 a valid chain-size tuple in the remaining ground set. -/
