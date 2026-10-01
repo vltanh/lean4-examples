@@ -10,9 +10,9 @@ namespace GrahamRearrangement
 /-!
 # Section 2: Preliminaries
 
-This module follows Section 2 of the paper.  The only axiomatized ingredients used
-here are the standard external tools isolated in `External.lean`: finite
-Cauchy--Schwarz/Taylor facts and Cauchy--Davenport.
+This module follows Section 2 of the paper.  Facts 2.1--2.5 are proved here
+from mathlib theorems and explicit finite/algebraic arguments; no project axiom
+is used.
 -/
 
 noncomputable section
