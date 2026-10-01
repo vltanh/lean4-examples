@@ -350,18 +350,31 @@ theorem exposure_width_le_one
     (U G : Finset α) (k : ℕ)
     (hU2 : 2 ≤ U.card) (hk : k + 1 ≤ U.card) :
     exposureUpper U G k - exposureLower U G k ≤ 1 := by
-  unfold exposureUpper exposureLower
-  have hpart :
-      (U.card - (U ∩ G).card : ℕ) + (U ∩ G).card = U.card := by
-    have hg : (U ∩ G).card ≤ U.card :=
-      Finset.card_le_card Finset.inter_subset_left
+  let N := U.card
+  let g := (U ∩ G).card
+  let r := U.card - (k + 1)
+  have hg : g ≤ N := by
+    dsimp [g,N]
+    exact Finset.card_le_card Finset.inter_subset_left
+  have hpart : (N - g) + g = N := Nat.sub_add_cancel hg
+  have hr : r ≤ N - 1 := by
+    dsimp [r,N]
     omega
-  have hgap : U.card - (k + 1) ≤ U.card - 1 := by omega
-  have hpos : (0 : ℝ) <
-      (U.card : ℝ) * (U.card - 1 : ℕ) := by positivity
-  apply (div_le_iff₀ hpos).2
-  norm_cast
-  nlinarith
+  have hN2 : 2 ≤ N := by simpa [N] using hU2
+  have hden : (0 : ℝ) < (N : ℝ) * ((N - 1 : ℕ) : ℝ) := by
+    positivity
+  have hnum :
+      (((g : ℝ) + (N - g : ℕ)) * (r : ℝ)) ≤
+        (N : ℝ) * ((N - 1 : ℕ) : ℝ) := by
+    norm_num at hpart ⊢
+    exact_mod_cast Nat.mul_le_mul_left N hr
+  unfold exposureUpper exposureLower
+  change (g : ℝ) * r / ((N : ℝ) * (N - 1 : ℕ)) -
+      (-(((N - g : ℕ) : ℝ) * r /
+        ((N : ℝ) * (N - 1 : ℕ)))) ≤ 1
+  apply (div_le_iff₀ hden).2
+  nlinarith [hnum, show ((N - g : ℕ) : ℝ) + (g : ℝ) = N by
+    exact_mod_cast hpart]
 
 theorem exposure_mgf_le
     {α : Type*} [DecidableEq α]
