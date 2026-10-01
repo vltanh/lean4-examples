@@ -194,13 +194,23 @@ axiom relabel_strictly_increasing
       Set.range y = Set.range x
 
 /-- Generic permutation fact: transpositions with disjoint supports commute. -/
-axiom disjoint_swaps_commute {α : Type*} [DecidableEq α]
+theorem disjoint_swaps_commute {α : Type*} [DecidableEq α]
     (a b c d : α)
     (hab : a ≠ b) (hcd : c ≠ d)
     (hac : a ≠ c) (had : a ≠ d)
     (hbc : b ≠ c) (hbd : b ≠ d) :
     (Equiv.swap a b).trans (Equiv.swap c d) =
-      (Equiv.swap c d).trans (Equiv.swap a b)
+      (Equiv.swap c d).trans (Equiv.swap a b) := by
+  ext x
+  by_cases hxa : x = a
+  · subst x; simp [hab,hac,had,hbc,hbd]
+  by_cases hxb : x = b
+  · subst x; simp [hab,hac,had,hbc,hbd]
+  by_cases hxc : x = c
+  · subst x; simp [hab,hcd,hac,had,hbc,hbd]
+  by_cases hxd : x = d
+  · subst x; simp [hab,hcd,hac,had,hbc,hbd]
+  simp [Equiv.swap_apply_of_ne_of_ne,hxa,hxb,hxc,hxd]
 
 /-- Generic permutation fact: the product of a finite family of pairwise
 support-disjoint transpositions is independent of the enumeration. -/
@@ -228,14 +238,27 @@ axiom disjoint_swaps_reconstruct
 
 /-- A product of support-disjoint swaps fixes every point outside all swap
 supports. -/
-axiom disjoint_swaps_fix_outside_support
+theorem disjoint_swaps_fix_outside_support
     {α : Type*} [DecidableEq α]
     (P : Finset (α × α))
     (hP : P.toSet.Pairwise fun q r =>
       q.1 ≠ r.1 ∧ q.1 ≠ r.2 ∧ q.2 ≠ r.1 ∧ q.2 ≠ r.2)
     (i : α)
     (hi : ∀ q ∈ P, i ≠ q.1 ∧ i ≠ q.2) :
-    swapsPermList P.toList i = i
+    swapsPermList P.toList i = i := by
+  induction P.toList with
+  | nil => simp [swapsPermList]
+  | cons q qs ih =>
+      have hqP : q ∈ P := by
+        simpa using P.mem_toList q
+      have hqi := hi q hqP
+      have hqs : ∀ r ∈ qs, i ≠ r.1 ∧ i ≠ r.2 := by
+        intro r hr
+        exact hi r (by
+          have : r ∈ P.toList := by simp [hr]
+          simpa using this)
+      simp [swapsPermList,Equiv.swap_apply_of_ne_of_ne hqi.1 hqi.2,
+        ih hqs]
 
 /-- Generic trimming principle for disjoint transpositions: swaps crossing none
 of a finite family of index sets can be deleted without changing the image of
