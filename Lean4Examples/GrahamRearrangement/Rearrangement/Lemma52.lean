@@ -20,12 +20,73 @@ def Lemma52Witness {n p D : ℕ}
     (∀ i, paperPos (a i) < paperPos b₀) ∧
     ∀ i, indexedIntervalSum σ (a i) (b i) = 0
 
+def lemma52ChoiceSet {n : ℕ} (b : Fin n) (D : ℕ) :
+    Finset (Fin n) :=
+  (forwardWindow b (20 * D)).erase b
+
+theorem mem_lemma52ChoiceSet {n D : ℕ} {b x : Fin n} :
+    x ∈ lemma52ChoiceSet b D ↔
+      paperPos b < paperPos x ∧
+        paperPos x ≤ paperPos b + 20 * D := by
+  simp [lemma52ChoiceSet,forwardWindow,paperPos]
+  omega
+
+theorem card_lemma52ChoiceSet_le {n D : ℕ} (b : Fin n) :
+    (lemma52ChoiceSet b D).card ≤ 20 * D := by
+  have hb : b ∈ forwardWindow b (20 * D) := by
+    simp [forwardWindow]
+  unfold lemma52ChoiceSet
+  rw [Finset.card_erase_of_mem hb]
+  have hw := card_forwardWindow_le b (20 * D)
+  omega
+
 def lemma52Parameters (n D : ℕ) :
-    Finset (Fin n × (Fin D → Fin n)) :=
-  Finset.univ.filter fun θ =>
-    paperPos θ.1 + 30 * D ≤ n ∧
-      ∀ i, paperPos θ.1 < paperPos (θ.2 i) ∧
-        paperPos (θ.2 i) ≤ paperPos θ.1 + 20 * D
+    Finset (Fin n × (Fin D → Fin n)) := by
+  classical
+  exact Finset.univ.biUnion fun b =>
+    if hfit : paperPos b + 30 * D ≤ n then
+      (Finset.univ.pi fun _ : Fin D => lemma52ChoiceSet b D).image
+        (fun v => (b,v))
+    else ∅
+
+theorem mem_lemma52Parameters {n D : ℕ}
+    {b : Fin n} {v : Fin D → Fin n} :
+    (b,v) ∈ lemma52Parameters n D ↔
+      paperPos b + 30 * D ≤ n ∧
+      ∀ i, paperPos b < paperPos (v i) ∧
+        paperPos (v i) ≤ paperPos b + 20 * D := by
+  classical
+  by_cases hfit : paperPos b + 30 * D ≤ n
+  · simp [lemma52Parameters,hfit,mem_lemma52ChoiceSet]
+  · simp [lemma52Parameters,hfit]
+
+theorem lemma52Parameters_card_le (n D : ℕ) :
+    (lemma52Parameters n D).card ≤ n * (20 * D) ^ D := by
+  classical
+  unfold lemma52Parameters
+  calc
+    _ ≤ ∑ b : Fin n,
+        (if hfit : paperPos b + 30 * D ≤ n then
+          ((Finset.univ.pi fun _ : Fin D =>
+            lemma52ChoiceSet b D).image (fun v => (b,v))).card
+        else 0) := by
+          apply card_biUnion_le_sum
+    _ ≤ ∑ _b : Fin n, (20 * D) ^ D := by
+          gcongr with b
+          split
+          · calc
+              ((Finset.univ.pi fun _ : Fin D =>
+                  lemma52ChoiceSet b D).image (fun v => (b,v))).card
+                ≤ (Finset.univ.pi fun _ : Fin D =>
+                    lemma52ChoiceSet b D).card :=
+                  Finset.card_image_le
+              _ ≤ (20 * D) ^ Fintype.card (Fin D) :=
+                  card_pi_le_pow
+                    (fun _ : Fin D => lemma52ChoiceSet b D)
+                    (20 * D) (fun _ => card_lemma52ChoiceSet_le b)
+              _ = (20 * D) ^ D := by simp
+          · simp
+    _ = n * (20 * D) ^ D := by simp
 
 theorem badEvent2_core_has_witness
     {n p D : ℕ} (hD : 0 < D)
@@ -149,8 +210,8 @@ theorem badEvent2_core_has_witness
   let a' : Fin D → Fin n := a ∘ ρ
   let b' : Fin D → Fin n := b ∘ ρ
   refine ⟨(b₀, b'), ?_, hb₀, ?_⟩
-  · simp only [lemma52Parameters, Finset.mem_filter,
-      Finset.mem_univ, true_and]
+  · apply mem_lemma52Parameters.mpr
+    refine ⟨hb₀fit, ?_⟩
     intro i
     exact hbwin (ρ i)
   · refine ⟨?_, a', ?_, ?_, ?_⟩
@@ -351,7 +412,7 @@ theorem lemma5_2
     intro θ hθ
     have hb :
         paperPos θ.1 + 30 * P.D ≤ S.card := by
-      simpa [lemma52Parameters] using (Finset.mem_filter.1 hθ).2.1
+      exact (mem_lemma52Parameters.mp hθ).1
     exact lemma52_fixed_parameter_mass_le
       hα0 hαh P hp S hreg θ hθ hb
   have hCore :
@@ -371,9 +432,8 @@ theorem lemma5_2
       (by simpa [orderingEventMass] using hparam)
   have hcount :
       (lemma52Parameters S.card P.D).card ≤
-        S.card * (20 * P.D) ^ P.D := by
-    unfold lemma52Parameters
-    exact Section5External.base_and_window_tuple_count
+        S.card * (20 * P.D) ^ P.D :=
+    lemma52Parameters_card_le S.card P.D
   have hCore100 :
       orderingEventMass S Core ≤ (1 / 100 : ℝ) := by
     calc
