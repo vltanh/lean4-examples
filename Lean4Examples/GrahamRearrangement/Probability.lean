@@ -95,6 +95,135 @@ theorem uniformMass_mono {Ω : Type*} [DecidableEq Ω]
     simp only [Finset.mem_filter] at hω ⊢
     exact ⟨hω.1, hEF _ hω.2⟩
 
+/-- Finite union bound for an indexed family of events. -/
+theorem uniformMass_exists_le_sum {Ω ι : Type*}
+    [DecidableEq Ω] [DecidableEq ι]
+    (space : Finset Ω) (I : Finset ι) (E : ι → Ω → Prop)
+    [∀ i, DecidablePred (E i)] :
+    uniformMass space (fun ω => ∃ i ∈ I, E i ω) ≤
+      ∑ i ∈ I, uniformMass space (E i) := by
+  classical
+  unfold uniformMass
+  by_cases hspace : space.card = 0
+  · simp [hspace]
+  · have hden : (0 : ℝ) < space.card := by
+      exact_mod_cast Nat.pos_of_ne_zero hspace
+    apply (div_le_iff₀ hden).2
+    have hcard :
+        (space.filter fun ω => ∃ i ∈ I, E i ω).card ≤
+          ∑ i ∈ I, (space.filter (E i)).card := by
+      apply Finset.card_biUnion_le
+      intro i hi
+      exact space.filter (E i)
+    exact_mod_cast hcard
+
+/-- A pointwise bound averages to the same bound over a nonempty uniform space. -/
+theorem uniformExpectation_le_const {Ω : Type*} [DecidableEq Ω]
+    (space : Finset Ω) (hspace : space.Nonempty)
+    (f : Ω → ℝ) (c : ℝ)
+    (h : ∀ ω ∈ space, f ω ≤ c) :
+    uniformExpectation space f ≤ c := by
+  unfold uniformExpectation
+  have hsum :
+      (∑ ω ∈ space, f ω) ≤ space.card * c := by
+    calc
+      (∑ ω ∈ space, f ω) ≤ ∑ _ω ∈ space, c := by
+        gcongr with ω hω
+        exact h ω hω
+      _ = space.card * c := by simp [mul_comm]
+  have hden : (0 : ℝ) < space.card := by
+    exact_mod_cast hspace.card_pos
+  apply (div_le_iff₀ hden).2
+  simpa [mul_comm] using hsum
+
+theorem powersetCard_nonempty {α : Type*} [DecidableEq α]
+    (S : Finset α) {m : ℕ} (hm : m ≤ S.card) :
+    (S.powersetCard m).Nonempty := by
+  obtain ⟨T, hTS, hcard⟩ := Finset.exists_subset_card_eq hm
+  exact ⟨T, Finset.mem_powersetCard.2 ⟨hTS, hcard⟩⟩
+
+theorem mem_powersetCard_card {α : Type*} [DecidableEq α]
+    {S R : Finset α} {m : ℕ} (hR : R ∈ S.powersetCard m) :
+    R.card = m :=
+  (Finset.mem_powersetCard.1 hR).2
+
+theorem card_sdiff_of_mem_powersetCard {α : Type*} [DecidableEq α]
+    {S R : Finset α} {m : ℕ} (hR : R ∈ S.powersetCard m) :
+    (S \ R).card = S.card - m := by
+  have hsub := (Finset.mem_powersetCard.1 hR).1
+  rw [Finset.card_sdiff hsub, mem_powersetCard_card hR]
+
+/-- Removing two exceptional events. -/
+theorem uniformMass_le_two_exceptions
+    {Ω : Type*} [DecidableEq Ω] (space : Finset Ω)
+    (E A B : Ω → Prop)
+    [DecidablePred E] [DecidablePred A] [DecidablePred B]
+    (q : ℝ)
+    (hrest :
+      uniformMass space (fun ω => E ω ∧ ¬ A ω ∧ ¬ B ω) ≤ q) :
+    uniformMass space E ≤ uniformMass space A + uniformMass space B + q := by
+  have hsubset : ∀ ω, E ω →
+      A ω ∨ B ω ∨ (E ω ∧ ¬ A ω ∧ ¬ B ω) := by
+    intro ω hE
+    by_cases hA : A ω
+    · exact Or.inl hA
+    by_cases hB : B ω
+    · exact Or.inr (Or.inl hB)
+    · exact Or.inr (Or.inr ⟨hE, hA, hB⟩)
+  calc
+    uniformMass space E
+      ≤ uniformMass space
+          (fun ω => A ω ∨ B ω ∨ (E ω ∧ ¬ A ω ∧ ¬ B ω)) := by
+          apply uniformMass_mono
+          exact hsubset
+    _ ≤ uniformMass space A +
+        uniformMass space B +
+        uniformMass space space (fun _ => False) := by
+          have hAB := uniformMass_or_le_add space A B
+          have hrestOr := uniformMass_or_le_add space
+            (fun ω => A ω ∨ B ω)
+            (fun ω => E ω ∧ ¬ A ω ∧ ¬ B ω)
+          linarith
+    _ ≤ uniformMass space A + uniformMass space B + q := by
+          have := hrest
+          linarith
+
+/-- If three events have total mass below one in a nonempty finite space, some
+outcome avoids all three. -/
+theorem exists_avoiding_three_events
+    {Ω : Type*} [DecidableEq Ω]
+    (space : Finset Ω) (hspace : space.Nonempty)
+    (E₁ E₂ E₃ : Ω → Prop)
+    [DecidablePred E₁] [DecidablePred E₂] [DecidablePred E₃]
+    (a₁ a₂ a₃ : ℝ)
+    (h₁ : uniformMass space E₁ ≤ a₁)
+    (h₂ : uniformMass space E₂ ≤ a₂)
+    (h₃ : uniformMass space E₃ ≤ a₃)
+    (hsum : a₁ + a₂ + a₃ < 1) :
+    ∃ ω ∈ space, ¬ E₁ ω ∧ ¬ E₂ ω ∧ ¬ E₃ ω := by
+  by_contra h
+  push_neg at h
+  have hcover : ∀ ω ∈ space, E₁ ω ∨ E₂ ω ∨ E₃ ω := h
+  have hmass :
+      (1 : ℝ) ≤
+        uniformMass space E₁ + uniformMass space E₂ + uniformMass space E₃ := by
+    rw [← uniformMass_univ space hspace]
+    calc
+      uniformMass space (fun _ => True)
+        ≤ uniformMass space (fun ω => E₁ ω ∨ E₂ ω ∨ E₃ ω) := by
+          apply uniformMass_mono
+          intro ω _
+          exact hcover ω (by
+            by_contra hω
+            have : ω ∉ space := hω
+            contradiction)
+      _ ≤ _ := by
+          have h12 := uniformMass_or_le_add space E₁ E₂
+          have h123 := uniformMass_or_le_add space
+            (fun ω => E₁ ω ∨ E₂ ω) E₃
+          linarith
+  linarith
+
 /-- Finite union bound for two events. -/
 theorem uniformMass_or_le_add {Ω : Type*} [DecidableEq Ω]
     (space : Finset Ω) (E F : Ω → Prop)
