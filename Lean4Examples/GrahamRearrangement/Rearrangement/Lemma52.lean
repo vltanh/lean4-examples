@@ -382,6 +382,171 @@ theorem lemma52_fixed_parameter_mass_le
       (S.card : ℝ) ^ 3)
     hfiber
 
+def lemma52PrefixTuples {n k : ℕ} (b₀ : Fin n) :
+    Finset (Fin k → Fin n) :=
+  Finset.univ.filter fun a =>
+    StrictMono a ∧ ∀ i, paperPos (a i) < paperPos b₀
+
+def lemma52PrefixIntervals {n k : ℕ}
+    (b₀ : Fin n) (a : Fin k → Fin n) :
+    Fin k → Finset (Fin n) :=
+  fun i => indexHalfOpen (a (reverseIndex k i)) b₀
+
+def lemma52PrefixSizes {n k : ℕ}
+    (b₀ : Fin n) (a : Fin k → Fin n) :
+    Fin k → ℕ :=
+  fun i => (lemma52PrefixIntervals b₀ a i).card
+
+theorem lemma52PrefixSizes_valid {n k : ℕ}
+    (b₀ : Fin n) (Tcard : ℕ) (hroom : b₀.val < Tcard)
+    {a : Fin k → Fin n} (ha : a ∈ lemma52PrefixTuples b₀) :
+    IsChainSizeTuple Tcard (lemma52PrefixSizes b₀ a) := by
+  have hdata := (Finset.mem_filter.mp ha).2
+  constructor
+  · intro i j hij
+    have hrev : (reverseIndex k j).val < (reverseIndex k i).val := by
+      rw [reverseIndex_apply_val,reverseIndex_apply_val]
+      omega
+    have haa :
+        (a (reverseIndex k j)).val <
+          (a (reverseIndex k i)).val := by
+      exact_mod_cast hdata.1 (Fin.mk_lt_mk.mpr hrev)
+    have hai := hdata.2 (reverseIndex k i)
+    have haj := hdata.2 (reverseIndex k j)
+    simp [lemma52PrefixSizes,lemma52PrefixIntervals,
+      card_indexHalfOpen,
+      show (a (reverseIndex k i)).val ≤ b₀.val by
+        simp [paperPos] at hai; omega,
+      show (a (reverseIndex k j)).val ≤ b₀.val by
+        simp [paperPos] at haj; omega]
+    omega
+  · intro i
+    have hai := hdata.2 (reverseIndex k i)
+    have hale : (a (reverseIndex k i)).val ≤ b₀.val := by
+      simp [paperPos] at hai
+      omega
+    rw [show lemma52PrefixSizes b₀ a i =
+        b₀.val - (a (reverseIndex k i)).val by
+      exact card_indexHalfOpen _ _ hale]
+    constructor
+    · simp [paperPos] at hai
+      omega
+    · omega
+
+theorem lemma52PrefixIntervals_nested {n k : ℕ}
+    (b₀ : Fin n) {a : Fin k → Fin n}
+    (ha : a ∈ lemma52PrefixTuples b₀) :
+    ∀ i j, i ≤ j →
+      lemma52PrefixIntervals b₀ a i ⊆
+        lemma52PrefixIntervals b₀ a j := by
+  intro i j hij x hx
+  have hdata := (Finset.mem_filter.mp ha).2
+  have hrev : reverseIndex k j ≤ reverseIndex k i := by
+    apply Fin.mk_le_mk.mpr
+    rw [reverseIndex_apply_val,reverseIndex_apply_val]
+    omega
+  have haa := hdata.1.monotone hrev
+  simp only [lemma52PrefixIntervals,indexHalfOpen,
+    Finset.mem_filter,Finset.mem_univ,true_and] at hx ⊢
+  exact ⟨le_trans (by exact_mod_cast haa) hx.1,hx.2⟩
+
+theorem lemma52PrefixSizes_injective {n k : ℕ}
+    (b₀ : Fin n) :
+    Set.InjOn (lemma52PrefixSizes b₀)
+      (lemma52PrefixTuples b₀ : Set (Fin k → Fin n)) := by
+  intro a ha a' ha' h
+  funext i
+  let r := reverseIndex k i
+  have hai := (Finset.mem_filter.mp ha).2.2 i
+  have hai' := (Finset.mem_filter.mp ha').2.2 i
+  have hle : (a i).val ≤ b₀.val := by
+    simp [paperPos] at hai
+    omega
+  have hle' : (a' i).val ≤ b₀.val := by
+    simp [paperPos] at hai'
+    omega
+  have hr := congrFun h r
+  have hri :
+      lemma52PrefixSizes b₀ a r = b₀.val - (a i).val := by
+    simpa [lemma52PrefixSizes,lemma52PrefixIntervals,r,
+      reverseIndex_involutive] using
+      card_indexHalfOpen (a i) b₀ hle
+  have hri' :
+      lemma52PrefixSizes b₀ a' r = b₀.val - (a' i).val := by
+    simpa [lemma52PrefixSizes,lemma52PrefixIntervals,r,
+      reverseIndex_involutive] using
+      card_indexHalfOpen (a' i) b₀ hle'
+  rw [hri,hri'] at hr
+  exact Fin.ext (by omega)
+
+theorem lemma52_prefix_chain_bound
+    {p k : ℕ} [NeZero p]
+    (S : Finset (ZMod p))
+    (τ : Fin S.card → ZMod p) (hτ : IsIndexedOrdering S τ)
+    (F : Finset (Fin S.card)) (b₀ : Fin S.card)
+    (hFright : ∀ x ∈ F, b₀.val ≤ x.val)
+    (hroom : b₀.val < (S \ indexImageSet τ F).card)
+    (target : Fin k → ZMod p)
+    (C : ℝ)
+    (hchain :
+      ∀ m, IsChainSizeTuple (S \ indexImageSet τ F).card m →
+        ∀ z, chainMass (S \ indexImageSet τ F) m z ≤
+          chainUpperBound p (S \ indexImageSet τ F).card C m) :
+    orderingConditionalMass S
+      (fun σ => AgreesOn F σ τ)
+      (fun σ =>
+        ∃ a : Fin k → Fin S.card,
+          StrictMono a ∧
+          (∀ i, paperPos (a i) < paperPos b₀) ∧
+          ∀ i, indexSetSum σ (indexHalfOpen (a i) b₀) = target i) ≤
+      lemma43LHS p (S \ indexImageSet τ F).card k C := by
+  classical
+  let A := lemma52PrefixTuples (k := k) b₀
+  let I := fun a : Fin k → Fin S.card =>
+    lemma52PrefixIntervals b₀ a
+  let m := fun a : Fin k → Fin S.card =>
+    lemma52PrefixSizes b₀ a
+  let z := fun _a : Fin k → Fin S.card =>
+    fun i => target (reverseIndex k i)
+  have hdisj : ∀ a ∈ A, ∀ i, Disjoint F (I a i) := by
+    intro a ha i
+    rw [Finset.disjoint_left]
+    intro x hxF hxI
+    have hxright := hFright x hxF
+    simp only [I,lemma52PrefixIntervals,indexHalfOpen,
+      Finset.mem_filter,Finset.mem_univ,true_and] at hxI
+    omega
+  have hnested : ∀ a ∈ A, ∀ i j, i ≤ j → I a i ⊆ I a j := by
+    intro a ha
+    exact lemma52PrefixIntervals_nested b₀ ha
+  have hvalid : ∀ a ∈ A,
+      IsChainSizeTuple (S \ indexImageSet τ F).card (m a) := by
+    intro a ha
+    exact lemma52PrefixSizes_valid b₀ _ hroom ha
+  have hinj : Set.InjOn m A := by
+    exact lemma52PrefixSizes_injective b₀
+  have hchain' :
+      ∀ a ∈ A,
+        chainMass (S \ indexImageSet τ F) (m a) (z a) ≤
+          chainUpperBound p (S \ indexImageSet τ F).card C (m a) := by
+    intro a ha
+    exact hchain (m a) (hvalid a ha) (z a)
+  have hgeneric :=
+    Section5External.conditional_chain_witness_union_bound
+      S τ hτ F A I m z C
+      hdisj hnested (fun _ _ _ => rfl) hvalid hinj hchain'
+  apply le_trans ?_ hgeneric
+  unfold orderingConditionalMass uniformConditionalMass
+  apply uniformMass_mono
+  intro σ h
+  rcases h with ⟨a,hmono,hbefore,hsum⟩
+  refine ⟨a,?_,?_⟩
+  · exact Finset.mem_filter.mpr
+      ⟨Finset.mem_univ _,hmono,hbefore⟩
+  · intro i
+    have hi := hsum (reverseIndex k i)
+    simpa [I,z,lemma52PrefixIntervals,reverseIndex_involutive] using hi
+
 /-- Lemma 5.2. -/
 theorem lemma5_2
     {α : ℝ} (hα0 : 0 < α) (hαh : α < 1 / 2)
