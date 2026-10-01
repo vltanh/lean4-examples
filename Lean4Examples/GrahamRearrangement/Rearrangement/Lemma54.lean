@@ -335,13 +335,56 @@ theorem equation_5_1
 def bad0Parameters {n : ℕ} (D : ℕ) :
     Finset (Fin n × Finset (Fin n) × Finset (Fin n)) := by
   classical
-  exact Finset.univ.filter fun θ =>
-    let b := θ.1
-    let J := θ.2.1
-    let J' := θ.2.2
-    paperPos b + 30 * D ≤ n ∧
-      J ⊆ exposedWindow D b ∧
-      J' ⊆ exposedWindow D b ∧ J ≠ J'
+  exact Finset.univ.biUnion fun b =>
+    if hfit : paperPos b + 30 * D ≤ n then
+      (forwardWindow b (20 * D)).powerset.biUnion fun J =>
+        ((forwardWindow b (20 * D)).powerset.filter
+          (fun J' => J ≠ J')).image fun J' => (b, J, J')
+    else ∅
+
+theorem mem_bad0Parameters {n D : ℕ}
+    {b : Fin n} {J J' : Finset (Fin n)} :
+    (b, J, J') ∈ bad0Parameters (n := n) D ↔
+      paperPos b + 30 * D ≤ n ∧
+      J ⊆ forwardWindow b (20 * D) ∧
+      J' ⊆ forwardWindow b (20 * D) ∧ J ≠ J' := by
+  classical
+  by_cases hfit : paperPos b + 30 * D ≤ n
+  · simp [bad0Parameters, hfit]
+  · simp [bad0Parameters, hfit]
+
+theorem bad0Parameters_card_le {n D : ℕ} :
+    (bad0Parameters (n := n) D).card ≤ n * 2 ^ (40 * D + 2) := by
+  classical
+  calc
+    (bad0Parameters (n := n) D).card
+      ≤ ∑ b : Fin n,
+          ((forwardWindow b (20 * D)).powerset.card *
+            (forwardWindow b (20 * D)).powerset.card) := by
+          unfold bad0Parameters
+          apply Finset.card_biUnion_le_sum
+          intro b hb
+          split
+          · apply le_trans (Finset.card_biUnion_le_sum _ _)
+            (Finset.sum_le_sum fun J hJ => ?_)
+            exact Finset.card_image_le
+          · simp
+    _ ≤ ∑ _b : Fin n, 2 ^ (40 * D + 2) := by
+          gcongr with b
+          rw [Finset.card_powerset, Finset.card_powerset]
+          have hw := card_forwardWindow_le b (20 * D)
+          have hp : 2 ^ (forwardWindow b (20 * D)).card ≤
+              2 ^ (20 * D + 1) := Nat.pow_le_pow_right (by omega) hw
+          calc
+            2 ^ (forwardWindow b (20 * D)).card *
+                2 ^ (forwardWindow b (20 * D)).card
+              ≤ 2 ^ (20 * D + 1) * 2 ^ (20 * D + 1) :=
+                Nat.mul_le_mul hp hp
+            _ = 2 ^ (40 * D + 2) := by
+                rw [← pow_add]
+                congr
+                omega
+    _ = n * 2 ^ (40 * D + 2) := by simp [mul_comm]
 
 /-- Lemma 5.4. -/
 theorem lemma5_4
@@ -373,10 +416,9 @@ theorem lemma5_4
           8 / (S.card : ℝ) ^ (1 + α) := by
     intro θ hθ
     rcases θ with ⟨b, J, J'⟩
-    simp only [Θ, bad0Parameters, Finset.mem_filter,
-      Finset.mem_univ, true_and] at hθ
+    have hθ' := (mem_bad0Parameters).1 hθ
     exact equation_5_1 hα0 hαh P hp S hreg
-      b hθ.1 J J' hθ.2.1 hθ.2.2.1 hθ.2.2.2
+      b hθ'.1 J J' hθ'.2.1 hθ'.2.2.1 hθ'.2.2.2
   have hmass :
       orderingEventMass S (BadEvent0 P.D) ≤
         (Θ.card : ℝ) *
@@ -388,15 +430,7 @@ theorem lemma5_4
       hcover (by simpa [orderingEventMass] using hbound)
   have hΘ :
       Θ.card ≤ S.card * 2 ^ (40 * P.D + 2) := by
-    unfold Θ bad0Parameters
-    calc
-      _ ≤ (Finset.univ :
-          Finset (Fin S.card ×
-            Finset (Fin S.card) × Finset (Fin S.card))).card := by
-            exact Finset.card_filter_le _ _
-      _ ≤ S.card * 2 ^ (40 * P.D + 2) := by
-            exact Section5External.bad0_parameter_count
-              (n := S.card) P.D
+    exact bad0Parameters_card_le (n := S.card) (D := P.D)
   calc
     orderingEventMass S (BadEvent0 P.D)
       ≤ (Θ.card : ℝ) *
