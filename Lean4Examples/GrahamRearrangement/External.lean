@@ -267,6 +267,26 @@ axiom sum_inv_sqrt_le_two_sqrt (n : ℕ) :
     (∑ i ∈ Finset.Icc 1 n, (1 / Real.sqrt (i : ℝ))) ≤
       2 * Real.sqrt (n : ℝ)
 
+/-- Numerical consequence of D=ceil(3/α) when 0<α<1/2. -/
+axiom ceil_three_div_ge_seven {α : ℝ}
+    (hα0 : 0 < α) (hαh : α < 1 / 2) :
+    7 ≤ Nat.ceil (3 / α)
+
+/-- Elementary power inequalities used for the Section 5 choice of C_α. -/
+axiom section5_power_inequalities (D : ℕ) (hD : 7 ≤ D) :
+    (100 : ℝ) * (5 * D : ℝ) ^ (2 * D) ≤
+        (D + 1 : ℝ) * (2 : ℝ) ^ D *
+          (D : ℝ) ^ (14 * D ^ 2) ∧
+      (40 * D : ℝ) ^ D ≤
+        (100 : ℝ) * (5 * D : ℝ) ^ (2 * D)
+
+/-- Raising the first Section 5 threshold to α recovers the required
+10^4*2^(40D) lower bound. -/
+axiom section5_rpow_threshold {α : ℝ} {D : ℕ}
+    (hα0 : 0 < α) :
+    (10 ^ 4 * (2 : ℝ) ^ (40 * D)) ≤
+      (((10 ^ 4 : ℝ) * (2 : ℝ) ^ (40 * D)) ^ (1 / α)) ^ α
+
 /-- Linear eventually dominates log-squared. -/
 axiom exists_log_sq_threshold (A : ℝ) :
     ∃ N : ℕ, 2 ≤ N ∧
