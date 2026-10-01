@@ -231,6 +231,27 @@ theorem log_card_sdiff_le {α : Type*} [DecidableEq α]
   · exact_mod_cast hne.card_pos
   · exact_mod_cast Finset.card_sdiff_le S R
 
+theorem card_pi_le_pow {ι α : Type*}
+    [Fintype ι] [DecidableEq ι] [DecidableEq α]
+    (U : ι → Finset α) (M : ℕ)
+    (hU : ∀ i, (U i).card ≤ M) :
+    (Finset.univ.pi U).card ≤ M ^ Fintype.card ι := by
+  classical
+  rw [Finset.card_pi]
+  calc
+    (∏ i : ι, (U i).card) ≤ ∏ _i : ι, M := by
+      gcongr with i
+      exact hU i
+    _ = M ^ Fintype.card ι := by simp
+
+theorem card_product_le_mul {α β : Type*}
+    [DecidableEq α] [DecidableEq β]
+    (A : Finset α) (B : Finset β)
+    (a b : ℕ) (hA : A.card ≤ a) (hB : B.card ≤ b) :
+    (A.product B).card ≤ a * b := by
+  rw [Finset.card_product]
+  exact Nat.mul_le_mul hA hB
+
 /-- Finite union bound for two events. -/
 theorem uniformMass_or_le_add {Ω : Type*} [DecidableEq Ω]
     (space : Finset Ω) (E F : Ω → Prop)
