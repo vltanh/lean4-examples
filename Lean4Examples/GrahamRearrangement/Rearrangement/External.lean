@@ -352,7 +352,7 @@ theorem event_le_of_agreesOn_fibers {p : ℕ} [NeZero p]
 
 /-- Fiber multiplication specialized to exposing a set of positions in a
 uniform random ordering. -/
-axiom joint_event_le_of_agreesOn_fibers {p : ℕ} [NeZero p]
+theorem joint_event_le_of_agreesOn_fibers {p : ℕ} [NeZero p]
     (S : Finset (ZMod p)) (F : Finset (Fin S.card))
     (A B : (Fin S.card → ZMod p) → Prop)
     [DecidablePred A] [DecidablePred B]
@@ -364,7 +364,73 @@ axiom joint_event_le_of_agreesOn_fibers {p : ℕ} [NeZero p]
       ∀ τ, IsIndexedOrdering S τ → A τ →
         orderingConditionalMass S
           (fun σ => AgreesOn F σ τ) B ≤ b) :
-    orderingEventMass S (fun σ => A σ ∧ B σ) ≤ a * b
+    orderingEventMass S (fun σ => A σ ∧ B σ) ≤ a * b := by
+  have ha0 : 0 ≤ a :=
+    le_trans (uniformMass_nonneg _ _) hA
+  unfold orderingEventMass
+  rw [uniformMass_chain_rule]
+  have hcond :
+      uniformConditionalMass (indexedOrderings S) A B ≤ b := by
+    by_cases hAspace : ((indexedOrderings S).filter A).Nonempty
+    · obtain ⟨τ₀,hτ₀A⟩ := hAspace
+      rcases Finset.mem_filter.mp hτ₀A with ⟨hτ₀mem,hAτ₀⟩
+      have hτ₀ : IsIndexedOrdering S τ₀ := by
+        simpa [indexedOrderings] using
+          (Finset.mem_filter.mp hτ₀mem).2
+      have hb0 : 0 ≤ b :=
+        le_trans (uniformMass_nonneg _ _) (hfiber τ₀ hτ₀ hAτ₀)
+      let key := agreementKey F
+      let spaceA := (indexedOrderings S).filter A
+      have htotal :=
+        uniformConditionalMass_le_of_fibers
+          spaceA key (fun _ => True) B b hb0
+          (by
+            intro κ hκ
+            by_cases hnon :
+                (spaceA.filter fun σ => key σ = κ).Nonempty
+            · obtain ⟨τ,hτfib⟩ := hnon
+              rcases Finset.mem_filter.mp hτfib with ⟨hτA,hτkey⟩
+              rcases Finset.mem_filter.mp hτA with ⟨hτmem,hAτ⟩
+              have hτ : IsIndexedOrdering S τ := by
+                simpa [indexedOrderings] using
+                  (Finset.mem_filter.mp hτmem).2
+              have heq :
+                  spaceA.filter (fun σ => key σ = κ) =
+                    (indexedOrderings S).filter
+                      (fun σ => AgreesOn F σ τ) := by
+                ext σ
+                constructor
+                · intro hσ
+                  rcases Finset.mem_filter.mp hσ with ⟨hσA,hσkey⟩
+                  rcases Finset.mem_filter.mp hσA with ⟨hσmem,hAσ⟩
+                  apply Finset.mem_filter.mpr
+                  refine ⟨hσmem,?_⟩
+                  rw [← agreementKey_eq_iff]
+                  exact hσkey.trans hτkey.symm
+                · intro hσ
+                  rcases Finset.mem_filter.mp hσ with ⟨hσmem,hagr⟩
+                  have hAσ := (hdetermined σ τ hagr).2 hAτ
+                  apply Finset.mem_filter.mpr
+                  constructor
+                  · exact Finset.mem_filter.mpr ⟨hσmem,hAσ⟩
+                  · rw [← agreementKey_eq_iff] at hagr
+                    exact hagr.trans hτkey
+              unfold uniformConditionalMass
+              rw [heq]
+              simpa [orderingConditionalMass] using
+                hfiber τ hτ hAτ
+            · have hemp :
+                  spaceA.filter (fun σ => key σ = κ) = ∅ :=
+                Finset.not_nonempty_iff_eq_empty.mp hnon
+              unfold uniformConditionalMass
+              simp [hemp])
+      simpa [uniformConditionalMass,spaceA,key] using htotal
+    · have hemp :
+          (indexedOrderings S).filter A = ∅ :=
+        Finset.not_nonempty_iff_eq_empty.mp hAspace
+      unfold uniformConditionalMass
+      simp [hemp]
+  exact mul_le_mul hA hcond (uniformMass_nonneg _ _) ha0
 
 /-- Union bound over a finite set of possible parameter records. -/
 theorem finite_parameter_union_bound
