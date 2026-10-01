@@ -244,8 +244,200 @@ axiom distinct_index_subset_sums_mass_le {p : ℕ} [NeZero p]
     orderingEventMass S (fun σ => indexSetSum σ J = indexSetSum σ J') ≤
       1 / ((S.card - W.card + 1 : ℕ) : ℝ)
 
-/-- Specialized finite form of the preceding sampling fact for ZMod orderings. -/
-axiom conditional_index_family_sumMass_le_zmod
+theorem exposedImage_subset {p : ℕ} [NeZero p]
+    (S : Finset (ZMod p))
+    {τ : Fin S.card → ZMod p} (hτ : IsIndexedOrdering S τ)
+    (F : Finset (Fin S.card)) :
+    indexImageSet τ F ⊆ S := by
+  intro x hx
+  rcases Finset.mem_image.mp hx with ⟨i,hi,rfl⟩
+  exact (hτ.2 _).2 ⟨i,rfl⟩
+
+theorem unexposed_indexImage_subset_remaining
+    {p : ℕ} [NeZero p] (S : Finset (ZMod p))
+    (τ σ : Fin S.card → ZMod p)
+    (hτ : IsIndexedOrdering S τ)
+    (hσ : IsIndexedOrdering S σ)
+    (F J : Finset (Fin S.card))
+    (hagr : AgreesOn F σ τ) (hdisj : Disjoint F J) :
+    indexImageSet σ J ⊆ S \ indexImageSet τ F := by
+  intro x hx
+  rcases Finset.mem_image.mp hx with ⟨j,hj,rfl⟩
+  apply Finset.mem_sdiff.mpr
+  constructor
+  · exact (hσ.2 _).2 ⟨j,rfl⟩
+  · intro himg
+    rcases Finset.mem_image.mp himg with ⟨i,hiF,heq⟩
+    have hσi : σ i = τ i := hagr i hiF
+    have hsij : i = j := hσ.1 (hσi.trans heq)
+    subst i
+    exact Finset.disjoint_left.mp hdisj hiF hj
+
+theorem valuePerm_preserves_agreement
+    {p : ℕ} [NeZero p] (S : Finset (ZMod p))
+    (τ σ : Fin S.card → ZMod p)
+    (F : Finset (Fin S.card))
+    (π : Equiv.Perm (ZMod p))
+    (hfix : ∀ x ∈ indexImageSet τ F, π x = x)
+    (hagr : AgreesOn F σ τ) :
+    AgreesOn F (applyValuePerm π σ) τ := by
+  intro i hi
+  unfold applyValuePerm
+  change π (σ i) = τ i
+  rw [hagr i hi]
+  exact hfix (τ i) (Finset.mem_image.mpr ⟨i,hi,rfl⟩)
+
+theorem conditional_fixedIndexSet_image_uniform
+    {p : ℕ} [NeZero p] (S : Finset (ZMod p))
+    (τ : Fin S.card → ZMod p) (hτ : IsIndexedOrdering S τ)
+    (F J : Finset (Fin S.card)) (hdisj : Disjoint F J)
+    (E : Finset (ZMod p) → Prop) [DecidablePred E] :
+    orderingConditionalMass S
+      (fun σ => AgreesOn F σ τ)
+      (fun σ => E (indexImageSet σ J)) =
+    uniformMass
+      ((S \ indexImageSet τ F).powersetCard J.card) E := by
+  classical
+  let Ω := (indexedOrderings S).filter fun σ => AgreesOn F σ τ
+  let T := S \ indexImageSet τ F
+  let V := T.powersetCard J.card
+  have hΩ : Ω.Nonempty := by
+    refine ⟨τ,?_⟩
+    apply Finset.mem_filter.mpr
+    constructor
+    · simpa [indexedOrderings] using hτ
+    · intro i hi
+      rfl
+  have hJcard : J.card ≤ T.card := by
+    have hFI : F.card + J.card ≤ S.card := by
+      rw [← Finset.card_union_of_disjoint hdisj]
+      exact le_trans (Finset.card_le_univ (F ∪ J)) (by simp)
+    have hEcard := exposed_image_card S hτ F
+    unfold T
+    rw [Finset.card_sdiff (exposedImage_subset S hτ F),hEcard]
+    omega
+  have hV : V.Nonempty := powersetCard_nonempty T hJcard
+  have hmap : ∀ σ ∈ Ω, indexImageSet σ J ∈ V := by
+    intro σ hσ
+    rcases Finset.mem_filter.mp hσ with ⟨hσmem,hagr⟩
+    have hσord : IsIndexedOrdering S σ := by
+      simpa [indexedOrderings] using
+        (Finset.mem_filter.mp hσmem).2
+    apply Finset.mem_powersetCard.mpr
+    constructor
+    · exact unexposed_indexImage_subset_remaining
+        S τ σ hτ hσord F J hagr hdisj
+    · unfold indexImageSet
+      exact Finset.card_image_iff.mpr hσord.1
+  have heq :
+      ∀ R ∈ V, ∀ R' ∈ V,
+        (Ω.filter fun σ => indexImageSet σ J = R).card =
+          (Ω.filter fun σ => indexImageSet σ J = R').card := by
+    intro R hR R' hR'
+    obtain ⟨π,hπR,hπT,hπout⟩ :=
+      exists_perm_maps_finset T R R'
+        (Finset.mem_powersetCard.mp hR).1
+        (Finset.mem_powersetCard.mp hR').1
+        (by rw [(Finset.mem_powersetCard.mp hR).2,
+                (Finset.mem_powersetCard.mp hR').2])
+    have hfixE : ∀ x ∈ indexImageSet τ F, π x = x := by
+      intro x hx
+      exact hπout x (by
+        intro hxT
+        exact (Finset.mem_sdiff.mp hxT).2 hx)
+    have hπS : S.image π = S := by
+      ext x
+      by_cases hxE : x ∈ indexImageSet τ F
+      · have hfix := hfixE x hxE
+        simp [hfix,(exposedImage_subset S hτ F hxE)]
+      · have hxT : x ∈ T ↔ x ∈ S := by
+          simp [T,hxE]
+        rw [← hπT]
+        constructor
+        · intro hx
+          rcases Finset.mem_image.mp hx with ⟨y,hy,rfl⟩
+          exact Finset.mem_image.mpr ⟨y,hxT.mp hy,rfl⟩
+        · intro hx
+          rcases Finset.mem_image.mp hx with ⟨y,hy,rfl⟩
+          by_cases hyE : y ∈ indexImageSet τ F
+          · have hyfix := hfixE y hyE
+            subst x
+            exact False.elim (hxE hyE)
+          · exact Finset.mem_image.mpr
+              ⟨y,(by simpa [T,hyE] using hy),rfl⟩
+    apply Finset.card_bij
+      (fun σ _ => applyValuePerm π σ)
+    · intro σ hσ
+      rcases Finset.mem_filter.mp hσ with ⟨hσΩ,himg⟩
+      rcases Finset.mem_filter.mp hσΩ with ⟨hσmem,hagr⟩
+      have hσord : IsIndexedOrdering S σ := by
+        simpa [indexedOrderings] using
+          (Finset.mem_filter.mp hσmem).2
+      apply Finset.mem_filter.mpr
+      constructor
+      · apply Finset.mem_filter.mpr
+        constructor
+        · simpa [indexedOrderings] using
+            applyValuePerm_isIndexedOrdering S π hπS hσord
+        · exact valuePerm_preserves_agreement S τ σ F π hfixE hagr
+      · rw [indexImageSet_applyValuePerm,himg,hπR]
+    · intro σ hσ ρ hρ he
+      funext i
+      apply π.injective
+      exact congrFun he i
+    · intro ρ hρ
+      let σ := applyValuePerm π.symm ρ
+      refine ⟨σ,?_,?_⟩
+      · rcases Finset.mem_filter.mp hρ with ⟨hρΩ,himg⟩
+        rcases Finset.mem_filter.mp hρΩ with ⟨hρmem,hagr⟩
+        have hρord : IsIndexedOrdering S ρ := by
+          simpa [indexedOrderings] using
+            (Finset.mem_filter.mp hρmem).2
+        have hπsymS : S.image π.symm = S := by
+          apply Finset.image_injective π.injective
+          simpa using congrArg (Finset.image π) hπS
+        have hfixEsym :
+            ∀ x ∈ indexImageSet τ F, π.symm x = x := by
+          intro x hx
+          exact perm_symm_fixes_of_fixes π (hfixE x hx)
+        apply Finset.mem_filter.mpr
+        constructor
+        · apply Finset.mem_filter.mpr
+          constructor
+          · simpa [indexedOrderings,σ] using
+              applyValuePerm_isIndexedOrdering S π.symm hπsymS hρord
+          · exact valuePerm_preserves_agreement
+              S τ ρ F π.symm hfixEsym hagr
+        · rw [indexImageSet_applyValuePerm,himg]
+          apply Finset.image_injective π.injective
+          simpa using congrArg (Finset.image π.symm) hπR
+      · funext i
+        simp [σ,applyValuePerm]
+  unfold orderingConditionalMass uniformConditionalMass
+  exact uniformMass_statistic_of_pairwise_equal_fibers
+    Ω V (fun σ => indexImageSet σ J) hmap hV hΩ heq E
+
+theorem conditional_fixedIndexSet_sumMass
+    {p : ℕ} [NeZero p] (S : Finset (ZMod p))
+    (τ : Fin S.card → ZMod p) (hτ : IsIndexedOrdering S τ)
+    (F J : Finset (Fin S.card)) (hdisj : Disjoint F J)
+    (z : ZMod p) :
+    orderingConditionalMass S
+      (fun σ => AgreesOn F σ τ)
+      (fun σ => indexSetSum σ J = z) =
+    sliceMass (S \ indexImageSet τ F) J.card z := by
+  rw [← conditional_fixedIndexSet_image_uniform
+      S τ hτ F J hdisj (fun R => subsetSum R = z)]
+  apply uniformMass_congr
+  intro σ hσ
+  rcases Finset.mem_filter.mp hσ with ⟨hσmem,hagr⟩
+  have hσord : IsIndexedOrdering S σ := by
+    simpa [indexedOrderings] using
+      (Finset.mem_filter.mp hσmem).2
+  rw [indexSetSum_eq_subsetSum_image hσord.1 J]
+
+/-- Conditional union bound for a finite family of disjoint unexposed index sets. -/
+theorem conditional_index_family_sumMass_le_zmod
     {p : ℕ} [NeZero p] (S : Finset (ZMod p))
     (τ : Fin S.card → ZMod p) (hτ : IsIndexedOrdering S τ)
     (F : Finset (Fin S.card))
@@ -257,7 +449,23 @@ axiom conditional_index_family_sumMass_le_zmod
       (fun σ => AgreesOn F σ τ)
       (fun σ => ∃ a ∈ A, indexSetSum σ (I a) = z a) ≤
       ∑ a ∈ A,
-        sliceMass (S \ indexImageSet τ F) (I a).card (z a)
+        sliceMass (S \ indexImageSet τ F) (I a).card (z a) := by
+  unfold orderingConditionalMass uniformConditionalMass
+  calc
+    uniformMass ((indexedOrderings S).filter
+        (fun σ => AgreesOn F σ τ))
+        (fun σ => ∃ a ∈ A, indexSetSum σ (I a) = z a)
+      ≤ ∑ a ∈ A,
+          uniformMass ((indexedOrderings S).filter
+            (fun σ => AgreesOn F σ τ))
+            (fun σ => indexSetSum σ (I a) = z a) :=
+          uniformMass_exists_le_sum _ A _
+    _ = _ := by
+          apply Finset.sum_congr rfl
+          intro a ha
+          simpa [orderingConditionalMass,uniformConditionalMass] using
+            conditional_fixedIndexSet_sumMass
+              S τ hτ F (I a) (hdisj a ha) (z a)
 
 /-- Conditioning a uniform bijection on its values on F leaves a uniform bijection
 between the unexposed positions and S minus the exposed image. Nested image sets
