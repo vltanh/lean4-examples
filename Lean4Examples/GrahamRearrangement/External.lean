@@ -1,4 +1,7 @@
 import Lean4Examples.GrahamRearrangement.Probability
+import Mathlib.Analysis.Complex.ExponentialBounds
+import Mathlib.Analysis.SpecialFunctions.Pow.Asymptotics
+import Mathlib.Data.Nat.Log
 
 open scoped BigOperators Pointwise
 
@@ -130,25 +133,60 @@ axiom hypergeom_three_quarters_lower_tail {α : Type*} [DecidableEq α]
         Real.exp (-(k : ℝ) / 24)
 
 /-- A convenient monotonic consequence of exp for the numerical tail comparisons. -/
-axiom exp_antitone {a b : ℝ} (h : a ≤ b) :
-    Real.exp (-b) ≤ Real.exp (-a)
+theorem exp_antitone {a b : ℝ} (h : a ≤ b) :
+    Real.exp (-b) ≤ Real.exp (-a) :=
+  Real.exp_le_exp.mpr (neg_le_neg h)
 
 /-- exp(-c log n) = n^{-c}, in the positive range used throughout the paper. -/
-axiom exp_neg_mul_log {n c : ℝ} (hn : 0 < n) :
-    Real.exp (-c * Real.log n) = n ^ (-c)
+theorem exp_neg_mul_log {n c : ℝ} (hn : 0 < n) :
+    Real.exp (-c * Real.log n) = n ^ (-c) := by
+  rw [Real.rpow_def_of_pos hn]
+  congr 1
+  ring
 
 -- ---------------------------------------------------------------------------
 -- Elementary asymptotic facts used to choose constants
 -- ---------------------------------------------------------------------------
 
 /-- Every real x in [1,m] lies in a dyadic interval [2^l,2^(l+1)). -/
-axiom exists_dyadic_interval {x : ℝ} {m : ℕ}
+theorem exists_dyadic_interval {x : ℝ} {m : ℕ}
     (hx : 1 ≤ x) (hm : x ≤ m) :
     ∃ l < Nat.log2 m + 1,
-      (2 : ℝ) ^ l ≤ x ∧ x < 2 * (2 : ℝ) ^ l
+      (2 : ℝ) ^ l ≤ x ∧ x < 2 * (2 : ℝ) ^ l := by
+  have hx0 : 0 ≤ x := le_trans (by norm_num) hx
+  have hfloor1 : 1 ≤ Nat.floor x := (Nat.one_le_floor_iff x).2 hx
+  have hfloor0 : Nat.floor x ≠ 0 := by omega
+  let l := Nat.log 2 (Nat.floor x)
+  have hlowN : 2 ^ l ≤ Nat.floor x :=
+    Nat.pow_log_le_self 2 hfloor0
+  have hlow : ((2 : ℕ) ^ l : ℝ) ≤ x :=
+    le_trans (by exact_mod_cast hlowN) (Nat.floor_le hx0)
+  have huppN : Nat.floor x < 2 ^ (l + 1) := by
+    simpa [l] using Nat.lt_pow_succ_log_self Nat.one_lt_two (Nat.floor x)
+  have hxFloor : x < (Nat.floor x : ℝ) + 1 :=
+    Nat.lt_floor_add_one x
+  have hupp : x < ((2 : ℕ) ^ (l + 1) : ℝ) := by
+    have : (Nat.floor x : ℝ) + 1 ≤ ((2 : ℕ) ^ (l + 1) : ℝ) := by
+      exact_mod_cast (Nat.succ_le_iff.mpr huppN)
+    exact lt_of_lt_of_le hxFloor this
+  have hfm : Nat.floor x ≤ m :=
+    Nat.floor_le_of_le (le_trans hm (by norm_num))
+  have hm0 : m ≠ 0 := by
+    intro hmz
+    subst m
+    norm_num at hm
+  have hlog : l ≤ Nat.log 2 m := by
+    unfold l
+    exact Nat.log_mono Nat.one_lt_two hfm
+  refine ⟨l, ?_, by exact_mod_cast hlow, ?_⟩
+  · rw [Nat.log2_eq_log_two]
+    omega
+  · norm_num [pow_succ] at hupp ⊢
+    simpa [pow_succ] using hupp
 
 /-- A convenient explicit lower bound for the natural logarithm of two. -/
-axiom log_two_ge_half : (1 / 2 : ℝ) ≤ Real.log 2
+theorem log_two_ge_half : (1 / 2 : ℝ) ≤ Real.log 2 := by
+  exact le_of_lt (lt_trans (by norm_num) Real.log_two_gt_d9)
 
 /-- Generic weighted dyadic split: small shells are controlled by a square-root
 bound and the at most 22 remaining shells by the trivial bound. -/
@@ -163,33 +201,131 @@ axiom weighted_dyadic_split (m : ℕ) (p K : ℝ) (E : ℕ → ℝ)
       ≤ 2 * K + 22 * Real.exp (-(m : ℝ) / 2 ^ 22)
 
 /-- Elementary floor estimate used with k=floor(sqrt x). -/
-axiom natFloor_ge_half {x : ℝ} (hx : 1 ≤ x) :
-    x / 2 ≤ (Nat.floor x : ℝ)
+theorem natFloor_ge_half {x : ℝ} (hx : 1 ≤ x) :
+    x / 2 ≤ (Nat.floor x : ℝ) := by
+  by_cases hx2 : x < 2
+  · have hfloor1 : 1 ≤ Nat.floor x :=
+      (Nat.one_le_floor_iff x).2 hx
+    exact le_trans (by nlinarith) (by exact_mod_cast hfloor1)
+  · have hlt : x < (Nat.floor x : ℝ) + 1 :=
+      Nat.lt_floor_add_one x
+    have hx2' : 2 ≤ x := le_of_not_gt hx2
+    nlinarith
 
 /-- The standard reciprocal-square-root summation estimate. -/
-axiom sum_inv_sqrt_le_two_sqrt (n : ℕ) :
+theorem inv_sqrt_le_twice_sqrt_sub
+    (n : ℕ) (hn : 1 ≤ n) :
+    1 / Real.sqrt (n : ℝ) ≤
+      2 * (Real.sqrt (n : ℝ) - Real.sqrt (n - 1 : ℝ)) := by
+  have hn0 : 0 < (n : ℝ) := by positivity
+  have hm0 : 0 ≤ ((n - 1 : ℕ) : ℝ) := by positivity
+  have hsN : 0 < Real.sqrt (n : ℝ) := Real.sqrt_pos.2 hn0
+  have hsM : 0 ≤ Real.sqrt ((n - 1 : ℕ) : ℝ) := Real.sqrt_nonneg _
+  have hsquaresN : (Real.sqrt (n : ℝ)) ^ 2 = n :=
+    Real.sq_sqrt (le_of_lt hn0)
+  have hsquaresM :
+      (Real.sqrt ((n - 1 : ℕ) : ℝ)) ^ 2 = n - 1 :=
+    Real.sq_sqrt hm0
+  have hden :
+      Real.sqrt ((n - 1 : ℕ) : ℝ) ≤ Real.sqrt (n : ℝ) :=
+    Real.sqrt_le_sqrt (by exact_mod_cast Nat.sub_le n 1)
+  have hid :
+      (Real.sqrt (n : ℝ) - Real.sqrt ((n - 1 : ℕ) : ℝ)) *
+          (Real.sqrt (n : ℝ) + Real.sqrt ((n - 1 : ℕ) : ℝ)) = 1 := by
+    nlinarith
+  have hsum :
+      Real.sqrt (n : ℝ) + Real.sqrt ((n - 1 : ℕ) : ℝ) ≤
+        2 * Real.sqrt (n : ℝ) := by nlinarith
+  apply (div_le_iff₀ hsN).2
+  nlinarith [hid,hsum]
+
+theorem sum_inv_sqrt_le_two_sqrt (n : ℕ) :
     (∑ i ∈ Finset.Icc 1 n, (1 / Real.sqrt (i : ℝ))) ≤
-      2 * Real.sqrt (n : ℝ)
+      2 * Real.sqrt (n : ℝ) := by
+  induction n with
+  | zero => simp
+  | succ n ih =>
+      by_cases hn : n = 0
+      · subst n; norm_num
+      have hsplit :
+          Finset.Icc 1 (n + 1) =
+            insert (n + 1) (Finset.Icc 1 n) := by
+        ext i
+        simp
+        omega
+      rw [hsplit, Finset.sum_insert]
+      · have hstep := inv_sqrt_le_twice_sqrt_sub (n + 1) (by omega)
+        have hsimp : (n + 1 - 1 : ℕ) = n := by omega
+        rw [hsimp] at hstep
+        linarith
+      · simp
 
 /-- Numerical consequence of D=ceil(3/α) when 0<α<1/2. -/
-axiom ceil_three_div_ge_seven {α : ℝ}
+theorem ceil_three_div_ge_seven {α : ℝ}
     (hα0 : 0 < α) (hαh : α < 1 / 2) :
-    7 ≤ Nat.ceil (3 / α)
+    7 ≤ Nat.ceil (3 / α) := by
+  have h6 : (6 : ℝ) < 3 / α := by
+    apply (lt_div_iff₀ hα0).2
+    nlinarith
+  exact Nat.add_one_le_ceil_iff.mpr h6
 
 /-- Elementary power inequalities used for the Section 5 choice of C_α. -/
-axiom section5_power_inequalities (D : ℕ) (hD : 7 ≤ D) :
+theorem section5_power_inequalities (D : ℕ) (hD : 7 ≤ D) :
     (100 : ℝ) * (5 * D : ℝ) ^ (2 * D) ≤
         (D + 1 : ℝ) * (2 : ℝ) ^ D *
           (D : ℝ) ^ (14 * D ^ 2) ∧
       (40 * D : ℝ) ^ D ≤
-        (100 : ℝ) * (5 * D : ℝ) ^ (2 * D)
+        (100 : ℝ) * (5 * D : ℝ) ^ (2 * D) := by
+  have hD1 : (1 : ℝ) ≤ D := by exact_mod_cast (le_trans (by norm_num) hD)
+  have h100 : (100 : ℝ) ≤ (2 : ℝ) ^ D := by
+    have : (100 : ℝ) ≤ 2 ^ 7 := by norm_num
+    exact le_trans this (pow_le_pow_right₀ (by norm_num) (by omega))
+  have h5D : (5 * D : ℝ) ≤ (D : ℝ) ^ 2 := by
+    nlinarith
+  have hpow5 :
+      (5 * D : ℝ) ^ (2 * D) ≤
+        (D : ℝ) ^ (4 * D) := by
+    calc
+      _ ≤ ((D : ℝ) ^ 2) ^ (2 * D) :=
+        pow_le_pow_left₀ (by positivity) h5D _
+      _ = _ := by rw [← pow_mul]; congr; ring
+  have hexp : 4 * D ≤ 14 * D ^ 2 := by omega
+  have hpowD :
+      (D : ℝ) ^ (4 * D) ≤ (D : ℝ) ^ (14 * D ^ 2) :=
+    Real.monotone_rpow_of_base_ge_one hD1 (by exact_mod_cast hexp)
+  have hfirst :
+      (100 : ℝ) * (5 * D : ℝ) ^ (2 * D) ≤
+        (D + 1 : ℝ) * (2 : ℝ) ^ D *
+          (D : ℝ) ^ (14 * D ^ 2) := by
+    have hDp : (1 : ℝ) ≤ D + 1 := by positivity
+    nlinarith [mul_le_mul h100 (le_trans hpow5 hpowD)
+      (by positivity) (by positivity)]
+  have hbase : (40 * D : ℝ) ≤ (5 * D : ℝ) ^ 2 := by
+    nlinarith
+  have hsecond0 :
+      (40 * D : ℝ) ^ D ≤ (5 * D : ℝ) ^ (2 * D) := by
+    calc
+      _ ≤ ((5 * D : ℝ) ^ 2) ^ D :=
+        pow_le_pow_left₀ (by positivity) hbase _
+      _ = _ := by rw [← pow_mul]; congr; ring
+  constructor
+  · exact hfirst
+  · exact le_trans hsecond0 (by
+      have hnonneg : 0 ≤ (5 * D : ℝ) ^ (2 * D) := by positivity
+      nlinarith)
 
 /-- Raising the first Section 5 threshold to α recovers the required
 10^4*2^(40D) lower bound. -/
-axiom section5_rpow_threshold {α : ℝ} {D : ℕ}
+theorem section5_rpow_threshold {α : ℝ} {D : ℕ}
     (hα0 : 0 < α) :
     (10 ^ 4 * (2 : ℝ) ^ (40 * D)) ≤
-      (((10 ^ 4 : ℝ) * (2 : ℝ) ^ (40 * D)) ^ (1 / α)) ^ α
+      (((10 ^ 4 : ℝ) * (2 : ℝ) ^ (40 * D)) ^ (1 / α)) ^ α := by
+  let A : ℝ := (10 ^ 4 : ℝ) * (2 : ℝ) ^ (40 * D)
+  have hA : 0 ≤ A := by positivity
+  have hα : α ≠ 0 := ne_of_gt hα0
+  have hmul : (1 / α) * α = 1 := by field_simp
+  rw [← Real.rpow_mul hA, hmul, Real.rpow_one]
+  rfl
 
 /-- Standard real-power consequence used in Section 5:
 n ≤ p^(1-α) implies n/p ≤ n^(-α). -/
@@ -200,9 +336,14 @@ axiom card_div_prime_le_neg_rpow {α : ℝ} {n p : ℕ}
     (n : ℝ) / p ≤ (n : ℝ) ^ (-α)
 
 /-- Monotonicity of x↦x^{-α} for positive α on [1,∞). -/
-axiom neg_rpow_antitone {α : ℝ} (hα : 0 < α)
+theorem neg_rpow_antitone {α : ℝ} (hα : 0 < α)
     {x y : ℝ} (hx : 1 ≤ x) (hxy : x ≤ y) :
-    y ^ (-α) ≤ x ^ (-α)
+    y ^ (-α) ≤ x ^ (-α) := by
+  have hx0 : 0 < x := lt_of_lt_of_le zero_lt_one hx
+  have hy0 : 0 < y := lt_of_lt_of_le hx0 hxy
+  rw [Real.rpow_neg (le_of_lt hy0), Real.rpow_neg (le_of_lt hx0)]
+  exact inv_le_inv₀ (Real.rpow_pos_of_pos hx0 α)
+    (Real.rpow_le_rpow (le_of_lt hx0) hxy (le_of_lt hα))
 
 /-- Two-sided reciprocal-square-root kernel sum used for a fixed interval endpoint. -/
 axiom two_sided_interval_kernel_sum_le
@@ -219,17 +360,37 @@ axiom two_sided_interval_kernel_sum_le
           Real.sqrt (n : ℝ)
 
 /-- Crude elementary growth used in Section 5 numerical union bounds. -/
-axiom nat_le_two_pow_40 (D : ℕ) :
-    (D : ℝ) ≤ (2 : ℝ) ^ (40 * D)
+theorem nat_le_two_pow_40 (D : ℕ) :
+    (D : ℝ) ≤ (2 : ℝ) ^ (40 * D) := by
+  induction D with
+  | zero => simp
+  | succ D ih =>
+      have hbase : (D + 1 : ℝ) ≤ 2 ^ (D + 1) := by
+        induction D with
+        | zero => norm_num
+        | succ D ihD =>
+          rw [pow_succ]
+          nlinarith
+      have hexp : D + 1 ≤ 40 * (D + 1) := by omega
+      exact le_trans hbase
+        (pow_le_pow_right₀ (by norm_num) (by exact_mod_cast hexp))
 
 /-- Elementary growth used in the Section 5 counting estimates. -/
-axiom D_plus_one_le_fiveD_pow (D : ℕ) (hD : 7 ≤ D) :
-    (D + 1 : ℝ) ≤ (5 * D : ℝ) ^ (2 * D)
+theorem D_plus_one_le_fiveD_pow (D : ℕ) (hD : 7 ≤ D) :
+    (D + 1 : ℝ) ≤ (5 * D : ℝ) ^ (2 * D) := by
+  have hbase : (D + 1 : ℝ) ≤ (5 * D : ℝ) ^ 2 := by
+    nlinarith
+  have hexp : 2 ≤ 2 * D := by omega
+  exact le_trans hbase
+    (Real.monotone_rpow_of_base_ge_one
+      (by nlinarith : (1 : ℝ) ≤ 5 * D)
+      (by exact_mod_cast hexp))
 
 /-- Monotonicity of real powers in the exponent for a base at least one. -/
-axiom rpow_exponent_mono_of_one_le {x a b : ℝ}
+theorem rpow_exponent_mono_of_one_le {x a b : ℝ}
     (hx : 1 ≤ x) (hab : a ≤ b) :
-    x ^ a ≤ x ^ b
+    x ^ a ≤ x ^ b :=
+  Real.monotone_rpow_of_base_ge_one hx hab
 
 /-- Linear eventually dominates log-squared. -/
 axiom exists_log_sq_threshold (A : ℝ) :
