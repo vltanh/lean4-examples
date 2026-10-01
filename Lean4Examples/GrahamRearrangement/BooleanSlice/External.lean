@@ -547,7 +547,7 @@ theorem blockRemainder_fiber_equipotent
         apply Finset.image_injective π.injective
         simpa using congrArg (Finset.image π) hπS
       have hπsymx : π.symm x = x :=
-        symm_fixes_of_fixes π hπx
+        perm_symm_fixes_of_fixes π hπx
       apply Finset.mem_filter.mpr
       constructor
       · apply Finset.mem_filter.mpr
