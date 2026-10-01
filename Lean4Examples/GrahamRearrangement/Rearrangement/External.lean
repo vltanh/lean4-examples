@@ -384,7 +384,7 @@ axiom fixed_tail_tuple_conditional_chainBound
 /-- Generic two-level witness union bound: for each outer parameter there are
 at most M inner choices, each inner event has weight w(theta), and the outer
 weights sum to at most B. -/
-axiom bounded_choice_witness_union
+theorem bounded_choice_witness_union
     {Ω Θ Ξ : Type*} [DecidableEq Ω] [DecidableEq Θ] [DecidableEq Ξ]
     (space : Finset Ω) (outer : Finset Θ)
     (inner : Θ → Finset Ξ)
@@ -400,7 +400,47 @@ axiom bounded_choice_witness_union
         uniformMass space (A θ ξ) ≤ w θ)
     (hsum : (∑ θ ∈ outer, w θ) ≤ B)
     (hw : ∀ θ ∈ outer, 0 ≤ w θ) :
-    uniformMass space E ≤ (M : ℝ) * B
+    uniformMass space E ≤ (M : ℝ) * B := by
+  have hmono :
+      uniformMass space E ≤
+        uniformMass space
+          (fun ω => ∃ θ ∈ outer, ∃ ξ ∈ inner θ, A θ ξ ω) := by
+    apply uniformMass_mono_on
+    intro ω hω hE
+    exact hcover ω hω hE
+  have houter :=
+    uniformMass_exists_le_sum space outer
+      (fun θ ω => ∃ ξ ∈ inner θ, A θ ξ ω)
+  have hinner :
+      ∀ θ ∈ outer,
+        uniformMass space (fun ω => ∃ ξ ∈ inner θ, A θ ξ ω) ≤
+          (inner θ).card * w θ := by
+    intro θ hθ
+    calc
+      _ ≤ ∑ ξ ∈ inner θ, uniformMass space (A θ ξ) :=
+        uniformMass_exists_le_sum space (inner θ) (A θ)
+      _ ≤ ∑ _ξ ∈ inner θ, w θ := by
+          gcongr with ξ hξ
+          exact hpoint θ hθ ξ hξ
+      _ = (inner θ).card * w θ := by simp
+  calc
+    uniformMass space E
+      ≤ uniformMass space
+          (fun ω => ∃ θ ∈ outer, ∃ ξ ∈ inner θ, A θ ξ ω) := hmono
+    _ ≤ ∑ θ ∈ outer,
+          uniformMass space (fun ω => ∃ ξ ∈ inner θ, A θ ξ ω) := houter
+    _ ≤ ∑ θ ∈ outer, (inner θ).card * w θ := by
+          gcongr with θ hθ
+          exact hinner θ hθ
+    _ ≤ ∑ θ ∈ outer, (M : ℝ) * w θ := by
+          gcongr with θ hθ
+          exact mul_le_mul_of_nonneg_right
+            (by exact_mod_cast hcount θ hθ) (hw θ hθ)
+    _ = (M : ℝ) * ∑ θ ∈ outer, w θ := by
+          rw [Finset.mul_sum]
+    _ ≤ (M : ℝ) * B := by
+          gcongr
+          positivity
 
 /-- Generic count of disjoint oriented short-swap collections when all first
 endpoints lie in Q. Each q∈Q has at most 5D possible partners, plus the option
@@ -448,7 +488,7 @@ axiom admissible_local_image_subset
 /-- Generic two-colour pigeonhole extraction: from at least 2D distinct
 objects, each of which has colour A or B, one can select D distinct objects of
 one colour. -/
-axiom two_colour_extract {α : Type*} [DecidableEq α]
+theorem two_colour_extract {α : Type*} [DecidableEq α]
     (D : ℕ) (Y : Finset α)
     (A B : α → Prop) [DecidablePred A] [DecidablePred B]
     (hcard : 2 * D ≤ Y.card)
@@ -456,19 +496,56 @@ axiom two_colour_extract {α : Type*} [DecidableEq α]
     (∃ f : Fin D → α, Function.Injective f ∧
       ∀ i, f i ∈ Y ∧ A (f i)) ∨
     (∃ f : Fin D → α, Function.Injective f ∧
-      ∀ i, f i ∈ Y ∧ B (f i))
+      ∀ i, f i ∈ Y ∧ B (f i)) := by
+  classical
+  let YA := Y.filter A
+  by_cases hA : D ≤ YA.card
+  · obtain ⟨f,hfinj,hf⟩ := exists_injective_fin_enum YA D hA
+    exact Or.inl ⟨f,hfinj,fun i => by
+      have hi := hf i
+      exact ⟨(Finset.mem_filter.mp hi).1,(Finset.mem_filter.mp hi).2⟩⟩
+  · have hAc : YA.card < D := Nat.lt_of_not_ge hA
+    let YB := Y.filter fun y => ¬ A y
+    have hpartition : YA.card + YB.card = Y.card := by
+      unfold YA YB
+      exact Finset.card_filter_add_card_filter_neg_eq Y A
+    have hBcard : D ≤ YB.card := by omega
+    obtain ⟨f,hfinj,hf⟩ := exists_injective_fin_enum YB D hBcard
+    exact Or.inr ⟨f,hfinj,fun i => by
+      have hi := hf i
+      have hiY := (Finset.mem_filter.mp hi).1
+      have hnotA := (Finset.mem_filter.mp hi).2
+      rcases hcover (f i) hiY with hAi | hBi
+      · exact False.elim (hnotA hAi)
+      · exact ⟨hiY,hBi⟩⟩
 
 /-- Generic finite choice principle used in the greedy repair: a finite candidate
 set of cardinality 5D with three forbidden subsets of sizes at most 2D,D,D
 has a remaining element when D>0. -/
-axiom exists_after_three_forbidden {α : Type*} [DecidableEq α]
+theorem exists_after_three_forbidden {α : Type*} [DecidableEq α]
     (D : ℕ) (hD : 0 < D)
     (C F₁ F₂ F₃ : Finset α)
     (hC : C.card = 5 * D)
     (h₁ : (C ∩ F₁).card ≤ 2 * D)
     (h₂ : (C ∩ F₂).card ≤ D)
     (h₃ : (C ∩ F₃).card ≤ D) :
-    ∃ x ∈ C, x ∉ F₁ ∧ x ∉ F₂ ∧ x ∉ F₃
+    ∃ x ∈ C, x ∉ F₁ ∧ x ∉ F₂ ∧ x ∉ F₃ := by
+  by_contra hnone
+  push_neg at hnone
+  have hsub :
+      C ⊆ (C ∩ F₁) ∪ (C ∩ F₂) ∪ (C ∩ F₃) := by
+    intro x hx
+    rcases hnone x hx with h1 | h2 | h3
+    · exact Finset.mem_union_left _ (Finset.mem_union_left _
+        (Finset.mem_inter.mpr ⟨hx,h1⟩))
+    · exact Finset.mem_union_left _ (Finset.mem_union_right _
+        (Finset.mem_inter.mpr ⟨hx,h2⟩))
+    · exact Finset.mem_union_right _ (Finset.mem_inter.mpr ⟨hx,h3⟩)
+  have hc := Finset.card_le_card hsub
+  have hu1 := Finset.card_union_le (C ∩ F₁) (C ∩ F₂)
+  have hu2 := Finset.card_union_le ((C ∩ F₁) ∪ (C ∩ F₂)) (C ∩ F₃)
+  rw [hC] at hc
+  omega
 
 end
 
