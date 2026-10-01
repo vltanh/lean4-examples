@@ -1167,10 +1167,125 @@ theorem supportedAdmissibleCollections_card_le {n D : ℕ}
 
 /-- Reversal conjugation preserves admissibility of a collection of local
 disjoint swaps and preserves the same distance bound. -/
-axiom reverseConjugate_admissible {n D : ℕ}
+def reverseSwapPair {n : ℕ} (q : Fin n × Fin n) :
+    Fin n × Fin n :=
+  (reverseIndex n q.2, reverseIndex n q.1)
+
+theorem reverseSwapPair_involutive {n : ℕ} :
+    Function.Involutive (reverseSwapPair (n := n)) := by
+  intro q
+  rcases q with ⟨a,b⟩
+  simp [reverseSwapPair,reverseIndex_involutive]
+
+theorem reverseSwapPair_injective {n : ℕ} :
+    Function.Injective (reverseSwapPair (n := n)) :=
+  (reverseSwapPair_involutive (n := n)).injective
+
+def reverseSwapCollection {n : ℕ}
+    (P : Finset (Fin n × Fin n)) :
+    Finset (Fin n × Fin n) :=
+  P.image reverseSwapPair
+
+theorem reverseSwapCollection_admissible {n D : ℕ}
+    {P : Finset (Fin n × Fin n)}
+    (hP : IsAdmissibleCollection D P) :
+    IsAdmissibleCollection D (reverseSwapCollection P) := by
+  constructor
+  · intro q hq r hr hqr
+    rcases Finset.mem_image.mp hq with ⟨q₀,hq₀,rfl⟩
+    rcases Finset.mem_image.mp hr with ⟨r₀,hr₀,rfl⟩
+    have hq0r0 : q₀ ≠ r₀ := by
+      intro h
+      subst r₀
+      exact hqr rfl
+    have hd := hP.1 hq₀ r₀ hq0r0
+    unfold reverseSwapPair swapPairsDisjoint
+    simp only
+    repeat' apply And.intro
+    · intro h; exact hd.2.2.2 (reverseIndex_injective h)
+    · intro h; exact hd.2.2.1 (reverseIndex_injective h)
+    · intro h; exact hd.2.1 (reverseIndex_injective h)
+    · intro h; exact hd.1 (reverseIndex_injective h)
+  · intro q hq
+    rcases Finset.mem_image.mp hq with ⟨r,hr,rfl⟩
+    have hadm := hP.2 r hr
+    unfold reverseSwapPair
+    constructor
+    · rw [paperPos_reverseIndex,paperPos_reverseIndex]
+      omega
+    · rw [paperPos_reverseIndex,paperPos_reverseIndex]
+      omega
+
+theorem reverseConjugate_trans {n : ℕ}
+    (π ρ : Equiv.Perm (Fin n)) :
+    reverseConjugate (π.trans ρ) =
+      (reverseConjugate π).trans (reverseConjugate ρ) := by
+  ext i
+  simp [reverseConjugate_apply,reverseIndex_involutive]
+
+theorem reverseConjugate_swap {n : ℕ}
+    (a b : Fin n) :
+    reverseConjugate (Equiv.swap a b) =
+      Equiv.swap (reverseIndex n a) (reverseIndex n b) := by
+  ext i
+  by_cases hia : reverseIndex n i = a
+  · have hi : i = reverseIndex n a := by
+      apply reverseIndex_injective
+      simpa using hia
+    subst i
+    simp [reverseConjugate_apply,hia,reverseIndex_involutive]
+  by_cases hib : reverseIndex n i = b
+  · have hi : i = reverseIndex n b := by
+      apply reverseIndex_injective
+      simpa using hib
+    subst i
+    simp [reverseConjugate_apply,hib,reverseIndex_involutive]
+  have hiA : i ≠ reverseIndex n a := by
+    intro h
+    subst i
+    simp at hia
+  have hiB : i ≠ reverseIndex n b := by
+    intro h
+    subst i
+    simp at hib
+  simp [reverseConjugate_apply,Equiv.swap_apply_of_ne_of_ne,
+    hia,hib,hiA,hiB,reverseIndex_involutive]
+
+theorem swapsPermList_reverse {n : ℕ}
+    (l : List (Fin n × Fin n)) :
+    swapsPermList (l.map reverseSwapPair) =
+      reverseConjugate (swapsPermList l) := by
+  induction l with
+  | nil =>
+      ext i
+      simp [swapsPermList,reverseConjugate_apply,
+        reverseIndex_involutive]
+  | cons q qs ih =>
+      rcases q with ⟨a,b⟩
+      simp only [List.map_cons,swapsPermList]
+      rw [reverseConjugate_trans,← ih,
+        reverseConjugate_swap]
+      simp [reverseSwapPair]
+      rw [Equiv.swap_comm]
+
+theorem reverseConjugate_admissible {n D : ℕ}
     (π : Equiv.Perm (Fin n))
     (hπ : IsAdmissiblePermutation D π) :
-    IsAdmissiblePermutation D (reverseConjugate π)
+    IsAdmissiblePermutation D (reverseConjugate π) := by
+  rcases hπ with ⟨P,hPadm,hPπ⟩
+  let P' := reverseSwapCollection P
+  have hP'adm := reverseSwapCollection_admissible hPadm
+  refine ⟨P',hP'adm,?_⟩
+  have hlist :
+      (P.toList.map reverseSwapPair).toFinset = P' := by
+    ext q
+    simp [P',reverseSwapCollection]
+  have hnodup :
+      (P.toList.map reverseSwapPair).Nodup :=
+    P.nodup_toList.map reverseSwapPair_injective
+  rw [← collectionPerm_order_independent hP'adm
+      (P.toList.map reverseSwapPair) hlist hnodup]
+  rw [swapsPermList_reverse,hPπ]
 
 /-- Reversal conjugation transports the fixed-outside condition from [b,b'] to
 the reversed interval [rev b', rev b]. -/
