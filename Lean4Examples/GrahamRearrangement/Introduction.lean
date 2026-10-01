@@ -1,0 +1,60 @@
+import Mathlib
+
+open scoped BigOperators Pointwise
+
+namespace GrahamRearrangement
+
+/-!
+# Introduction and ordering definitions
+
+Paper: Pham--Sauermann, *On Graham's rearrangement conjecture*.
+This module contains the introduction-level definitions used throughout the formalization.
+-/
+
+section Orderings
+
+variable {G : Type*} [AddCommMonoid G] [DecidableEq G]
+
+/-- The nonempty partial sums of a list:
+`[x₁, x₁+x₂, ..., x₁+...+xₙ]`. -/
+def partialSums : List G → List G
+  | [] => []
+  | x :: xs => x :: (partialSums xs).map (x + ·)
+
+@[simp] theorem partialSums_nil : partialSums ([] : List G) = [] := rfl
+
+@[simp] theorem partialSums_cons (x : G) (xs : List G) :
+    partialSums (x :: xs) = x :: (partialSums xs).map (x + ·) := rfl
+
+@[simp] theorem length_partialSums (xs : List G) :
+    (partialSums xs).length = xs.length := by
+  induction xs with
+  | nil => rfl
+  | cons x xs ih => simp [partialSums, ih]
+
+/-- A list is an ordering of a finite set when it has no duplicates and contains
+exactly that set. -/
+def IsOrdering (S : Finset G) (xs : List G) : Prop :=
+  xs.Nodup ∧ xs.toFinset = S
+
+/-- Definition of a valid ordering from the introduction. -/
+def IsValidOrdering (S : Finset G) (xs : List G) : Prop :=
+  IsOrdering S xs ∧ (partialSums xs).Nodup
+
+theorem IsOrdering.length_eq_card {S : Finset G} {xs : List G}
+    (h : IsOrdering S xs) : xs.length = S.card := by
+  calc
+    xs.length = xs.toFinset.card := (List.toFinset_card_of_nodup h.1).symm
+    _ = S.card := congrArg Finset.card h.2
+
+theorem IsValidOrdering.length_eq_card {S : Finset G} {xs : List G}
+    (h : IsValidOrdering S xs) : xs.length = S.card :=
+  h.1.length_eq_card
+
+/-- Graham's rearrangement property for one finite subset. -/
+def HasValidOrdering (S : Finset G) : Prop :=
+  ∃ xs : List G, IsValidOrdering S xs
+
+end Orderings
+
+end GrahamRearrangement
