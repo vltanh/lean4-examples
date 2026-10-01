@@ -252,6 +252,23 @@ theorem card_product_le_mul {α β : Type*}
   rw [Finset.card_product]
   exact Nat.mul_le_mul hA hB
 
+theorem card_eq_sum_card_fibers {α β : Type*}
+    [DecidableEq α] [DecidableEq β]
+    (A : Finset α) (B : Finset β) (f : α → β)
+    (hmap : ∀ a ∈ A, f a ∈ B) :
+    A.card = ∑ b ∈ B, (A.filter fun a => f a = b).card := by
+  classical
+  induction A using Finset.induction_on with
+  | empty => simp
+  | @insert a A ha ih =>
+      have hfa : f a ∈ B := hmap a (by simp)
+      have hmapA : ∀ x ∈ A, f x ∈ B := by
+        intro x hx
+        exact hmap x (by simp [hx])
+      rw [Finset.card_insert_of_not_mem ha, ih B f hmapA]
+      rw [Finset.sum_eq_add_sum_diff_singleton hfa]
+      simp [ha]
+
 /-- Finite union bound for two events. -/
 theorem uniformMass_or_le_add {Ω : Type*} [DecidableEq Ω]
     (space : Finset Ω) (E F : Ω → Prop)
