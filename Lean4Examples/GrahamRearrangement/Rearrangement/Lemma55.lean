@@ -30,20 +30,6 @@ theorem card_interestingLeftSupport_le
               _ = D * (5 * D) := by simp
     _ ≤ 7 * D ^ 2 := by omega
 
-def Lemma55Event {n p D : ℕ}
-    (σ : Fin n → ZMod p)
-    (b b' : Fin n)
-    (u : Fin D → Fin n)
-    (πi : Fin D → Equiv.Perm (Fin n)) : Prop :=
-  ∃ x ∈ tailTuples b' D,
-    ∃ π : Equiv.Perm (Fin n),
-      IsAdmissiblePermutation D π ∧
-      ∀ i,
-        indexedIntervalSum
-          (applyPositionPerm
-            (applyPositionPerm σ π) (πi i))
-          (u i) (x i) = 0
-
 theorem permuted_interval_sum_eq
     {n p : ℕ} (σ : Fin n → ZMod p)
     (π ρ : Equiv.Perm (Fin n)) (a b : Fin n)
