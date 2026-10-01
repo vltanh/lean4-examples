@@ -205,66 +205,6 @@ theorem erase_inter_card
         exact ⟨hyU,by intro h; subst y; exact hxG hyG,hyG⟩
     simp [heq,hxG]
 
-theorem exposureDrift_mean_zero
-    {α : Type*} [DecidableEq α]
-    (U G : Finset α) (k : ℕ)
-    (hU2 : 2 ≤ U.card) (hk : k + 1 ≤ U.card) :
-    uniformExpectation U (exposureDrift U G k) = 0 := by
-  have hU : U.Nonempty := Finset.card_pos.mp (by omega)
-  have hN : (0 : ℝ) < U.card := by exact_mod_cast hU.card_pos
-  have hNm1 : (0 : ℝ) < U.card - 1 := by
-    exact_mod_cast (by omega : 0 < U.card - 1)
-  let g := (U ∩ G).card
-  have hsumInd :
-      ∑ x ∈ U, successIndicator G x = (g : ℝ) := by
-    unfold successIndicator g
-    rw [← Finset.sum_filter]
-    simp
-  have hsumChild :
-      ∑ x ∈ U, (((U.erase x) ∩ G).card : ℝ) =
-        (U.card - 1 : ℕ) * g := by
-    calc
-      _ = ∑ x ∈ U,
-          ((g - (if x ∈ G then 1 else 0) : ℕ) : ℝ) := by
-            apply Finset.sum_congr rfl
-            intro x hx
-            rw [erase_inter_card hx]
-      _ = U.card * g - g := by
-            rw [Finset.sum_sub_distrib]
-            simp [hsumInd]
-      _ = (U.card - 1 : ℕ) * g := by
-            exact_mod_cast (by
-              have hg : g ≤ U.card :=
-                Finset.card_le_card (Finset.inter_subset_left)
-              omega)
-  unfold uniformExpectation exposureDrift
-  simp_rw [hypergeomMean_of_nonempty hU (k+1)]
-  have herase : ∀ x ∈ U, (U.erase x).Nonempty := by
-    intro x hx
-    rw [Finset.nonempty_iff_ne_empty]
-    intro h
-    have hc := congrArg Finset.card h
-    rw [Finset.card_erase_of_mem hx] at hc
-    simp at hc
-    omega
-  simp_rw [hypergeomMean_of_nonempty (herase _ ‹_›) k]
-  simp_rw [Finset.card_erase_of_mem ‹_›]
-  rw [Finset.sum_sub_distrib,Finset.sum_sub_distrib]
-  rw [hsumInd]
-  have hchild :
-      ∑ x ∈ U,
-          ((k : ℝ) * (((U.erase x) ∩ G).card : ℝ) /
-            ((U.erase x).card : ℝ)) =
-        (k : ℝ) * g := by
-    simp_rw [Finset.card_erase_of_mem ‹_›]
-    rw [← Finset.sum_div,← Finset.mul_sum]
-    rw [hsumChild]
-    field_simp
-    ring
-  rw [hchild]
-  field_simp
-  ring
-
 def exposureLower {α : Type*} [DecidableEq α]
     (U G : Finset α) (k : ℕ) : ℝ :=
   -(((U.card - (U ∩ G).card : ℕ) : ℝ) *
@@ -320,6 +260,66 @@ theorem exposureDrift_eq_upper_of_not_mem
     hypergeomMean_of_nonempty heU]
   rw [Finset.card_erase_of_mem hxU,erase_inter_card hxU]
   simp [successIndicator,hxG,exposureUpper]
+  field_simp
+  ring
+
+theorem exposureDrift_mean_zero
+    {α : Type*} [DecidableEq α]
+    (U G : Finset α) (k : ℕ)
+    (hU2 : 2 ≤ U.card) (hk : k + 1 ≤ U.card) :
+    uniformExpectation U (exposureDrift U G k) = 0 := by
+  have hU : U.Nonempty := Finset.card_pos.mp (by omega)
+  let g := (U ∩ G).card
+  have hsuccess :
+      (U.filter fun x => x ∈ G).card = g := by
+    unfold g
+    congr 1
+    ext x
+    simp [and_comm]
+  have hfailure :
+      (U.filter fun x => x ∉ G).card = U.card - g := by
+    have hparts :=
+      Finset.card_filter_add_card_filter_neg_eq U (fun x => x ∈ G)
+    rw [hsuccess] at hparts
+    omega
+  have hsumSuccess :
+      (∑ x ∈ U with x ∈ G, exposureDrift U G k x) =
+        (g : ℝ) * exposureLower U G k := by
+    calc
+      _ = ∑ _x ∈ U with _x ∈ G, exposureLower U G k := by
+            apply Finset.sum_congr rfl
+            intro x hx
+            rcases Finset.mem_filter.mp hx with ⟨hxU,hxG⟩
+            exact exposureDrift_eq_lower_of_mem hxU hxG hU2
+      _ = _ := by simp [hsuccess,mul_comm]
+  have hsumFailure :
+      (∑ x ∈ U with x ∉ G, exposureDrift U G k x) =
+        ((U.card - g : ℕ) : ℝ) * exposureUpper U G k := by
+    calc
+      _ = ∑ _x ∈ U with _x ∉ G, exposureUpper U G k := by
+            apply Finset.sum_congr rfl
+            intro x hx
+            rcases Finset.mem_filter.mp hx with ⟨hxU,hxG⟩
+            exact exposureDrift_eq_upper_of_not_mem hxU hxG hU2
+      _ = _ := by simp [hfailure,mul_comm]
+  unfold uniformExpectation
+  rw [show (∑ x ∈ U, exposureDrift U G k x) =
+      (∑ x ∈ U with x ∈ G, exposureDrift U G k x) +
+      (∑ x ∈ U with x ∉ G, exposureDrift U G k x) by
+        symm
+        exact Finset.sum_filter_add_sum_filter_not U
+          (fun x => x ∈ G) (exposureDrift U G k)]
+  rw [hsumSuccess,hsumFailure]
+  unfold exposureLower exposureUpper
+  have hg : g ≤ U.card := by
+    unfold g
+    exact Finset.card_le_card Finset.inter_subset_left
+  have hden : (0 : ℝ) <
+      (U.card : ℝ) * ((U.card - 1 : ℕ) : ℝ) := by
+    positivity
+  have hpart :
+      ((U.card - g : ℕ) : ℝ) + (g : ℝ) = U.card := by
+    exact_mod_cast (Nat.sub_add_cancel hg)
   field_simp
   ring
 
