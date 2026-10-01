@@ -243,6 +243,15 @@ axiom dyadic_exp_sum_bound {α : Type*} [Fintype α] [DecidableEq α]
         ∑ l ∈ Finset.range (Nat.log2 m + 1),
           (At (2 ^ l)).card * Real.exp (-(2 : ℝ) ^ l)
 
+/-- Elementary floor estimate used with k=floor(sqrt x). -/
+axiom natFloor_ge_half {x : ℝ} (hx : 1 ≤ x) :
+    x / 2 ≤ (Nat.floor x : ℝ)
+
+/-- The standard reciprocal-square-root summation estimate. -/
+axiom sum_inv_sqrt_le_two_sqrt (n : ℕ) :
+    (∑ i ∈ Finset.Icc 1 n, (1 / Real.sqrt (i : ℝ))) ≤
+      2 * Real.sqrt (n : ℝ)
+
 /-- Linear eventually dominates log-squared. -/
 axiom exists_log_sq_threshold (A : ℝ) :
     ∃ N : ℕ, 2 ≤ N ∧
