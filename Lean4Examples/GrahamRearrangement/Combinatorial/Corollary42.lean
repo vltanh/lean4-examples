@@ -164,6 +164,50 @@ theorem corollary42 : Corollary42Statement := by
     _ = chainUpperBound p S.card Ck m := by
           rfl
 
+theorem chainMass_one_eq_sliceMass {p r : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (z : ZMod p) :
+    chainMass S (fun _ : Fin 1 => r) (fun _ : Fin 1 => z) =
+      sliceMass S r z := by
+  unfold chainMass sliceMass chainFamily
+  apply uniformMass_congr
+  · ext R
+    simp [IsChainSizeTuple]
+  · intro R hR
+    constructor
+    · intro h
+      simpa using h (0 : Fin 1)
+    · intro h i
+      fin_cases i
+      exact h
+
+/-- The k=1 form used repeatedly in Section 5. -/
+theorem corollary42_one_bound {p r : ℕ} (hp : p.Prime)
+    (S : Finset (ZMod p)) (hS : 2 ≤ S.card)
+    (hr : 0 < r) (hrS : r < S.card) (z : ZMod p) :
+    letI : NeZero p := ⟨hp.ne_zero⟩
+    sliceMass S r z ≤
+      (1 / (p : ℝ) +
+        chainConstant 1 * Real.sqrt (Real.log (S.card : ℝ)) /
+          ((S.card : ℝ) * Real.sqrt (r : ℝ))) +
+      (1 / (p : ℝ) +
+        chainConstant 1 * Real.sqrt (Real.log (S.card : ℝ)) /
+          ((S.card : ℝ) * Real.sqrt ((S.card - r : ℕ) : ℝ))) := by
+  letI : NeZero p := ⟨hp.ne_zero⟩
+  let m : Fin 1 → ℕ := fun _ => r
+  let z' : Fin 1 → ZMod p := fun _ => z
+  have hm : IsChainSizeTuple S.card m := by
+    constructor
+    · intro a b hab
+      fin_cases a <;> fin_cases b
+      simp at hab
+    · intro i
+      fin_cases i
+      exact ⟨hr, hrS⟩
+  have h :=
+    chainConstant_spec 1 (by norm_num) p hp S hS m hm z'
+  rw [chainMass_one_eq_sliceMass S z] at h
+  simpa [chainUpperBound, chainFactor, chainGap, extendedSize, m, z'] using h
+
 end
 
 end GrahamRearrangement
