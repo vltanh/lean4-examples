@@ -175,8 +175,8 @@ theorem ordering_perm_invariant {p : ℕ} [NeZero p]
       applyPositionPerm_isIndexedOrdering hs π
   · intro σ hσ τ hτ he
     funext i
-    apply hsigma_injective_of_indexed hσ
-    exact congrFun he (π.symm i)
+    have hi := congrFun he (π.symm i)
+    simpa [applyPositionPerm,Function.comp_def] using hi
   · intro τ hτ
     refine ⟨applyPositionPerm τ π.symm,?_,?_⟩
     · have ht : IsIndexedOrdering S τ := by
