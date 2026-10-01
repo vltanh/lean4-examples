@@ -78,8 +78,8 @@ theorem zmodNorm_le_half {p : ℕ} [NeZero p] (x : ZMod p) :
   simpa [zmodNorm] using
     distToInt_le_half ((x.val : ℝ) / (p : ℝ))
 
-/-- Fact 2.3. -/
-theorem fact2_3 {p : ℕ} [NeZero p] (hp : p.Prime) (xs : List (ZMod p)) :
+/-- The norm inequality underlying Fact 2.3 does not require primality. -/
+theorem fact2_3_general {p : ℕ} [NeZero p] (xs : List (ZMod p)) :
     zmodNorm xs.sum ^ 2 ≤
       (xs.length : ℝ) * (xs.map fun x => zmodNorm x ^ 2).sum := by
   have h :=
@@ -87,9 +87,53 @@ theorem fact2_3 {p : ℕ} [NeZero p] (hp : p.Prime) (xs : List (ZMod p)) :
   simpa [cyclicDistance_eq_zmodNorm, cyclicDistance, List.map_map,
     Function.comp_def] using h
 
+/-- Fact 2.3. -/
+theorem fact2_3 {p : ℕ} [NeZero p] (hp : p.Prime) (xs : List (ZMod p)) :
+    zmodNorm xs.sum ^ 2 ≤
+      (xs.length : ℝ) * (xs.map fun x => zmodNorm x ^ 2).sum :=
+  fact2_3_general xs
+
+theorem zmodNorm_neg {p : ℕ} [NeZero p] (x : ZMod p) :
+    zmodNorm (-x) = zmodNorm x := by
+  rw [← cyclicDistance_eq_zmodNorm, ← cyclicDistance_eq_zmodNorm]
+  simp [cyclicDistance]
+
 /-- The `k`-fold sumset `kA` from Fact 2.4. -/
 def kfoldSumset {p : ℕ} (A : Finset (ZMod p)) (k : ℕ) : Finset (ZMod p) :=
   (List.replicate k A).foldl (· + ·) {0}
+
+/-- Membership in the k-fold sumset is equivalent to a sum of a length-k list
+whose entries all lie in A. -/
+theorem mem_kfoldSumset {p k : ℕ} [NeZero p]
+    (A : Finset (ZMod p)) (x : ZMod p) :
+    x ∈ kfoldSumset A k ↔
+      ∃ xs : List (ZMod p),
+        xs.length = k ∧ (∀ y ∈ xs, y ∈ A) ∧ xs.sum = x := by
+  induction k with
+  | zero =>
+      simp [kfoldSumset]
+  | succ k ih =>
+      simp only [kfoldSumset, List.replicate_succ, List.foldl_cons]
+      constructor
+      · intro hx
+        rcases Finset.mem_add.1 hx with ⟨u, hu, a, ha, rfl⟩
+        rcases (ih u).1 hu with ⟨xs, hlen, hmem, hsum⟩
+        refine ⟨xs ++ [a], by simp [hlen], ?_, by simp [hsum]⟩
+        intro y hy
+        simp at hy
+        rcases hy with hy | rfl
+        · exact hmem y hy
+        · exact ha
+      · rintro ⟨xs, hlen, hmem, rfl⟩
+        have hne : xs ≠ [] := by simpa [hlen]
+        obtain ⟨ys, a, rfl⟩ := List.exists_eq_append_cons_of_ne_nil hne
+        have hyslen : ys.length = k := by simpa using hlen
+        have hys : ys.sum ∈ kfoldSumset A k :=
+          (ih ys.sum).2 ⟨ys, hyslen, by
+            intro y hy
+            exact hmem y (by simp [hy]), rfl⟩
+        have ha : a ∈ A := hmem a (by simp)
+        exact Finset.mem_add.2 ⟨ys.sum, hys, a, ha, by simp⟩
 
 /-- Fact 2.4, stated in integer cardinalities so that the paper's formula also has
 its literal meaning in the empty-set edge case. -/
