@@ -655,6 +655,21 @@ theorem perm_symm_fixes_of_fixes {α : Type*}
   apply π.injective
   simp [h]
 
+theorem exists_injective_fin_enum
+    {α : Type*} [DecidableEq α]
+    (T : Finset α) (D : ℕ) (hD : D ≤ T.card) :
+    ∃ f : Fin D → α,
+      Function.Injective f ∧ ∀ i, f i ∈ T := by
+  classical
+  obtain ⟨U,hUT,hcard⟩ := Finset.exists_subset_card_eq hD
+  let e : Fin D ≃ {x // x ∈ U} :=
+    Fintype.equivOfCardEq (by simpa [hcard])
+  refine ⟨fun i => (e i).1, ?_, ?_⟩
+  · intro i j h
+    exact e.injective (Subtype.ext h)
+  · intro i
+    exact hUT (e i).2
+
 /-- Finite union bound for two events. -/
 theorem uniformMass_or_le_add {Ω : Type*} [DecidableEq Ω]
     (space : Finset Ω) (E F : Ω → Prop)
