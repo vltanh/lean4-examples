@@ -132,6 +132,71 @@ end Preliminaries
 -- 3. Anticoncentration on Boolean slices
 -- ============================================================================
 
+section LocalRepair
+
+/-- Swap two zero-based positions in a list. Out-of-range positions leave the list unchanged. -/
+def swapAt {α : Type*} (xs : List α) (i j : ℕ) : List α :=
+  match xs.get? i, xs.get? j with
+  | some xi, some xj => (xs.set i xj).set j xi
+  | _, _ => xs
+
+/-- A pair of positions allowed by the local-repair geometry in Section 5.
+The paper uses one-based positions and the bound `y - x ≤ 5D`; this definition is zero-based. -/
+def IsAdmissiblePair (n D : ℕ) (xy : ℕ × ℕ) : Prop :=
+  xy.1 < xy.2 ∧ xy.2 < n ∧ xy.2 - xy.1 ≤ 5 * D
+
+/-- Two transpositions have pairwise-disjoint endpoints. -/
+def PairEndpointsDisjoint (u v : ℕ × ℕ) : Prop :=
+  u.1 ≠ v.1 ∧ u.1 ≠ v.2 ∧ u.2 ≠ v.1 ∧ u.2 ≠ v.2
+
+/-- The admissible families of disjoint local transpositions from Section 5. -/
+def IsAdmissibleSwapSet (n D : ℕ) (P : Finset (ℕ × ℕ)) : Prop :=
+  (∀ uv ∈ P, IsAdmissiblePair n D uv) ∧
+    ∀ u ∈ P, ∀ v ∈ P, u ≠ v → PairEndpointsDisjoint u v
+
+/-- Candidate right endpoints in the `5D` repair window after `b`. -/
+def swapWindow (n D b : ℕ) : Finset ℕ :=
+  (Finset.Icc (b + 1) (b + 5 * D)).filter (fun y => y < n)
+
+/-- A position `y` is blocked for swapping with `b` if the swap creates a new zero-sum
+segment meeting the affected interval. This is the deterministic obstruction underlying
+the event `B₃` in Section 5. -/
+def IsBlockedAfterSwap {G : Type*} [AddCommMonoid G]
+    (xs : List G) (b y : ℕ) : Prop :=
+  ∃ s t : ℕ,
+    s ≤ t ∧ t < xs.length ∧
+      ((b + 1 ≤ s ∧ s ≤ y) ∨ (b ≤ t ∧ t < y)) ∧
+      intervalSum xs s t ≠ 0 ∧
+      intervalSum (swapAt xs b y) s t = 0
+
+/-- Blocked positions in the local `5D` window. -/
+noncomputable def blockedPositions {G : Type*} [AddCommMonoid G]
+    (xs : List G) (D b : ℕ) : Finset ℕ := by
+  classical
+  exact (swapWindow xs.length D b).filter (IsBlockedAfterSwap xs b)
+
+/-- Deterministic form of the `B₁` obstruction: a bad right endpoint occurs among the
+last `30D` positions. -/
+def HasBadEndpointNearEnd {G : Type*} [AddCommMonoid G]
+    (xs : List G) (D : ℕ) : Prop :=
+  ∃ b ∈ badRightEndpoints xs, xs.length ≤ b + 30 * D
+
+/-- Deterministic form of the `B₂` obstruction: more than `D` bad right endpoints
+are concentrated in a radius-`10D` neighborhood. -/
+def HasCrowdedBadEndpoints {G : Type*} [AddCommMonoid G]
+    (xs : List G) (D : ℕ) : Prop :=
+  ∃ z : ℕ, z < xs.length ∧
+    D < ((badRightEndpoints xs).filter (fun b => Nat.dist b z ≤ 10 * D)).card
+
+/-- Deterministic core of the `B₃` obstruction: some repair window has at least `2D`
+blocked candidate positions. -/
+def HasManyBlockedPositions {G : Type*} [AddCommMonoid G]
+    (xs : List G) (D : ℕ) : Prop :=
+  ∃ b : ℕ, b < xs.length ∧
+    2 * D ≤ (blockedPositions xs D b).card
+
+end LocalRepair
+
 section BooleanSlice
 
 /-- The sum `Σ(R)` of a finite subset. -/
@@ -348,10 +413,12 @@ The paper only uses nonempty sets; that hypothesis also avoids the degenerate em
 corner case in the cardinality expression.
 -/
 def Fact24Statement : Prop :=
-  ∀ (p k : ℕ), p.Prime → 0 < k →
-    ∀ A : Finset (ZMod p), A.Nonempty →
-      kFoldSumset k A ≠ Finset.univ →
-        1 + k * (A.card - 1) ≤ (kFoldSumset k A).card
+  ∀ (p : ℕ) (hp : p.Prime),
+    letI : NeZero p := ⟨hp.ne_zero⟩
+    ∀ (k : ℕ), 0 < k →
+      ∀ A : Finset (ZMod p), A.Nonempty →
+        kFoldSumset k A ≠ Finset.univ →
+          1 + k * (A.card - 1) ≤ (kFoldSumset k A).card
 
 /-- Fact 2.5, stated using mathlib's standard additive character on `ZMod p`. -/
 def Fact25Statement : Prop :=
