@@ -352,6 +352,7 @@ theorem lemma52_fixed_parameter_mass_le
       · exact hS2
       · exact hhalf
       · exact Finset.card_sdiff_le _ _
+      · exact le_of_lt (chainConstant_pos P.D)
       · exact section5_card_over_p hα0 hαh hp hreg
       · exact section5_chainConstant_bound hreg P.D (Or.inr rfl)
     have hpow :
