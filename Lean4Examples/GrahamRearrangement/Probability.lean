@@ -670,6 +670,121 @@ theorem exists_injective_fin_enum
   · intro i
     exact hUT (e i).2
 
+theorem exists_perm_maps_nested_family
+    {α : Type*} [Fintype α] [DecidableEq α]
+    (T : Finset α) :
+    ∀ (k : ℕ)
+      (R R' : Fin k → Finset α),
+      (∀ i, R i ⊆ T) →
+      (∀ i, R' i ⊆ T) →
+      (∀ i j, i ≤ j → R i ⊆ R j) →
+      (∀ i j, i ≤ j → R' i ⊆ R' j) →
+      (∀ i, (R i).card = (R' i).card) →
+      ∃ π : Equiv.Perm α,
+        T.image π = T ∧
+        (∀ i, (R i).image π = R' i) ∧
+        ∀ x ∉ T, π x = x := by
+  intro k
+  induction k with
+  | zero =>
+      intro R R' hR hR' hn hn' hc
+      exact ⟨Equiv.refl _, by simp, by intro i; exact Fin.elim0 i,
+        by simp⟩
+  | succ k ih =>
+      intro R R' hR hR' hn hn' hc
+      let last : Fin (k + 1) := ⟨k,by omega⟩
+      obtain ⟨π₁,hπ₁last,hπ₁T,hπ₁out⟩ :=
+        exists_perm_maps_finset T (R last) (R' last)
+          (hR last) (hR' last) (hc last)
+      let A : Fin k → Finset α :=
+        fun i => (R i.castSucc).image π₁
+      let B : Fin k → Finset α :=
+        fun i => R' i.castSucc
+      have hABsub : ∀ i, A i ⊆ R' last := by
+        intro i x hx
+        rcases Finset.mem_image.mp hx with ⟨y,hy,rfl⟩
+        rw [← hπ₁last]
+        exact Finset.mem_image.mpr
+          ⟨y, hn i.castSucc last (by simp [last]) hy, rfl⟩
+      have hBsub : ∀ i, B i ⊆ R' last := by
+        intro i
+        exact hn' i.castSucc last (by simp [last])
+      have hAnest : ∀ i j, i ≤ j → A i ⊆ A j := by
+        intro i j hij x hx
+        rcases Finset.mem_image.mp hx with ⟨y,hy,rfl⟩
+        exact Finset.mem_image.mpr
+          ⟨y,hn i.castSucc j.castSucc (by simpa using hij) hy,rfl⟩
+      have hBnest : ∀ i j, i ≤ j → B i ⊆ B j := by
+        intro i j hij
+        exact hn' i.castSucc j.castSucc (by simpa using hij)
+      have hcardAB : ∀ i, (A i).card = (B i).card := by
+        intro i
+        unfold A B
+        rw [Finset.card_image_of_injective _ π₁.injective,
+          hc i.castSucc]
+      obtain ⟨π₂,hπ₂B,hπ₂prefix,hπ₂out⟩ :=
+        ih (R' last) A B hABsub hBsub hAnest hBnest hcardAB
+      let π := π₁.trans π₂
+      refine ⟨π,?_,?_,?_⟩
+      · ext x
+        constructor
+        · rintro ⟨y,hy,rfl⟩
+          have hyT : π₁ y ∈ T := by
+            rw [← hπ₁T]
+            exact Finset.mem_image.mpr ⟨y,hy,rfl⟩
+          by_cases hyB : π₁ y ∈ R' last
+          · have : π₂ (π₁ y) ∈ R' last := by
+              rw [← hπ₂B]
+              exact Finset.mem_image.mpr ⟨π₁ y,hyB,rfl⟩
+            exact hR' last this
+          · have hfix := hπ₂out (π₁ y) hyB
+            simpa [π,Equiv.trans_apply,hfix] using hyT
+        · intro hxT
+          rw [← hπ₁T] at hxT
+          rcases Finset.mem_image.mp hxT with ⟨y,hyT,rfl⟩
+          by_cases hyB : π₁ y ∈ R' last
+          · rw [← hπ₂B] at hyB
+            rcases Finset.mem_image.mp hyB with ⟨z,hz,hzEq⟩
+            refine Finset.mem_image.mpr ⟨π₁.symm z,?_,?_⟩
+            · have hzT := hR' last hz
+              rw [← hπ₁T] at hzT
+              rcases Finset.mem_image.mp hzT with ⟨u,hu,huEq⟩
+              simpa using hu
+            · simp [π,Equiv.trans_apply,hzEq]
+          · have hfix := hπ₂out (π₁ y) hyB
+            exact Finset.mem_image.mpr
+              ⟨y,hyT,by simp [π,Equiv.trans_apply,hfix]⟩
+      · intro i
+        by_cases hilast : i = last
+        · subst i
+          calc
+            (R last).image π
+              = ((R last).image π₁).image π₂ := by
+                  ext x
+                  simp [π,Equiv.trans_apply]
+            _ = (R' last).image π₂ := by rw [hπ₁last]
+            _ = R' last := hπ₂B
+        · have hi : i.val < k := by
+            have := i.isLt
+            simp [last] at hilast
+            omega
+          let j : Fin k := ⟨i.val,hi⟩
+          calc
+            (R i).image π
+              = ((R i).image π₁).image π₂ := by
+                  ext x
+                  simp [π,Equiv.trans_apply]
+            _ = (A j).image π₂ := by rfl
+            _ = B j := hπ₂prefix j
+            _ = R' i := by rfl
+      · intro x hxT
+        have h1 := hπ₁out x hxT
+        have hxB : x ∉ R' last := by
+          intro hx
+          exact hxT (hR' last hx)
+        have h2 := hπ₂out x hxB
+        simp [π,Equiv.trans_apply,h1,h2]
+
 /-- Finite union bound for two events. -/
 theorem uniformMass_or_le_add {Ω : Type*} [DecidableEq Ω]
     (space : Finset Ω) (E F : Ω → Prop)
