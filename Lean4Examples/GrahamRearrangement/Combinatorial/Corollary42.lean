@@ -610,6 +610,262 @@ theorem mem_exposureOrder_iff {k : ℕ} (j : Fin (k + 1))
   simp
   omega
 
+def historyKey {p k : ℕ} [NeZero p]
+    (L : Finset (Fin (k + 1)))
+    (Δ : Fin (k + 1) → Finset (ZMod p)) :
+    Fin (k + 1) → Option (Finset (ZMod p)) :=
+  fun i => if i ∈ L then some (Δ i) else none
+
+def exposedUnion {p k : ℕ} [NeZero p]
+    (L : Finset (Fin (k + 1)))
+    (Δ : Fin (k + 1) → Finset (ZMod p)) :
+    Finset (ZMod p) :=
+  ∪ i ∈ L, Δ i
+
+def remainingAfter {p k : ℕ} [NeZero p]
+    (S : Finset (ZMod p))
+    (L : Finset (Fin (k + 1)))
+    (Δ : Fin (k + 1) → Finset (ZMod p)) :
+    Finset (ZMod p) :=
+  S \ exposedUnion L Δ
+
+theorem unexposed_component_subset_remaining {p k : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (m : Fin k → ℕ)
+    {Δ : Fin (k + 1) → Finset (ZMod p)}
+    (hΔ : Δ ∈ incrementPartitionFamily S m)
+    (L : Finset (Fin (k + 1))) {i : Fin (k + 1)}
+    (hi : i ∉ L) :
+    Δ i ⊆ remainingAfter S L Δ := by
+  rcases Finset.mem_filter.mp hΔ with ⟨_,hdata,hdisj,_⟩
+  intro x hxi
+  apply Finset.mem_sdiff.mpr
+  refine ⟨(hdata i).1 hxi,?_⟩
+  intro hxU
+  simp [exposedUnion] at hxU
+  rcases hxU with ⟨j,hjL,hxj⟩
+  exact Finset.disjoint_left.mp (hdisj i j (by
+    intro h; subst j; exact hi hjL)) hxi hxj
+
+theorem unexposed_component_card_le_remaining {p k : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (m : Fin k → ℕ)
+    {Δ : Fin (k + 1) → Finset (ZMod p)}
+    (hΔ : Δ ∈ incrementPartitionFamily S m)
+    (L : Finset (Fin (k + 1))) {i : Fin (k + 1)}
+    (hi : i ∉ L) :
+    chainGap S.card m i ≤ (remainingAfter S L Δ).card := by
+  have hsub := unexposed_component_subset_remaining S m hΔ L hi
+  have hcard := Finset.card_le_card hsub
+  rw [(Finset.mem_filter.mp hΔ).2.1 i |>.2] at hcard
+  exact hcard
+
+def partitionPermMap {p k : ℕ} [NeZero p]
+    (π : Equiv.Perm (ZMod p))
+    (Δ : Fin (k + 1) → Finset (ZMod p)) :
+    Fin (k + 1) → Finset (ZMod p) :=
+  fun i => (Δ i).image π
+
+theorem partitionPermMap_mem {p k : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (m : Fin k → ℕ)
+    (π : Equiv.Perm (ZMod p)) (hπS : S.image π = S)
+    {Δ : Fin (k + 1) → Finset (ZMod p)}
+    (hΔ : Δ ∈ incrementPartitionFamily S m) :
+    partitionPermMap π Δ ∈ incrementPartitionFamily S m := by
+  classical
+  rcases Finset.mem_filter.mp hΔ with ⟨_,hdata,hdisj,hcover⟩
+  apply Finset.mem_filter.mpr
+  refine ⟨Finset.mem_univ _, ?_, ?_, ?_⟩
+  · intro i
+    constructor
+    · intro x hx
+      rcases Finset.mem_image.mp hx with ⟨y,hy,rfl⟩
+      rw [← hπS]
+      exact Finset.mem_image.mpr ⟨y,(hdata i).1 hy,rfl⟩
+    · rw [Finset.card_image_of_injective _ π.injective,
+        (hdata i).2]
+  · intro i j hij
+    rw [Finset.disjoint_left]
+    intro x hxi hxj
+    rcases Finset.mem_image.mp hxi with ⟨a,hai,ha⟩
+    rcases Finset.mem_image.mp hxj with ⟨b,hbj,hb⟩
+    have hab : a = b := π.injective (ha.trans hb.symm)
+    subst b
+    exact Finset.disjoint_left.mp (hdisj i j hij) hai hbj
+  · intro x
+    constructor
+    · intro hxS
+      rw [← hπS] at hxS
+      rcases Finset.mem_image.mp hxS with ⟨y,hyS,rfl⟩
+      rcases (hcover y).1 hyS with ⟨i,hyi⟩
+      exact ⟨i,Finset.mem_image.mpr ⟨y,hyi,rfl⟩⟩
+    · rintro ⟨i,hxi⟩
+      exact (show x ∈ S from (by
+        rcases Finset.mem_image.mp hxi with ⟨y,hyi,rfl⟩
+        rw [← hπS]
+        exact Finset.mem_image.mpr ⟨y,(hdata i).1 hyi,rfl⟩))
+
+theorem partitionPermMap_history_fixed {p k : ℕ} [NeZero p]
+    (L : Finset (Fin (k + 1)))
+    (π : Equiv.Perm (ZMod p))
+    {Δ : Fin (k + 1) → Finset (ZMod p)}
+    (hfix : ∀ x ∈ exposedUnion L Δ, π x = x) :
+    historyKey L (partitionPermMap π Δ) = historyKey L Δ := by
+  funext i
+  by_cases hi : i ∈ L
+  · simp [historyKey,hi,partitionPermMap]
+    apply Finset.image_eq_self.mpr
+    intro x hx
+    exact hfix x (by
+      simp [exposedUnion]
+      exact ⟨i,hi,hx⟩)
+  · simp [historyKey,hi]
+
+theorem remaining_invariant_under_history
+    {p k : ℕ} [NeZero p]
+    (S : Finset (ZMod p))
+    (L : Finset (Fin (k + 1)))
+    {Δ Γ : Fin (k + 1) → Finset (ZMod p)}
+    (hkey : historyKey L Δ = historyKey L Γ) :
+    remainingAfter S L Δ = remainingAfter S L Γ := by
+  unfold remainingAfter exposedUnion
+  congr 1
+  apply Finset.biUnion_congr rfl
+  intro i hi
+  have := congrFun hkey i
+  simp [historyKey,hi] at this
+  exact this
+
+theorem component_fiber_equipotent
+    {p k : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (m : Fin k → ℕ)
+    (L : Finset (Fin (k + 1))) (i : Fin (k + 1))
+    (hi : i ∉ L)
+    (H : Fin (k + 1) → Option (Finset (ZMod p)))
+    (Δ₀ : Fin (k + 1) → Finset (ZMod p))
+    (hΔ₀ : Δ₀ ∈ incrementPartitionFamily S m)
+    (hH : historyKey L Δ₀ = H)
+    (A B : Finset (ZMod p))
+    (hA : A ∈ (remainingAfter S L Δ₀).powersetCard
+      (chainGap S.card m i))
+    (hB : B ∈ (remainingAfter S L Δ₀).powersetCard
+      (chainGap S.card m i)) :
+    ((incrementPartitionFamily S m).filter fun Δ =>
+      historyKey L Δ = H ∧ Δ i = A).card =
+    ((incrementPartitionFamily S m).filter fun Δ =>
+      historyKey L Δ = H ∧ Δ i = B).card := by
+  classical
+  let U := remainingAfter S L Δ₀
+  obtain ⟨π,hπA,hπU,hπfix⟩ :=
+    exists_perm_maps_finset U A B
+      (Finset.mem_powersetCard.mp hA).1
+      (Finset.mem_powersetCard.mp hB).1
+      (by simpa using congrArg (fun T => T.card)
+        (show A.card = B.card by
+          rw [(Finset.mem_powersetCard.mp hA).2,
+              (Finset.mem_powersetCard.mp hB).2]))
+  have hπS : S.image π = S := by
+    ext x
+    by_cases hxU : x ∈ U
+    · rw [← hπU]
+      exact Finset.mem_image.mpr ⟨x,hxU,rfl⟩
+    · have hxfix : π x = x := by
+        by_cases hxS : x ∈ S
+        · have hxExp : x ∈ exposedUnion L Δ₀ := by
+            have : x ∉ S \ exposedUnion L Δ₀ := by
+              simpa [U] using hxU
+            exact by
+              simp at this
+              exact this hxS
+          exact exposed_points_fixed_by_perm_of_remaining
+            U Δ₀ L π hπfix x hxExp
+        · exact hπfix x (by
+            intro hx; exact hxS
+              (Finset.mem_sdiff.mp hx).1)
+      simp [hxfix]
+  apply Finset.card_bij
+    (fun Δ _ => partitionPermMap π Δ)
+  · intro Δ hΔ
+    rcases Finset.mem_filter.mp hΔ with
+      ⟨hmem,hkey,hAi⟩
+    apply Finset.mem_filter.mpr
+    refine ⟨partitionPermMap_mem S m π hπS hmem, ?_, ?_⟩
+    · rw [partitionPermMap_history_fixed L π
+        (fun x hx => exposed_points_fixed_by_perm_of_remaining
+          U Δ₀ L π hπfix x
+          (history_exposed_mem_transfer hH hkey hx))]
+      exact hkey
+    · simp [partitionPermMap,hAi,hπA]
+  · intro Δ hΔ Γ hΓ hEq
+    funext r
+    apply π.injective
+    have := congrFun hEq r
+    simpa [partitionPermMap] using
+      Finset.image_injective π.injective this
+  · intro Γ hΓ
+    let Δ := partitionPermMap π.symm Γ
+    refine ⟨Δ, ?_, ?_⟩
+    · rcases Finset.mem_filter.mp hΓ with
+        ⟨hmem,hkey,hBi⟩
+      apply Finset.mem_filter.mpr
+      refine ⟨partitionPermMap_mem S m π.symm
+          (by simpa using congrArg (Finset.image π.symm) hπS) hmem,
+        ?_, ?_⟩
+      · exact partitionPermMap_history_fixed L π.symm
+          (history_points_fixed_symm hH hkey hπfix)
+          |>.trans hkey
+      · simp [Δ,partitionPermMap,hBi,hπA]
+    · funext r
+      simp [Δ,partitionPermMap]
+
+theorem increment_conditional_uniform_given_history
+    {p k : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (m : Fin k → ℕ)
+    (hm : IsChainSizeTuple S.card m)
+    (L : Finset (Fin (k + 1))) (i : Fin (k + 1))
+    (hi : i ∉ L)
+    (H : Fin (k + 1) → Option (Finset (ZMod p)))
+    (Δ₀ : Fin (k + 1) → Finset (ZMod p))
+    (hΔ₀ : Δ₀ ∈ incrementPartitionFamily S m)
+    (hH : historyKey L Δ₀ = H)
+    (q : ZMod p) :
+    uniformConditionalMass (incrementPartitionFamily S m)
+      (fun Δ => historyKey L Δ = H)
+      (fun Δ => subsetSum (Δ i) = q) =
+    sliceMass (remainingAfter S L Δ₀)
+      (chainGap S.card m i) q := by
+  classical
+  let U := remainingAfter S L Δ₀
+  let ΩH := (incrementPartitionFamily S m).filter
+    (fun Δ => historyKey L Δ = H)
+  let choices := U.powersetCard (chainGap S.card m i)
+  have hmap : ∀ Δ ∈ ΩH, Δ i ∈ choices := by
+    intro Δ hΔ
+    rcases Finset.mem_filter.mp hΔ with ⟨hmem,hkey⟩
+    apply Finset.mem_powersetCard.mpr
+    constructor
+    · have hrem :=
+        remaining_invariant_under_history S L
+          (hkey.trans hH.symm)
+      rw [hrem]
+      exact unexposed_component_subset_remaining S m hΔ₀ L hi
+    · exact (Finset.mem_filter.mp hmem).2.1 i |>.2
+  have heq :
+      ∀ A ∈ choices,
+        (ΩH.filter fun Δ => Δ i = A).card =
+          (ΩH.filter fun Δ => Δ i =
+            Classical.choose (powersetCard_nonempty U
+              (unexposed_component_card_le_remaining S m hΔ₀ L hi))).card := by
+    intro A hA
+    exact component_fiber_equipotent S m L i hi H Δ₀ hΔ₀ hH
+      A _ hA (Classical.choose_spec
+        (powersetCard_nonempty U
+          (unexposed_component_card_le_remaining S m hΔ₀ L hi)))
+  have huniform :=
+    uniform_statistic_of_equal_fibers ΩH choices
+      (fun Δ => Δ i) hmap heq
+  unfold orderingConditionalMass sliceMass at *
+  exact uniformMass_pushforward_event huniform
+    (fun A => subsetSum A = q)
+
 /-- Sequential exposure of all increments except j.  Conditional on previously
 exposed increments, the next increment is a uniform subset of the remaining
 ground set with its prescribed gap size. -/
