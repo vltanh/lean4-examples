@@ -10,26 +10,6 @@ namespace GrahamRearrangement
 
 noncomputable section
 
-def tailTuples {n : ℕ} (b' : Fin n) (D : ℕ) :
-    Finset (Fin D → Fin n) :=
-  Finset.univ.filter fun x =>
-    StrictMono x ∧ ∀ i, paperPos b' < paperPos (x i)
-
-def tailSizes {n D : ℕ} (b' : Fin n)
-    (x : Fin D → Fin n) : Fin D → ℕ :=
-  fun i => (x i).val - b'.val
-
-def constraintSet {n D : ℕ}
-    (u x : Fin D → Fin n)
-    (πi : Fin D → Equiv.Perm (Fin n)) (i : Fin D) :
-    Finset (Fin n) :=
-  (indexInterval (u i) (x i)).image (πi i)
-
-def interestingLeftSupport {n D : ℕ}
-    (b : Fin n) (x : Fin D → Fin n) : Finset (Fin n) :=
-  symmetricWindow b (5 * D) ∪
-    Finset.univ.biUnion fun i => backwardWindow (x i) (5 * D)
-
 theorem card_interestingLeftSupport_le
     {n D : ℕ} (hD : 7 ≤ D)
     (b : Fin n) (x : Fin D → Fin n) :
