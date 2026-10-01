@@ -349,6 +349,40 @@ def AgreesOn {n p : ℕ} (F : Finset (Fin n))
     (σ τ : Fin n → ZMod p) : Prop :=
   ∀ i ∈ F, σ i = τ i
 
+/-- Right-extending witness event used in the proof of Lemma 5.3. -/
+def RightRepairEvent {n p : ℕ} (D : ℕ)
+    (σ : Fin n → ZMod p) : Prop :=
+  ∃ b b' : Fin n,
+    2 ≤ paperPos b ∧
+    paperPos b + 30 * D ≤ n ∧
+    paperPos b' - paperPos b = 5 * D ∧
+    ∃ y u : Fin D → Fin n,
+      (∀ i,
+        paperPos b < paperPos (y i) ∧
+          paperPos (y i) ≤ paperPos b') ∧
+      (∀ i,
+        paperPos b < paperPos (u i) ∧
+          paperPos (u i) ≤ paperPos b') ∧
+      Lemma55Event σ b b' u
+        (fun i => Equiv.swap b (y i))
+
+/-- Left-extending witness event used in the proof of Lemma 5.3. -/
+def LeftRepairEvent {n p : ℕ} (D : ℕ)
+    (σ : Fin n → ZMod p) : Prop :=
+  ∃ b b' : Fin n,
+    2 ≤ paperPos b ∧
+    paperPos b + 30 * D ≤ n ∧
+    paperPos b' - paperPos b = 5 * D ∧
+    ∃ y u : Fin D → Fin n,
+      (∀ i,
+        paperPos b < paperPos (y i) ∧
+          paperPos (y i) ≤ paperPos b') ∧
+      (∀ i,
+        paperPos b ≤ paperPos (u i) ∧
+          paperPos (u i) < paperPos b') ∧
+      Lemma56Event σ b b' u
+        (fun i => Equiv.swap b (y i))
+
 /-- Bad event B₁, exactly as in Lemma 5.1. -/
 def BadEvent1 {n p : ℕ} (D : ℕ) (σ : Fin n → ZMod p) : Prop :=
   ∃ b ∈ badRightEndpoints σ,
