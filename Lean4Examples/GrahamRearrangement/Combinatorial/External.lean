@@ -40,15 +40,6 @@ axiom card_sdiff_of_mem_powersetCard {α : Type*} [DecidableEq α]
     {S R : Finset α} {m : ℕ} (hR : R ∈ S.powersetCard m) :
     (S \ R).card = S.card - m
 
-/-- The increment sets in a uniformly random nested chain are exposed uniformly
-from the unchosen elements.  This is the generic finite-sampling law behind the
-exposure argument in Corollary 4.2. -/
-axiom uniformChain_exposure {α : Type*} [DecidableEq α]
-    {k : ℕ} (S : Finset α) (m : Fin k → ℕ)
-    (hm : StrictMono m) (hlo : ∀ i, 1 ≤ m i)
-    (hhi : ∀ i, m i < S.card) :
-    True
-
 /-- Generic conditional product bound: if an event is the conjunction of a
 finite sequence of exposed events and the conditional probability at step i is
 at most b_i, then the total probability is at most their product. -/
@@ -123,12 +114,6 @@ axiom mem_powersetCard_card {α : Type*} [DecidableEq α]
 axiom log_card_sdiff_le {α : Type*} [DecidableEq α]
     {S R : Finset α} (hR : R ⊆ S) (hne : (S \ R).Nonempty) :
     Real.log ((S \ R).card : ℝ) ≤ Real.log (S.card : ℝ)
-
-/-- Generic finite-chain reparametrization by complements preserves the uniform law. -/
-axiom complement_chain_uniform {α : Type*} [DecidableEq α]
-    {k : ℕ} (S : Finset α) (m : Fin k → ℕ)
-    (hm : StrictMono m) :
-    True
 
 end
 
