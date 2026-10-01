@@ -637,6 +637,18 @@ theorem card_biUnion_le_sum
         _ ≤ (A i).card + ∑ j ∈ I, (A j).card := by omega
         _ = ∑ j ∈ insert i I, (A j).card := by simp [hi]
 
+theorem list_prod_eq_finset_prod_of_nodup
+    {ι M : Type*} [DecidableEq ι] [CommMonoid M]
+    (L : List ι) (hL : L.Nodup) (f : ι → M) :
+    (L.map f).prod = ∏ i ∈ L.toFinset, f i := by
+  induction L with
+  | nil => simp
+  | cons a L ih =>
+      have ha : a ∉ L := (List.nodup_cons.mp hL).1
+      have hLn : L.Nodup := (List.nodup_cons.mp hL).2
+      rw [List.map_cons, List.prod_cons, ih hLn]
+      simp [ha]
+
 /-- Finite union bound for two events. -/
 theorem uniformMass_or_le_add {Ω : Type*} [DecidableEq Ω]
     (space : Finset Ω) (E F : Ω → Prop)
