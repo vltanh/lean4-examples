@@ -258,27 +258,6 @@ axiom trim_irrelevant_disjoint_swaps
       ∀ i, (I i).image (collectionPerm P') =
         (I i).image (collectionPerm P)
 
-/-- Interesting permutations are counted by their admissible collections once
-all possible first endpoints are confined to Q. -/
-axiom interestingPermutations_card_le_of_left_support
-    {n k D : ℕ} (hD : 7 ≤ D)
-    (I : Fin k → Finset (Fin n)) (Q : Finset (Fin n))
-    (hQ : Q.card ≤ 7 * D ^ 2)
-    (hsupport :
-      ∀ π ∈ interestingPermutations D I,
-        ∃ P : Finset (Fin n × Fin n),
-          IsAdmissibleCollection D P ∧
-          collectionPerm P = π ∧
-          (∀ q ∈ P, q.1 ∈ Q)) :
-    (interestingPermutations D I).card ≤ D ^ (14 * D ^ 2)
-
-/-- Counting lemma for interesting local swap collections. This is a generic
-partial-matching count with q≤7D² possible left endpoints and 5D possible
-partners, specialized only to the elementary numerical simplification. -/
-axiom interesting_collection_count_le
-    (D : ℕ) (hD : 7 ≤ D) (q : ℕ) (hq : q ≤ 7 * D ^ 2) :
-    (5 * D + 1) ^ q ≤ D ^ (14 * D ^ 2)
-
 /-- Sort a finite injective tuple by a permutation of its coordinates. -/
 axiom exists_sorting_perm
     {α : Type*} [LinearOrder α] {k : ℕ}
@@ -365,27 +344,6 @@ axiom chainUpperBound_sum_le_lemma43
     (∑ θ ∈ X, chainUpperBound p n C (m θ)) ≤
       lemma43LHS p n k C
 
-/-- If an interesting transposition does not start near the exposed local window,
-then crossing one of the constrained interval images forces it to start in the
-backward 5D-window ending at the corresponding right endpoint. -/
-axiom interesting_crossing_forces_tail_start
-    {n D : ℕ} (hD : 0 < D)
-    (b b' : Fin n)
-    (hgap : paperPos b' - paperPos b = 5 * D)
-    (u x : Fin D → Fin n)
-    (πi : Fin D → Equiv.Perm (Fin n))
-    (hu : ∀ i,
-      paperPos b ≤ paperPos (u i) ∧
-        paperPos (u i) ≤ paperPos b')
-    (hfix : ∀ i, FixedOutside b b' (πi i))
-    (q : Fin n × Fin n) (i : Fin D)
-    (hlen :
-      paperPos q.1 < paperPos q.2 ∧
-        paperPos q.2 - paperPos q.1 ≤ 5 * D)
-    (hcross : SwapCrosses q (constraintSet u x πi i))
-    (hnotlocal : q.1 ∉ symmetricWindow b (5 * D)) :
-    q.1 ∈ backwardWindow (x i) (5 * D)
-
 /-- The right-tail size tuple associated with a strictly increasing tail tuple is
 a valid chain-size tuple in the remaining ground set. -/
 axiom tailSizes_valid
@@ -457,6 +415,14 @@ axiom bounded_choice_witness_union
     (hsum : (∑ θ ∈ outer, w θ) ≤ B)
     (hw : ∀ θ ∈ outer, 0 ≤ w θ) :
     uniformMass space E ≤ (M : ℝ) * B
+
+/-- Generic count of disjoint oriented short-swap collections when all first
+endpoints lie in Q. Each q∈Q has at most 5D possible partners, plus the option
+that no pair starts at q. -/
+axiom supportedAdmissibleCollections_card_le {n D : ℕ}
+    (Q : Finset (Fin n)) :
+    (supportedAdmissibleCollections D Q).card ≤
+      (5 * D + 1) ^ Q.card
 
 /-- A generic upper bound for the number of partial matchings when each of q
 possible first endpoints has at most r possible partners. -/
