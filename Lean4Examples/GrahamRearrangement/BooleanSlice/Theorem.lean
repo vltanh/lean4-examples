@@ -19,11 +19,11 @@ def lowPsiNonzero {p m : ℕ} [NeZero p]
 theorem lowPsi_partition {p m t : ℕ} [NeZero p]
     (S : Finset (ZMod p)) (P : Fin m → Finset (ZMod p)) :
     (lowPsiNonzero P t).card ≤
-      (((Finset.univ.erase (0 : ZMod p))  Dset S m t).filter
+      (((Finset.univ.erase (0 : ZMod p)) \\ Dset S m t).filter
         (fun χ => psi P χ < 2 * t)).card +
-      ((Dset S m t  Bset S m (2000 * t)).filter
+      ((Dset S m t \\ Bset S m (2000 * t)).filter
         (fun χ => psi P χ < 2 * t)).card +
-      (Bset S m (2000 * t)  {0}).card := by
+      (Bset S m (2000 * t) \\ {0}).card := by
   classical
   apply Finset.card_le_card
   intro χ hχ
@@ -56,9 +56,9 @@ theorem expected_lowPsi_bound {p m t : ℕ} (hp : p.Prime)
   letI : NeZero p := ⟨hp.ne_zero⟩
   obtain ⟨hm, hm4, hbig⟩ :=
     section3_basic_bounds S.card m hS hmLower hmUpper
-  let T₁ := (Finset.univ.erase (0 : ZMod p))  Dset S m t
-  let T₂ := Dset S m t  Bset S m (2000 * t)
-  let T₃ := Bset S m (2000 * t)  {0}
+  let T₁ := (Finset.univ.erase (0 : ZMod p)) \\ Dset S m t
+  let T₂ := Dset S m t \\ Bset S m (2000 * t)
+  let T₃ := Bset S m (2000 * t) \\ {0}
   have h1 : ∀ χ ∈ T₁,
       partitionMass S (fun P => psi P χ < 2 * t) ≤
         1 / (S.card : ℝ) ^ 9 := by
