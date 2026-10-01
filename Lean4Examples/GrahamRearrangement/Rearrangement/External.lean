@@ -943,10 +943,80 @@ theorem dense_window_extract {n D : ℕ}
     · simp [Nat.dist_eq,paperPos] at hb0W hbiW ⊢
       omega
 
-/-- Generic trimming principle for disjoint transpositions: swaps crossing none
-of a finite family of index sets can be deleted without changing the image of
-any of those sets. -/
-axiom trim_irrelevant_disjoint_swaps
+theorem swapsPermList_append {n : ℕ}
+    (l r : List (Fin n × Fin n)) :
+    swapsPermList (l ++ r) =
+      (swapsPermList l).trans (swapsPermList r) := by
+  induction l with
+  | nil => simp [swapsPermList]
+  | cons q qs ih =>
+      simp [swapsPermList,ih,Equiv.trans_assoc]
+
+theorem swap_image_eq_self_of_not_crosses {n : ℕ}
+    (q : Fin n × Fin n) (I : Finset (Fin n))
+    (hne : q.1 ≠ q.2) (hnot : ¬ SwapCrosses q I) :
+    I.image (Equiv.swap q.1 q.2) = I := by
+  ext x
+  constructor
+  · rintro ⟨y,hy,rfl⟩
+    by_cases hy1 : y = q.1
+    · subst y
+      have hq1I : q.1 ∈ I := hy
+      have hq2I : q.2 ∈ I := by
+        by_contra hq2
+        exact hnot (Or.inl ⟨hq1I,hq2⟩)
+      simpa [Equiv.swap_apply_left hne] using hq2I
+    · by_cases hy2 : y = q.2
+      · subst y
+        have hq2I : q.2 ∈ I := hy
+        have hq1I : q.1 ∈ I := by
+          by_contra hq1
+          exact hnot (Or.inr ⟨hq1,hq2I⟩)
+        simpa [Equiv.swap_apply_right hne] using hq1I
+      · simpa [Equiv.swap_apply_of_ne_of_ne hy1 hy2] using hy
+  · intro hx
+    by_cases hx1 : x = q.1
+    · subst x
+      have hq2I : q.2 ∈ I := by
+        by_contra hq2
+        exact hnot (Or.inl ⟨hx,hq2⟩)
+      exact Finset.mem_image.mpr
+        ⟨q.2,hq2I,by simp [Equiv.swap_apply_right hne]⟩
+    · by_cases hx2 : x = q.2
+      · subst x
+        have hq1I : q.1 ∈ I := by
+          by_contra hq1
+          exact hnot (Or.inr ⟨hq1,hx⟩)
+        exact Finset.mem_image.mpr
+          ⟨q.1,hq1I,by simp [Equiv.swap_apply_left hne]⟩
+      · exact Finset.mem_image.mpr
+          ⟨x,hx,by simp [Equiv.swap_apply_of_ne_of_ne hx1 hx2]⟩
+
+theorem swapsPermList_image_eq_self
+    {n : ℕ} (l : List (Fin n × Fin n))
+    (I : Finset (Fin n))
+    (hne : ∀ q ∈ l, q.1 ≠ q.2)
+    (hnot : ∀ q ∈ l, ¬ SwapCrosses q I) :
+    I.image (swapsPermList l) = I := by
+  induction l with
+  | nil => simp [swapsPermList]
+  | cons q qs ih =>
+      have hqne := hne q (by simp)
+      have hqnot := hnot q (by simp)
+      have hne' : ∀ r ∈ qs, r.1 ≠ r.2 := by
+        intro r hr; exact hne r (by simp [hr])
+      have hnot' : ∀ r ∈ qs, ¬ SwapCrosses r I := by
+        intro r hr; exact hnot r (by simp [hr])
+      rw [show swapsPermList (q::qs) =
+          (Equiv.swap q.1 q.2).trans (swapsPermList qs) by rfl]
+      rw [Finset.image_image]
+      rw [swap_image_eq_self_of_not_crosses q I hqne hqnot]
+      exact ih hne' hnot'
+
+/-- Delete swaps crossing none of the constrained index sets.  The deleted
+swaps preserve every constrained set, and pairwise-disjoint transpositions
+commute, so all constrained images are unchanged. -/
+theorem trim_irrelevant_disjoint_swaps
     {n k : ℕ} (P : Finset (Fin n × Fin n))
     (hP : P.toSet.Pairwise swapPairsDisjoint)
     (I : Fin k → Finset (Fin n)) :
@@ -954,7 +1024,84 @@ axiom trim_irrelevant_disjoint_swaps
       P'.toSet.Pairwise swapPairsDisjoint ∧
       (∀ q ∈ P', ∃ i, ((q.1 ∈ I i) ↔ q.2 ∉ I i)) ∧
       ∀ i, (I i).image (collectionPerm P') =
-        (I i).image (collectionPerm P)
+        (I i).image (collectionPerm P) := by
+  classical
+  let crosses : Fin n × Fin n → Prop :=
+    fun q => ∃ i, SwapCrosses q (I i)
+  let P' := P.filter crosses
+  let R := P.filter fun q => ¬ crosses q
+  have hP'sub : P' ⊆ P := Finset.filter_subset _ _
+  have hRsub : R ⊆ P := Finset.filter_subset _ _
+  have hP'disj :
+      P'.toSet.Pairwise swapPairsDisjoint :=
+    hP.mono (by intro q hq; exact hP'sub hq)
+  have hRdisj :
+      R.toSet.Pairwise swapPairsDisjoint :=
+    hP.mono (by intro q hq; exact hRsub hq)
+  have hdisjSets : Disjoint P' R := by
+    rw [Finset.disjoint_left]
+    intro q hqP hqR
+    exact (Finset.mem_filter.mp hqR).2
+      (Finset.mem_filter.mp hqP).2
+  have hunion : R ∪ P' = P := by
+    ext q
+    by_cases hq : crosses q <;> simp [R,P',hq]
+  have hnontrivial :
+      ∀ q ∈ P, q.1 ≠ q.2 := by
+    intro q hq
+    by_contra h
+    subst q
+    exact (hP q hq q hq (by simp)).1 rfl
+  refine ⟨P',hP'sub,hP'disj,?_,?_⟩
+  · intro q hq
+    rcases (Finset.mem_filter.mp hq).2 with ⟨i,hi⟩
+    refine ⟨i,?_⟩
+    rcases hi with h | h
+    · exact ⟨fun _ => h.2, fun hnot => h.1⟩
+    · exact ⟨fun hmem => False.elim (h.1 hmem),
+        fun _ => h.2⟩
+  · intro i
+    have hRfix :
+        (I i).image (collectionPerm R) = I i := by
+      unfold collectionPerm
+      apply swapsPermList_image_eq_self R.toList (I i)
+      · intro q hq
+        exact hnontrivial q (hRsub (by simpa using hq))
+      · intro q hq
+        have hnotCrosses := (Finset.mem_filter.mp
+          (show q ∈ R from by simpa using hq)).2
+        intro hi
+        exact hnotCrosses ⟨i,hi⟩
+    have hRPadm :
+        (R ∪ P').toSet.Pairwise swapPairsDisjoint := by
+      simpa [hunion] using hP
+    have hlistSet :
+        (R.toList ++ P'.toList).toFinset = P := by
+      simp [hunion]
+    have hlistNodup :
+        (R.toList ++ P'.toList).Nodup := by
+      exact List.Nodup.append R.nodup_toList P'.nodup_toList
+        (by
+          intro q hqR hqP
+          exact Finset.disjoint_left.mp hdisjSets
+            (by simpa using hqP) (by simpa using hqR))
+    have horder :
+        swapsPermList (R.toList ++ P'.toList) = collectionPerm P :=
+      collectionPerm_order_independent
+        (D := 0)
+        ⟨hP,by
+          intro q hq
+          exact ⟨by
+            have hn := hnontrivial q hq
+            simpa [paperPos] using
+              (show q.1.val < q.2.val ∨ q.2.val < q.1.val by omega) |>.resolve_right
+                (fun hlt => False.elim (by
+                  have := hP q hq q hq (by simp)
+                  exact this.1 rfl)),
+            by omega⟩⟩
+        _ hlistSet hlistNodup
+    rw [← horder,swapsPermList_append,Finset.image_image,hRfix]
+    rfl
 
 /-- Sort a finite injective tuple by a permutation of its coordinates. -/
 theorem exists_sorting_perm
