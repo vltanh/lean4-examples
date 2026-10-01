@@ -220,6 +220,20 @@ axiom trim_irrelevant_disjoint_swaps
       ∀ i, (I i).image (collectionPerm P') =
         (I i).image (collectionPerm P)
 
+/-- Interesting permutations are counted by their admissible collections once
+all possible first endpoints are confined to Q. -/
+axiom interestingPermutations_card_le_of_left_support
+    {n k D : ℕ} (hD : 7 ≤ D)
+    (I : Fin k → Finset (Fin n)) (Q : Finset (Fin n))
+    (hQ : Q.card ≤ 7 * D ^ 2)
+    (hsupport :
+      ∀ π ∈ interestingPermutations D I,
+        ∃ P : Finset (Fin n × Fin n),
+          IsAdmissibleCollection D P ∧
+          collectionPerm P = π ∧
+          (∀ q ∈ P, q.1 ∈ Q)) :
+    (interestingPermutations D I).card ≤ D ^ (14 * D ^ 2)
+
 /-- Counting lemma for interesting local swap collections. This is a generic
 partial-matching count with q≤7D² possible left endpoints and 5D possible
 partners, specialized only to the elementary numerical simplification. -/
