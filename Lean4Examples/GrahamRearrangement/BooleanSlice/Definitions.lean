@@ -245,6 +245,27 @@ theorem mem_blockIndex {p m : ℕ} [NeZero p] (S : Finset (ZMod p))
   unfold blockIndex
   simp [hm, hP, hx, Classical.choose_spec]
 
+theorem blockIndex_eq_of_mem {p m : ℕ} [NeZero p]
+    (S : Finset (ZMod p))
+    {P : Fin m → Finset (ZMod p)}
+    (hm : 0 < m) (hP : IsBalancedPartition S P)
+    {x : ZMod p} (hxS : x ∈ S)
+    {i : Fin m} (hxi : x ∈ P i) :
+    blockIndex S P x = i := by
+  have hxChosen := mem_blockIndex S P x hm hP hxS
+  by_contra hne
+  exact Finset.disjoint_left.mp
+    (hP.2.1 (blockIndex S P x) i hne) hxChosen hxi
+
+theorem pointBlock_card {p m : ℕ} [NeZero p]
+    (S : Finset (ZMod p))
+    {P : Fin m → Finset (ZMod p)}
+    (hm : 0 < m) (hP : IsBalancedPartition S P)
+    {x : ZMod p} (hxS : x ∈ S) :
+    (pointBlock S P x).card =
+      balancedBlockSize S.card m (blockIndex S P x) := by
+  exact hP.2.2.2 (blockIndex S P x)
+
 /-- The block containing a given point. -/
 def pointBlock {p m : ℕ} [NeZero p] (S : Finset (ZMod p))
     (P : Fin m → Finset (ZMod p)) (x : ZMod p) : Finset (ZMod p) :=
