@@ -84,6 +84,34 @@ theorem uniformMass_or_le_add {Ω : Type*} [DecidableEq Ω]
     exact_mod_cast
       (Finset.card_filter_or_le (s := space) (p := E) (q := F))
 
+/-- An event and its complement have total mass one on a nonempty space. -/
+theorem uniformMass_compl_eq_one {Ω : Type*} [DecidableEq Ω]
+    (space : Finset Ω) (hspace : space.Nonempty)
+    (E : Ω → Prop) [DecidablePred E] :
+    uniformMass space E + uniformMass space (fun ω => ¬ E ω) = 1 := by
+  unfold uniformMass
+  have hpartition :
+      (space.filter E).card + (space.filter fun ω => ¬ E ω).card = space.card := by
+    rw [← Finset.card_union_of_disjoint]
+    · congr 1
+      ext ω
+      simp
+    · exact Finset.disjoint_filter_filter_neg _ _
+  rw [← add_div]
+  norm_num [hspace.card_ne_zero, hpartition]
+
+/-- Cardinal form of a lower bound on uniform mass. -/
+theorem card_filter_ge_of_uniformMass_ge {Ω : Type*} [DecidableEq Ω]
+    (space : Finset Ω) (hspace : space.Nonempty)
+    (E : Ω → Prop) [DecidablePred E] (c : ℝ)
+    (h : c ≤ uniformMass space E) :
+    c * space.card ≤ (space.filter E).card := by
+  unfold uniformMass at h
+  have hcard : (0 : ℝ) < space.card := by
+    exact_mod_cast hspace.card_pos
+  apply (le_div_iff₀ hcard).1
+  simpa [mul_comm] using h
+
 /-- Uniform probability of a singleton in a nonempty finite space. -/
 theorem uniformMass_eq_singleton {Ω : Type*} [DecidableEq Ω]
     (space : Finset Ω) (ω : Ω) (hω : ω ∈ space) :
