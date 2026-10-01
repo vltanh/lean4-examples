@@ -604,6 +604,50 @@ theorem blockRemainder_conditional_uniform
       S x hm hmS hxS i hA hB
   · exact E
 
+theorem point_block_remainder_lower_real {p m : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (x : ZMod p)
+    (hm : 0 < m) (hm4 : m ≤ S.card / 4)
+    {P : Fin m → Finset (ZMod p)}
+    (hP : IsBalancedPartition S P) (hx : x ∈ S) :
+    (S.card : ℝ) / (2 * m) ≤
+      ((pointBlock S P x \ {x}).card : ℝ) := by
+  have hmS : m ≤ S.card := le_trans hm4 (Nat.div_le_self _ _)
+  have hmem : x ∈ pointBlock S P x :=
+    mem_blockIndex S P x hm hP hx
+  have hblock :
+      S.card / m ≤ (pointBlock S P x).card := by
+    simpa [pointBlock] using
+      (balanced_block_size_bounds S hm hmS hP
+        (blockIndex S P x)).1
+  have hfloor :
+      (S.card : ℝ) / m < (S.card / m : ℕ) + 1 := by
+    have hmod := Nat.mod_lt S.card hm
+    have hdecomp := Nat.div_add_mod S.card m
+    have hmR : (0 : ℝ) < m := by positivity
+    apply (div_lt_iff₀ hmR).2
+    exact_mod_cast (by omega :
+      S.card < (S.card / m + 1) * m)
+  have hratio : (4 : ℝ) ≤ (S.card : ℝ) / m := by
+    have hm4' : 4 * m ≤ S.card :=
+      (Nat.le_div_iff_mul_le (by omega)).mp hm4
+    exact (le_div_iff₀ (by positivity : (0 : ℝ) < m)).2
+      (by exact_mod_cast hm4')
+  have hcard :
+      (pointBlock S P x \ {x}).card =
+        (pointBlock S P x).card - 1 := by
+    rw [Finset.sdiff_singleton_eq_erase,
+      Finset.card_erase_of_mem hmem]
+  rw [hcard]
+  have hblockR :
+      ((S.card / m : ℕ) : ℝ) - 1 ≤
+        ((pointBlock S P x).card : ℝ) - 1 := by
+    exact_mod_cast hblock
+  have hfloorLower :
+      (S.card : ℝ) / m - 1 <
+        (S.card / m : ℕ) := by
+    linarith
+  nlinarith
+
 /-- If a subset has density at least 1/4, the block containing a fixed point
 misses the expected number of its points only with the hypergeometric tail used
 in Lemma 3.1. -/
