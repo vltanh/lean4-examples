@@ -80,7 +80,7 @@ theorem withoutReplacementExpectation_const
     {α : Type*} [DecidableEq α]
     (U : Finset α) {k : ℕ} (hk : k ≤ U.card) (c : ℝ) :
     withoutReplacementExpectation U k (fun _ => c) = c := by
-  induction k generalizing U with
+  induction k generalizing U E with
   | zero => simp [withoutReplacementExpectation]
   | succ k ih =>
       have hU : U.Nonempty := by
@@ -372,8 +372,10 @@ theorem uniformSubset_head_tail
   have hchoose :
       U.card * Nat.choose (U.card - 1) k =
         (k + 1) * Nat.choose U.card (k + 1) := by
-    simpa [Nat.choose] using
-      Nat.mul_choose_eq_succ_mul_choose (U.card - 1) k
+    have hpred : U.card - 1 + 1 = U.card := by omega
+    have h := Nat.add_one_mul_choose_eq (U.card - 1) k
+    rw [hpred] at h
+    simpa [mul_comm] using h
   simp_rw [hinnerCard]
   rw [← Finset.sum_div]
   rw [hsum,headTail_event_card U k E]
