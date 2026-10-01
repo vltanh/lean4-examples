@@ -82,8 +82,7 @@ theorem finite_uniform_hoeffding_mgf
     uniformExpectation space (fun ω => Real.exp (t * X ω)) ≤
       Real.exp ((b - a) ^ 2 * t ^ 2 / 8) := by
   classical
-  let Ωs := {ω // ω ∈ space}
-  letI : Fintype Ωs := Fintype.ofFinite Ωs
+  let Ωs := ↥space
   letI : Nonempty Ωs := ⟨⟨hspace.choose,hspace.choose_spec⟩⟩
   letI : MeasurableSpace Ωs := ⊤
   let μ := (PMF.uniformOfFintype Ωs).toMeasure
@@ -108,7 +107,8 @@ theorem finite_uniform_hoeffding_mgf
       exact_mod_cast hspace.card_pos
     field_simp
     ring
-  have hmeas : AEMeasurable Xs μ := AEMeasurable.of_discrete _
+  have hmeas : AEMeasurable Xs μ :=
+    (measurable_of_finite Xs).aemeasurable
   have hbound : ∀ᵐ ω ∂μ, Xs ω ∈ Set.Icc a b := by
     filter_upwards with ω
     exact hX ω.1 ω.2
