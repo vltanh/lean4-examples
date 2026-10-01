@@ -675,7 +675,7 @@ theorem lemma3_6 {p m t : ℕ} (hp : p.Prime)
                 gcongr with χ hχ
                 rw [← ep_eq_stdAddChar]
                 exact (fact2_2 ((χ * x).val / p)).1.trans_eq
-                  (by rw [External.zmod_stdAddChar_re])
+                  (by rw [stdAddChar_re_eq_cos])
         _ = _ := by simp
       nlinarith [hQ]
     nlinarith
