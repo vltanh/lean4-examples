@@ -412,7 +412,7 @@ theorem lemma5_2
   have h0 := lemma5_4 hα0 hαh P hp S hreg
   have h1 := lemma5_1 hα0 hαh P hp S hreg
   have htotal :=
-    Section5External.mass_le_two_exceptions
+    uniformMass_le_two_exceptions
       (indexedOrderings S)
       (BadEvent2 P.D) (BadEvent0 P.D) (BadEvent1 P.D)
       (1 / 100 : ℝ)
