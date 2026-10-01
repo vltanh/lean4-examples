@@ -83,7 +83,7 @@ theorem lemma5_6
         b b' (πi (reverseIndex P.D i))
         (hfix (reverseIndex P.D i))
     have hmass :=
-      lemma56_mass_le_reversed S b b' hgap u πi
+      lemma56_mass_le_reversed S b b' hgap u hu πi
     exact le_trans hmass
       (lemma5_5 hα0 hαh P hp S hreg
         rb rb' hrb2 hrb' hrgap ru hru rπi hrfix)
