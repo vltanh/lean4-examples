@@ -814,12 +814,6 @@ theorem perm_fix_outside_S_of_fix_outside_remaining
   intro hxU
   exact hxS (Finset.mem_sdiff.mp hxU).1
 
-theorem symm_fixes_of_fixes {α : Type*}
-    (π : Equiv.Perm α) {x : α} (h : π x = x) :
-    π.symm x = x := by
-  apply π.injective
-  simp [h]
-
 theorem component_fiber_equipotent
     {p k : ℕ} [NeZero p]
     (S : Finset (ZMod p)) (m : Fin k → ℕ)
@@ -905,7 +899,7 @@ theorem component_fiber_equipotent
             have hfx :=
               perm_fix_exposed_of_fix_outside_remaining
                 S m L hΔ₀ π (by simpa [U] using hπfix) x hx0
-            exact symm_fixes_of_fixes π hfx))
+            exact perm_symm_fixes_of_fixes π hfx))
           |>.trans hkey
       · simp [Δ,partitionPermMap,hBi,hπA]
     · funext r
