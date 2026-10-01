@@ -1009,10 +1009,161 @@ theorem bounded_choice_witness_union
 /-- Generic count of disjoint oriented short-swap collections when all first
 endpoints lie in Q. Each q∈Q has at most 5D possible partners, plus the option
 that no pair starts at q. -/
-axiom supportedAdmissibleCollections_card_le {n D : ℕ}
+def shortPartners {n D : ℕ} (q : Fin n) : Finset (Fin n) :=
+  (forwardWindow q (5 * D)).erase q
+
+theorem card_shortPartners_le {n D : ℕ} (q : Fin n) :
+    (shortPartners (D := D) q).card ≤ 5 * D := by
+  unfold shortPartners
+  have hq : q ∈ forwardWindow q (5 * D) := by
+    simp [forwardWindow]
+  rw [Finset.card_erase_of_mem hq]
+  have h := card_forwardWindow_le q (5 * D)
+  omega
+
+def collectionPartner {n : ℕ}
+    (P : Finset (Fin n × Fin n)) (q : Fin n) : Option (Fin n) := by
+  classical
+  by_cases h : ∃ y, (q,y) ∈ P
+  · exact some (Classical.choose h)
+  · exact none
+
+theorem collectionPartner_eq_some_iff
+    {n D : ℕ} {P : Finset (Fin n × Fin n)}
+    (hP : IsAdmissibleCollection D P)
+    (q y : Fin n) :
+    collectionPartner P q = some y ↔ (q,y) ∈ P := by
+  classical
+  unfold collectionPartner
+  by_cases h : ∃ z, (q,z) ∈ P
+  · let z := Classical.choose h
+    have hz : (q,z) ∈ P := Classical.choose_spec h
+    simp [h]
+    constructor
+    · intro hy
+      injection hy with hyz
+      subst y
+      exact hz
+    · intro hy
+      by_contra hne
+      have hpairs := hP.1 hz hy (by
+        intro heq
+        injection heq with _ heq2
+        exact hne heq2.symm)
+      exact hpairs.1 rfl
+  · simp [h]
+
+theorem collectionPartner_mem_allowed
+    {n D : ℕ} {P : Finset (Fin n × Fin n)}
+    (hP : IsAdmissibleCollection D P)
+    {Q : Finset (Fin n)}
+    (hsupp : ∀ r ∈ P, r.1 ∈ Q)
+    (q : {x // x ∈ Q}) :
+    collectionPartner P q.1 ∈
+      insert none ((shortPartners (D := D) q.1).image some) := by
+  classical
+  cases h : collectionPartner P q.1 with
+  | none => simp
+  | some y =>
+      have hqy : (q.1,y) ∈ P :=
+        (collectionPartner_eq_some_iff hP q.1 y).1 h
+      have hadm := hP.2 (q.1,y) hqy
+      have hmem : y ∈ shortPartners (D := D) q.1 := by
+        apply Finset.mem_erase.mpr
+        constructor
+        · intro hy
+          subst y
+          simpa [paperPos] using (ne_of_lt hadm.1)
+        · simp [forwardWindow,paperPos]
+          omega
+      simp [h, hmem]
+
+def supportedCollectionCode {n D : ℕ}
+    (Q : Finset (Fin n))
+    (P : Finset (Fin n × Fin n)) :
+    {q // q ∈ Q} → Option (Fin n) :=
+  fun q => collectionPartner P q.1
+
+theorem supportedCollectionCode_injective {n D : ℕ}
+    (Q : Finset (Fin n)) :
+    Set.InjOn (supportedCollectionCode (D := D) Q)
+      (supportedAdmissibleCollections D Q :
+        Set (Finset (Fin n × Fin n))) := by
+  intro P hP Q' hQ' hcode
+  have hPadm :=
+    (Finset.mem_filter.mp (show P ∈ supportedAdmissibleCollections D Q from hP)).2.1
+  have hPsupp :=
+    (Finset.mem_filter.mp (show P ∈ supportedAdmissibleCollections D Q from hP)).2.2
+  have hQadm :=
+    (Finset.mem_filter.mp (show Q' ∈ supportedAdmissibleCollections D Q from hQ')).2.1
+  have hQsupp :=
+    (Finset.mem_filter.mp (show Q' ∈ supportedAdmissibleCollections D Q from hQ')).2.2
+  ext r
+  constructor
+  · intro hr
+    have hrQ : r.1 ∈ Q := hPsupp r hr
+    let q : {x // x ∈ Q} := ⟨r.1,hrQ⟩
+    have hp :
+        collectionPartner P r.1 = some r.2 :=
+      (collectionPartner_eq_some_iff hPadm r.1 r.2).2 hr
+    have hfun := congrFun hcode q
+    have hqpartner : collectionPartner Q' r.1 = some r.2 := by
+      simpa [supportedCollectionCode,q,hp] using hfun.symm
+    exact (collectionPartner_eq_some_iff hQadm r.1 r.2).1 hqpartner
+  · intro hr
+    have hrQ : r.1 ∈ Q := hQsupp r hr
+    let q : {x // x ∈ Q} := ⟨r.1,hrQ⟩
+    have hp :
+        collectionPartner Q' r.1 = some r.2 :=
+      (collectionPartner_eq_some_iff hQadm r.1 r.2).2 hr
+    have hfun := congrFun hcode q
+    have hppartner : collectionPartner P r.1 = some r.2 := by
+      simpa [supportedCollectionCode,q,hp] using hfun
+    exact (collectionPartner_eq_some_iff hPadm r.1 r.2).1 hppartner
+
+def supportedCollectionCodes {n D : ℕ} (Q : Finset (Fin n)) :
+    Finset ({q // q ∈ Q} → Option (Fin n)) :=
+  Finset.univ.pi fun q =>
+    insert none ((shortPartners (D := D) q.1).image some)
+
+theorem supportedAdmissibleCollections_card_le {n D : ℕ}
     (Q : Finset (Fin n)) :
     (supportedAdmissibleCollections D Q).card ≤
-      (5 * D + 1) ^ Q.card
+      (5 * D + 1) ^ Q.card := by
+  classical
+  let f := supportedCollectionCode (D := D) Q
+  have hmap :
+      ∀ P ∈ supportedAdmissibleCollections D Q,
+        f P ∈ supportedCollectionCodes (D := D) Q := by
+    intro P hP
+    have hPadm := (Finset.mem_filter.mp hP).2.1
+    have hPsupp := (Finset.mem_filter.mp hP).2.2
+    simp [supportedCollectionCodes]
+    intro q
+    exact collectionPartner_mem_allowed hPadm hPsupp q
+  have hinj := supportedCollectionCode_injective (D := D) Q
+  calc
+    (supportedAdmissibleCollections D Q).card
+      = ((supportedAdmissibleCollections D Q).image f).card := by
+          symm
+          exact Finset.card_image_of_injOn hinj
+    _ ≤ (supportedCollectionCodes (D := D) Q).card := by
+          apply Finset.card_le_card
+          intro code hcode
+          rcases Finset.mem_image.mp hcode with ⟨P,hP,rfl⟩
+          exact hmap P hP
+    _ = ∏ q : {x // x ∈ Q},
+        (insert none ((shortPartners (D := D) q.1).image some)).card := by
+          simp [supportedCollectionCodes,Finset.card_pi]
+    _ ≤ ∏ _q : {x // x ∈ Q}, (5 * D + 1) := by
+          gcongr with q
+          calc
+            (insert none ((shortPartners (D := D) q.1).image some)).card
+              ≤ (shortPartners (D := D) q.1).card + 1 := by
+                  exact Finset.card_insert_le _ _
+            _ ≤ 5 * D + 1 := Nat.add_le_add_right
+                  (card_shortPartners_le (D := D) q.1) 1
+    _ = (5 * D + 1) ^ Q.card := by simp
 
 /-- Reversal conjugation preserves admissibility of a collection of local
 disjoint swaps and preserves the same distance bound. -/
