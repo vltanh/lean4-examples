@@ -121,14 +121,6 @@ axiom event_le_of_agreesOn_fibers {p : ℕ} [NeZero p]
           (fun σ => AgreesOn F σ τ) E ≤ q) :
     orderingEventMass S E ≤ q
 
-/-- Crude count of a base point and D ordered choices from a 20D-window. -/
-axiom base_and_window_tuple_count {n D : ℕ} :
-    (Finset.univ : Finset (Fin n × (Fin D → Fin n))).filter
-      (fun θ =>
-        ∀ i, paperPos θ.1 < paperPos (θ.2 i) ∧
-          paperPos (θ.2 i) ≤ paperPos θ.1 + 20 * D)
-      |>.card ≤ n * (20 * D) ^ D
-
 /-- Fiber multiplication specialized to exposing a set of positions in a
 uniform random ordering. -/
 axiom joint_event_le_of_agreesOn_fibers {p : ℕ} [NeZero p]
@@ -388,12 +380,6 @@ axiom fixed_tail_tuple_conditional_chainBound
             (u i) (x i) = 0) ≤
       chainUpperBound p (S \ indexImageSet τ F).card
         C (tailSizes b' x)
-
-/-- Crude count for the parameter triples (b,J,J') in Lemma 5.4. -/
-axiom bad0_parameter_count {n D : ℕ} :
-    (Finset.univ :
-      Finset (Fin n × Finset (Fin n) × Finset (Fin n))).card ≤
-        n * 2 ^ (40 * D + 2)
 
 /-- Generic two-level witness union bound: for each outer parameter there are
 at most M inner choices, each inner event has weight w(theta), and the outer
