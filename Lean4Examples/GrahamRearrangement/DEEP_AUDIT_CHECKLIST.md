@@ -7,10 +7,9 @@ This is the authoritative proof-boundary checklist.
 
 ## Audit rule
 
-Only a result which the paper itself imports from another source may remain an
-axiom. Results described as easy, standard, routine, probabilistic bookkeeping,
-finite counting, Fourier algebra, conditioning, or permutation invariance are
-proved internally.
+The final Palomar-style boundary contains no project axioms. Results imported
+by the paper from another source are formalized in the `External/` hierarchy
+using proved mathlib infrastructure; citations are retained as provenance.
 
 ## A. Statement fidelity
 
@@ -72,22 +71,27 @@ proved internally.
 - [x] The character-square calculation in Lemma 3.6 is derived from
       orthogonality.
 - [x] The final dyadic split in Theorem 1.3 is proved internally.
-- [x] The only axiomatized Section 3 input is the hypergeometric Chernoff
-      estimate explicitly cited by the paper from [8].
+- [x] The hypergeometric Chernoff input cited by the paper from [8] is
+      formalized in `External/Hypergeometric/`; Section 3 uses no project axiom.
 
-## E. Strict external axiom boundary
+## E. Self-contained external proof boundary
 
-- [x] hypergeom_quarter_lower_tail is the specialization used in Lemma 3.1 of
-      the hypergeometric Chernoff bound cited as [8, Theorem 2.10 and Eq. (2.6)].
-- [x] hypergeom_three_quarters_lower_tail is the specialization used in Lemma
-      3.3 of the same cited result.
-- [x] Reference [8] is S. Janson, T. Łuczak, and A. Ruciński, *Random Graphs*,
+- [x] The project contains no custom `axiom` declarations.
+- [x] `External/Hypergeometric/Sampling.lean` formalizes sequential sampling
+      without replacement and proves its pushforward is the uniform
+      `powersetCard` law.
+- [x] `External/Hypergeometric/Hoeffding.lean` proves the required
+      without-replacement exponential-moment bound, using mathlib's proved
+      finite Hoeffding lemma as analytic infrastructure.
+- [x] `External/Hypergeometric/Tails.lean` derives the exact
+      `exp (-k/32)` and `exp (-k/24)` bounds used in Lemmas 3.1 and 3.3.
+- [x] Reference [8] remains recorded as provenance:
+      S. Janson, T. Łuczak, and A. Ruciński, *Random Graphs*,
       John Wiley & Sons, 2011.
-- [x] No Cauchy--Schwarz, Taylor, Cauchy--Davenport, Fourier-orthogonality,
-      Markov, union-bound, asymptotic, or finite-probability statement is an
-      axiom in this project; those are theorem bodies or library theorems.
-- [x] No paper-specific object appears in an axiom statement other than the two
-      direct hypergeometric specializations.
+- [x] Cauchy--Schwarz, Taylor/Lagrange remainder, Cauchy--Davenport,
+      Fourier orthogonality, Markov, union bounds, asymptotic estimates,
+      finite sampling, and conditioning are all theorem bodies or verified
+      mathlib results rather than project axioms.
 
 ## F. Section 4
 
@@ -152,9 +156,10 @@ proved internally.
 
 - [x] No sorry.
 - [x] No admit.
-- [x] No false axiom.
-- [x] No paper-internal proof is hidden behind an axiom.
-- [x] The only axioms are the two [8]-cited hypergeometric estimates.
+- [x] No project axiom.
+- [x] No paper-internal or cited external proof is hidden behind an axiom.
+- [x] The [8]-cited hypergeometric estimate has a source-level Lean proof in
+      `External/Hypergeometric/`.
 - [x] Every numbered Fact, Lemma, Corollary, and Theorem has an internal theorem
       body.
 - [x] Equations (3.1)--(3.4), (4.1), and (5.1) are derived internally.
