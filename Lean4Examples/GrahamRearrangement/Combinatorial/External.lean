@@ -99,7 +99,7 @@ theorem extendPair_event_card {α : Type*} [DecidableEq α]
       = ∑ T ∈ (S.powersetCard m).filter E,
           ((extendPairSpace S m).filter
             fun q => extendPairMap q = T).card := by
-          apply Finset.card_eq_sum_card_fiberwise
+          apply card_eq_sum_card_fibers
           · intro q hq
             exact extendPairMap_mem hm (Finset.mem_filter.mp hq).1
           · intro q hq
@@ -249,7 +249,7 @@ theorem splitPair_event_card {α : Type*} [DecidableEq α]
     _ = ∑ T ∈ (S.powersetCard (m₁ + m₂)).filter E,
           ((splitPairSpace S m₁ m₂).filter
             fun q => splitPairMap q = T).card := by
-          apply Finset.card_eq_sum_card_fiberwise
+          apply card_eq_sum_card_fibers
           · intro q hq
             exact splitPairMap_mem (Finset.mem_filter.mp hq).1
           · intro q hq
@@ -301,11 +301,8 @@ theorem exists_large_chain_gap {k n : ℕ} (m : Fin k → ℕ)
     ∃ j : Fin (k + 1),
       (n : ℝ) / (k + 1 : ℝ) ≤ chainGap n m j := by
   classical
-  have hsum :
-      ∑ j : Fin (k + 1), chainGap n m j = n := by
-    unfold chainGap
-    exact Fin.sum_consecutive_sub_eq
-      (fun i : Fin (k + 2) => extendedSize n m i.val)
+  have hsum : ∑ j : Fin (k + 1), chainGap n m j = n :=
+    sum_chainGap m hm
   by_contra h
   push_neg at h
   have hlt :
