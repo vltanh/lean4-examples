@@ -137,6 +137,22 @@ theorem uniformExpectation_mono {Ω : Type*} [DecidableEq Ω]
     exact Finset.sum_le_sum fun i hi =>
       Finset.sum_le_sum fun _ _ => hfg i hi
 
+theorem uniformExpectation_add {Ω : Type*} [DecidableEq Ω]
+    (space : Finset Ω) (f g : Ω → ℝ) :
+    uniformExpectation space (fun ω => f ω + g ω) =
+      uniformExpectation space f + uniformExpectation space g := by
+  unfold uniformExpectation
+  rw [Finset.sum_add_distrib]
+  ring
+
+theorem uniformExpectation_smul {Ω : Type*} [DecidableEq Ω]
+    (space : Finset Ω) (c : ℝ) (f : Ω → ℝ) :
+    uniformExpectation space (fun ω => c * f ω) =
+      c * uniformExpectation space f := by
+  unfold uniformExpectation
+  rw [← Finset.mul_sum]
+  ring
+
 /-- Average of a constant over a nonempty finite space. -/
 theorem uniformExpectation_const {Ω : Type*} [DecidableEq Ω]
     (space : Finset Ω) (h : space.Nonempty) (c : ℝ) :
