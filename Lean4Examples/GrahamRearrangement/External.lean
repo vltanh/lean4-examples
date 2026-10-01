@@ -329,11 +329,41 @@ theorem section5_rpow_threshold {α : ℝ} {D : ℕ}
 
 /-- Standard real-power consequence used in Section 5:
 n ≤ p^(1-α) implies n/p ≤ n^(-α). -/
-axiom card_div_prime_le_neg_rpow {α : ℝ} {n p : ℕ}
+theorem card_div_prime_le_neg_rpow {α : ℝ} {n p : ℕ}
     (hα0 : 0 < α) (hα1 : α < 1)
     (hn : 1 ≤ n) (hp : 1 ≤ p)
     (hupper : (n : ℝ) ≤ (p : ℝ) ^ (1 - α)) :
-    (n : ℝ) / p ≤ (n : ℝ) ^ (-α)
+    (n : ℝ) / p ≤ (n : ℝ) ^ (-α) := by
+  have hn0 : 0 < (n : ℝ) := by exact_mod_cast (lt_of_lt_of_le Nat.zero_lt_one hn)
+  have hp0 : 0 < (p : ℝ) := by exact_mod_cast (lt_of_lt_of_le Nat.zero_lt_one hp)
+  have hlogn : 0 ≤ Real.log (n : ℝ) :=
+    Real.log_nonneg (by exact_mod_cast hn)
+  have hlogupper :
+      Real.log (n : ℝ) ≤ (1 - α) * Real.log (p : ℝ) := by
+    have h := Real.log_le_log hn0 hupper
+    rw [Real.log_rpow hp0] at h
+    simpa [mul_comm] using h
+  have hcoef : 0 < 1 - α := sub_pos.mpr hα1
+  have hrecip :
+      1 + α ≤ 1 / (1 - α) := by
+    apply (le_div_iff₀ hcoef).2
+    nlinarith [sq_nonneg α]
+  have hlogp :
+      (1 + α) * Real.log (n : ℝ) ≤ Real.log (p : ℝ) := by
+    have hdiv :
+        Real.log (n : ℝ) / (1 - α) ≤ Real.log (p : ℝ) :=
+      (div_le_iff₀ hcoef).2 (by simpa [mul_comm] using hlogupper)
+    exact le_trans
+      (mul_le_mul_of_nonneg_right hrecip hlogn) hdiv
+  have hlogs :
+      Real.log ((n : ℝ) / p) ≤ Real.log ((n : ℝ) ^ (-α)) := by
+    rw [Real.log_div (ne_of_gt hn0) (ne_of_gt hp0),
+      Real.log_rpow hn0]
+    nlinarith [hlogp]
+  have hleft : 0 < (n : ℝ) / p := div_pos hn0 hp0
+  have hright : 0 < (n : ℝ) ^ (-α) :=
+    Real.rpow_pos_of_pos hn0 _
+  exact (Real.log_le_log_iff hleft hright).mp hlogs
 
 /-- Monotonicity of x↦x^{-α} for positive α on [1,∞). -/
 theorem neg_rpow_antitone {α : ℝ} (hα : 0 < α)
@@ -346,8 +376,28 @@ theorem neg_rpow_antitone {α : ℝ} (hα : 0 < α)
     (Real.rpow_le_rpow (le_of_lt hx0) hxy (le_of_lt hα))
 
 /-- Two-sided reciprocal-square-root kernel sum used for a fixed interval endpoint. -/
-axiom two_sided_interval_kernel_sum_le
-    (n p : ℕ) (C : ℝ) :
+theorem reverse_Icc_inv_sqrt_sum (n : ℕ) :
+    (∑ r ∈ Finset.Icc 1 (n - 1),
+      1 / Real.sqrt ((n - r : ℕ) : ℝ)) =
+    ∑ r ∈ Finset.Icc 1 (n - 1),
+      1 / Real.sqrt (r : ℝ) := by
+  classical
+  apply Finset.sum_bij (fun r _ => n - r)
+  · intro r hr
+    simp at hr ⊢
+    omega
+  · intro r hr
+    rfl
+  · intro a ha b hb h
+    simp at ha hb
+    omega
+  · intro r hr
+    refine ⟨n-r, ?_, by omega⟩
+    simp at hr ⊢
+    omega
+
+theorem two_sided_interval_kernel_sum_le
+    (n p : ℕ) (C : ℝ) (hC : 0 ≤ C) :
     (∑ r ∈ Finset.Icc 1 (n - 1),
       ((1 / (p : ℝ) +
         C * Real.sqrt (Real.log (n : ℝ)) /
@@ -357,7 +407,43 @@ axiom two_sided_interval_kernel_sum_le
           ((n : ℝ) * Real.sqrt ((n - r : ℕ) : ℝ))))) ≤
       2 * (n : ℝ) / p +
         4 * C * Real.sqrt (Real.log (n : ℝ)) /
-          Real.sqrt (n : ℝ)
+          Real.sqrt (n : ℝ) := by
+  by_cases hn : n = 0
+  · subst n; simp
+  have hnR : 0 < (n : ℝ) := by exact_mod_cast Nat.pos_of_ne_zero hn
+  have hcount : (Finset.Icc 1 (n - 1)).card ≤ n := by
+    rw [Nat.card_Icc]
+    omega
+  have hs := sum_inv_sqrt_le_two_sqrt (n - 1)
+  have hs' :
+      (∑ r ∈ Finset.Icc 1 (n - 1), 1 / Real.sqrt (r : ℝ))
+        ≤ 2 * Real.sqrt (n : ℝ) := by
+    exact le_trans hs (by
+      gcongr
+      exact Real.sqrt_le_sqrt (by exact_mod_cast Nat.sub_le n 1))
+  rw [Finset.sum_add_distrib]
+  simp_rw [Finset.sum_add_distrib]
+  rw [reverse_Icc_inv_sqrt_sum]
+  have hsqrt : 0 < Real.sqrt (n : ℝ) := Real.sqrt_pos.2 hnR
+  have hsquare : (Real.sqrt (n : ℝ)) ^ 2 = n :=
+    Real.sq_sqrt (le_of_lt hnR)
+  calc
+    _ = 2 * ((Finset.Icc 1 (n - 1)).card : ℝ) / p +
+        2 * (C * Real.sqrt (Real.log (n : ℝ)) / n) *
+          (∑ r ∈ Finset.Icc 1 (n - 1),
+            1 / Real.sqrt (r : ℝ)) := by
+          ring_nf
+    _ ≤ 2 * (n : ℝ) / p +
+        2 * (C * Real.sqrt (Real.log (n : ℝ)) / n) *
+          (2 * Real.sqrt (n : ℝ)) := by
+          gcongr
+          · exact_mod_cast hcount
+          · positivity
+    _ = 2 * (n : ℝ) / p +
+        4 * C * Real.sqrt (Real.log (n : ℝ)) /
+          Real.sqrt (n : ℝ) := by
+          field_simp
+          nlinarith
 
 /-- Crude elementary growth used in Section 5 numerical union bounds. -/
 theorem nat_le_two_pow_40 (D : ℕ) :
@@ -393,18 +479,118 @@ theorem rpow_exponent_mono_of_one_le {x a b : ℝ}
   Real.monotone_rpow_of_base_ge_one hx hab
 
 /-- Linear eventually dominates log-squared. -/
-axiom exists_log_sq_threshold (A : ℝ) :
+theorem exists_log_sq_threshold (A : ℝ) :
     ∃ N : ℕ, 2 ≤ N ∧
       ∀ n : ℕ, N ≤ n →
-        A * (Real.log (n : ℝ)) ^ 2 ≤ (n : ℝ)
+        A * (Real.log (n : ℝ)) ^ 2 ≤ (n : ℝ) := by
+  by_cases hA : A ≤ 0
+  · refine ⟨2,le_rfl,?_⟩
+    intro n hn
+    have hlog2 : 0 ≤ (Real.log (n : ℝ)) ^ 2 := sq_nonneg _
+    nlinarith
+  · have hApos : 0 < A := lt_of_not_ge hA
+    let B : ℝ := (16 * A) ^ 2
+    let N := max 2 (Nat.ceil B)
+    refine ⟨N,le_max_left _ _,?_⟩
+    intro n hn
+    have hn2 : 2 ≤ n := le_trans (le_max_left _ _) hn
+    have hnB : B ≤ (n : ℝ) := by
+      have hceil : B ≤ (Nat.ceil B : ℝ) := Nat.le_ceil _
+      exact le_trans hceil (by
+        exact_mod_cast le_trans (le_max_right 2 (Nat.ceil B)) hn)
+    have hlog :=
+      Real.log_natCast_le_rpow_div n
+        (show (0 : ℝ) < 1 / 4 by norm_num)
+    have hlog0 : 0 ≤ Real.log (n : ℝ) := by positivity
+    have hn0 : 0 ≤ (n : ℝ) := by positivity
+    have hquarter :
+        (n : ℝ) ^ (1 / 4 : ℝ) ^ 2 =
+          (n : ℝ) ^ (1 / 2 : ℝ) := by
+      rw [← Real.rpow_mul hn0]
+      norm_num
+    have hlogsq :
+        (Real.log (n : ℝ)) ^ 2 ≤
+          16 * (n : ℝ) ^ (1 / 2 : ℝ) := by
+      have := sq_le_sq₀ hlog0 (by positivity) hlog
+      simpa [hquarter] using this
+    have hrootB :
+        16 * A ≤ (n : ℝ) ^ (1 / 2 : ℝ) := by
+      have hB0 : 0 ≤ 16 * A := by positivity
+      have hsquare :
+          (16 * A) ^ 2 ≤ (n : ℝ) := by simpa [B] using hnB
+      have hsqrt := Real.sqrt_le_sqrt hsquare
+      simpa [Real.sqrt_sq_eq_abs,hB0,Real.sqrt_eq_rpow] using hsqrt
+    nlinarith [mul_le_mul_of_nonneg_left hlogsq (le_of_lt hApos)]
 
 /-- n^{-1/2} sqrt(log n) is eventually below n^{-α} for α < 1/2. -/
-axiom exists_sqrt_log_power_threshold {α K : ℝ}
+theorem exists_sqrt_log_power_threshold {α K : ℝ}
     (hα0 : 0 < α) (hαh : α < 1 / 2) (hK : 0 ≤ K) :
     ∃ N : ℕ, 2 ≤ N ∧
       ∀ n : ℕ, N ≤ n →
         K * Real.sqrt (Real.log (n : ℝ)) / Real.sqrt (n : ℝ) ≤
-          (n : ℝ) ^ (-α)
+          (n : ℝ) ^ (-α) := by
+  let β : ℝ := (1 / 2 - α) / 2
+  have hβ : 0 < β := by dsimp [β]; linarith
+  let M : ℝ := max 1 (K / Real.sqrt (2 * β))
+  have hM : 1 ≤ M := le_max_left _ _
+  let N := max 2 (Nat.ceil (M ^ (1 / β)))
+  refine ⟨N,le_max_left _ _,?_⟩
+  intro n hn
+  have hn2 : 2 ≤ n := le_trans (le_max_left _ _) hn
+  have hn0 : 0 < (n : ℝ) := by positivity
+  have hNpow :
+      M ^ (1 / β) ≤ (n : ℝ) := by
+    have hceil : M ^ (1 / β) ≤ (Nat.ceil (M ^ (1 / β)) : ℝ) :=
+      Nat.le_ceil _
+    exact le_trans hceil (by
+      exact_mod_cast le_trans (le_max_right 2 (Nat.ceil (M ^ (1 / β)))) hn)
+  have hMpow : M ≤ (n : ℝ) ^ β := by
+    have hmono :=
+      Real.rpow_le_rpow (by positivity : 0 ≤ M)
+        hNpow (le_of_lt hβ)
+    have hM0 : 0 ≤ M := le_trans (by norm_num) hM
+    rw [← Real.rpow_mul hM0] at hmono
+    have hmul : (1 / β) * β = 1 := by field_simp
+    simpa [hmul] using hmono
+  have hlog :=
+    Real.log_natCast_le_rpow_div n (show 0 < 2 * β by positivity)
+  have hlog0 : 0 ≤ Real.log (n : ℝ) := by positivity
+  have hsqrtlog :
+      Real.sqrt (Real.log (n : ℝ)) ≤
+        (n : ℝ) ^ β / Real.sqrt (2 * β) := by
+    have hs := Real.sqrt_le_sqrt hlog
+    rw [Real.sqrt_div (by positivity), Real.sqrt_rpow (by positivity)] at hs
+    have hrpow :
+        Real.sqrt ((n : ℝ) ^ (2 * β)) = (n : ℝ) ^ β := by
+      rw [Real.sqrt_eq_rpow, ← Real.rpow_mul (le_of_lt hn0)]
+      ring_nf
+    simpa [hrpow] using hs
+  have hKM :
+      K / Real.sqrt (2 * β) ≤ M := le_max_right _ _
+  have hKsqrt :
+      K * Real.sqrt (Real.log (n : ℝ)) ≤
+        (n : ℝ) ^ (2 * β) := by
+    calc
+      _ ≤ K * ((n : ℝ) ^ β / Real.sqrt (2 * β)) := by gcongr
+      _ = (K / Real.sqrt (2 * β)) * (n : ℝ) ^ β := by ring
+      _ ≤ M * (n : ℝ) ^ β := by gcongr; positivity
+      _ ≤ (n : ℝ) ^ β * (n : ℝ) ^ β := by gcongr; positivity
+      _ = (n : ℝ) ^ (2 * β) := by
+        rw [← Real.rpow_add hn0]
+        congr 1
+        ring
+  have hroot : Real.sqrt (n : ℝ) = (n : ℝ) ^ (1 / 2 : ℝ) := by
+    rw [Real.sqrt_eq_rpow]
+  rw [hroot]
+  have hexp : 2 * β - 1 / 2 = -α := by
+    dsimp [β]
+    ring
+  have hden : 0 < (n : ℝ) ^ (1 / 2 : ℝ) :=
+    Real.rpow_pos_of_pos hn0 _
+  apply (div_le_iff₀ hden).2
+  rw [← Real.rpow_add hn0, show (-α : ℝ) + 1 / 2 = 2 * β by
+    dsimp [β]; ring]
+  exact hKsqrt
 
 end
 
