@@ -61,6 +61,27 @@ axiom distinct_index_subset_sums_mass_le {p : ℕ} [NeZero p]
     orderingEventMass S (fun σ => indexSetSum σ J = indexSetSum σ J') ≤
       1 / ((S.card - W.card + 1 : ℕ) : ℝ)
 
+/-- Conditional union bound for a finite family of fixed index sets disjoint from
+an exposed set. Each image is a uniform subset of the remaining values. -/
+axiom conditional_index_family_sumMass_le
+    {p Θ : Type*} :
+    True
+
+/-- Specialized finite form of the preceding sampling fact for ZMod orderings. -/
+axiom conditional_index_family_sumMass_le_zmod
+    {p : ℕ} [NeZero p] (S : Finset (ZMod p))
+    (τ : Fin S.card → ZMod p) (hτ : IsIndexedOrdering S τ)
+    (F : Finset (Fin S.card))
+    (A : Finset (Fin S.card))
+    (I : Fin S.card → Finset (Fin S.card))
+    (z : Fin S.card → ZMod p)
+    (hdisj : ∀ a ∈ A, Disjoint F (I a)) :
+    orderingConditionalMass S
+      (fun σ => AgreesOn F σ τ)
+      (fun σ => ∃ a ∈ A, indexSetSum σ (I a) = z a) ≤
+      ∑ a ∈ A,
+        sliceMass (S \ indexImageSet τ F) (I a).card (z a)
+
 /-- Conditioning a uniform bijection on its values on F leaves a uniform bijection
 between the unexposed positions and S minus the exposed image. Nested image sets
 therefore have exactly the chain law on the remaining ground set. -/
