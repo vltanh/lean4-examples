@@ -96,6 +96,141 @@ theorem lemma55_reduce_to_interesting
     simpa [I, constraintSet, π'] using
       congrArg (indexSetSum σ) (himage i) ▸ hzero i
 
+theorem constraintSet_mem_above_window {n D : ℕ}
+    (b b' : Fin n)
+    (u x : Fin D → Fin n)
+    (hu : ∀ i,
+      paperPos b ≤ paperPos (u i) ∧
+        paperPos (u i) ≤ paperPos b')
+    (πi : Fin D → Equiv.Perm (Fin n))
+    (hfix : ∀ i, FixedOutside b b' (πi i))
+    (i : Fin D) (z : Fin n)
+    (hz : paperPos b' < paperPos z) :
+    z ∈ constraintSet u x πi i ↔
+      z ∈ indexInterval (u i) (x i) := by
+  constructor
+  · intro h
+    rcases Finset.mem_image.1 h with ⟨w, hw, hπw⟩
+    have hzfix : πi i z = z :=
+      hfix i z (Or.inr hz)
+    have hwz : w = z := by
+      apply (πi i).injective
+      rw [hπw, hzfix]
+    simpa [hwz] using hw
+  · intro h
+    refine Finset.mem_image.2 ⟨z, h, ?_⟩
+    exact hfix i z (Or.inr hz)
+
+theorem constraintSet_not_mem_below_window {n D : ℕ}
+    (b b' : Fin n)
+    (u x : Fin D → Fin n)
+    (hu : ∀ i,
+      paperPos b ≤ paperPos (u i) ∧
+        paperPos (u i) ≤ paperPos b')
+    (πi : Fin D → Equiv.Perm (Fin n))
+    (hfix : ∀ i, FixedOutside b b' (πi i))
+    (i : Fin D) (z : Fin n)
+    (hz : paperPos z < paperPos b) :
+    z ∉ constraintSet u x πi i := by
+  intro h
+  rcases Finset.mem_image.1 h with ⟨w, hw, hπw⟩
+  have hzfix : πi i z = z :=
+    hfix i z (Or.inl hz)
+  have hwz : w = z := by
+    apply (πi i).injective
+    rw [hπw, hzfix]
+  subst w
+  have hw' := (Finset.mem_filter.1 hw).2.1
+  have hui := (hu i).1
+  simp [paperPos] at hw' hui hz
+  omega
+
+theorem interesting_crossing_forces_tail_start
+    {n D : ℕ}
+    (hD : 0 < D)
+    (b b' : Fin n)
+    (hgap : paperPos b' - paperPos b = 5 * D)
+    (u x : Fin D → Fin n)
+    (hu : ∀ i,
+      paperPos b ≤ paperPos (u i) ∧
+        paperPos (u i) ≤ paperPos b')
+    (πi : Fin D → Equiv.Perm (Fin n))
+    (hfix : ∀ i, FixedOutside b b' (πi i))
+    (q : Fin n × Fin n) (i : Fin D)
+    (hlen :
+      paperPos q.1 < paperPos q.2 ∧
+        paperPos q.2 - paperPos q.1 ≤ 5 * D)
+    (hcross : SwapCrosses q (constraintSet u x πi i))
+    (hnotlocal : q.1 ∉ symmetricWindow b (5 * D)) :
+    q.1 ∈ backwardWindow (x i) (5 * D) := by
+  have hq1right : paperPos b' < paperPos q.1 := by
+    by_contra hnot
+    have hq1le : paperPos q.1 ≤ paperPos b' := le_of_not_gt hnot
+    by_cases hq1lt : paperPos q.1 < paperPos b
+    · have hq2lt : paperPos q.2 < paperPos b := by
+        have hdist : 5 * D < paperPos b - paperPos q.1 := by
+          simp [symmetricWindow, Nat.dist_eq, paperPos] at hnotlocal
+          omega
+        omega
+      have hq1out :=
+        constraintSet_not_mem_below_window
+          b b' u x hu πi hfix i q.1 hq1lt
+      have hq2out :=
+        constraintSet_not_mem_below_window
+          b b' u x hu πi hfix i q.2 hq2lt
+      rcases hcross with h | h <;> tauto
+    · have hq1ge : paperPos b ≤ paperPos q.1 := le_of_not_gt hq1lt
+      have hdist :
+          Nat.dist q.1.val b.val ≤ 5 * D := by
+        simp [Nat.dist_eq, paperPos] at *
+        omega
+      exact hnotlocal (by
+        simp [symmetricWindow, hdist])
+  have hq2right : paperPos b' < paperPos q.2 :=
+    lt_trans hq1right hlen.1
+  have hm1 :=
+    constraintSet_mem_above_window b b' u x hu πi hfix i q.1 hq1right
+  have hm2 :=
+    constraintSet_mem_above_window b b' u x hu πi hfix i q.2 hq2right
+  have hq1x : paperPos q.1 ≤ paperPos (x i) := by
+    rcases hcross with hcross | hcross
+    · have hmem := (hm1.mp hcross.1)
+      have hmem' := (Finset.mem_filter.1 hmem).2
+      simpa [paperPos] using hmem'.2
+    · have hq2mem := hm2.mp hcross.2
+      have hq2mem' := (Finset.mem_filter.1 hq2mem).2
+      have hq1lt := hlen.1
+      simpa [paperPos] using
+        le_trans (le_of_lt hq1lt) (by
+          simpa [paperPos] using hq2mem'.2)
+  have hxq2 : paperPos (x i) < paperPos q.2 := by
+    by_contra hnot
+    have hq2x : paperPos q.2 ≤ paperPos (x i) := le_of_not_gt hnot
+    have hq2mem : q.2 ∈ indexInterval (u i) (x i) := by
+      apply Finset.mem_filter.2
+      refine ⟨Finset.mem_univ _, ?_, ?_⟩
+      · have hui := (hu i).1
+        omega
+      · simpa [paperPos] using hq2x
+    have hq1mem : q.1 ∈ indexInterval (u i) (x i) := by
+      apply Finset.mem_filter.2
+      refine ⟨Finset.mem_univ _, ?_, ?_⟩
+      · have hui := (hu i).1
+        omega
+      · simpa [paperPos] using hq1x
+    have hboth :
+        q.1 ∈ constraintSet u x πi i ∧
+          q.2 ∈ constraintSet u x πi i :=
+      ⟨hm1.mpr hq1mem, hm2.mpr hq2mem⟩
+    rcases hcross with h | h
+    · exact h.2 hboth.2
+    · exact h.1 hboth.1
+  apply Finset.mem_filter.2
+  refine ⟨Finset.mem_univ _, ?_, ?_⟩
+  · simpa [paperPos] using hq1x
+  · simp [paperPos] at hlen hxq2 ⊢
+    omega
+
 theorem interesting_left_support
     {n D : ℕ}
     (hD : 0 < D)
@@ -129,7 +264,7 @@ theorem interesting_left_support
       -- If q does not start near [b,b'], crossing πᵢ([uᵢ,xᵢ])
       -- can only occur at its right endpoint xᵢ, because πᵢ fixes
       -- positions outside the exposed window.
-      exact Section5External.interesting_crossing_forces_tail_start
+      exact interesting_crossing_forces_tail_start
         hD b b' hgap u x πi hu hfix q i hlen hi hlocal
     exact Finset.mem_union_right _ (Finset.mem_biUnion.2
       ⟨i, Finset.mem_univ i, htail⟩)
