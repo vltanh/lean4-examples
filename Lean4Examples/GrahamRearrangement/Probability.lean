@@ -163,30 +163,25 @@ theorem uniformMass_le_two_exceptions
       uniformMass space (fun ω => E ω ∧ ¬ A ω ∧ ¬ B ω) ≤ q) :
     uniformMass space E ≤ uniformMass space A + uniformMass space B + q := by
   have hsubset : ∀ ω, E ω →
-      A ω ∨ B ω ∨ (E ω ∧ ¬ A ω ∧ ¬ B ω) := by
+      (A ω ∨ B ω) ∨ (E ω ∧ ¬ A ω ∧ ¬ B ω) := by
     intro ω hE
     by_cases hA : A ω
-    · exact Or.inl hA
+    · exact Or.inl (Or.inl hA)
     by_cases hB : B ω
-    · exact Or.inr (Or.inl hB)
-    · exact Or.inr (Or.inr ⟨hE, hA, hB⟩)
-  calc
-    uniformMass space E
-      ≤ uniformMass space
-          (fun ω => A ω ∨ B ω ∨ (E ω ∧ ¬ A ω ∧ ¬ B ω)) := by
-          apply uniformMass_mono
-          exact hsubset
-    _ ≤ uniformMass space A +
-        uniformMass space B +
-        uniformMass space space (fun _ => False) := by
-          have hAB := uniformMass_or_le_add space A B
-          have hrestOr := uniformMass_or_le_add space
-            (fun ω => A ω ∨ B ω)
-            (fun ω => E ω ∧ ¬ A ω ∧ ¬ B ω)
-          linarith
-    _ ≤ uniformMass space A + uniformMass space B + q := by
-          have := hrest
-          linarith
+    · exact Or.inl (Or.inr hB)
+    · exact Or.inr ⟨hE, hA, hB⟩
+  have hmono :
+      uniformMass space E ≤
+        uniformMass space
+          (fun ω => (A ω ∨ B ω) ∨ (E ω ∧ ¬ A ω ∧ ¬ B ω)) := by
+    apply uniformMass_mono
+    exact hsubset
+  have hor1 :=
+    uniformMass_or_le_add space
+      (fun ω => A ω ∨ B ω)
+      (fun ω => E ω ∧ ¬ A ω ∧ ¬ B ω)
+  have hor2 := uniformMass_or_le_add space A B
+  linarith
 
 /-- If three events have total mass below one in a nonempty finite space, some
 outcome avoids all three. -/
@@ -201,27 +196,21 @@ theorem exists_avoiding_three_events
     (h₃ : uniformMass space E₃ ≤ a₃)
     (hsum : a₁ + a₂ + a₃ < 1) :
     ∃ ω ∈ space, ¬ E₁ ω ∧ ¬ E₂ ω ∧ ¬ E₃ ω := by
-  by_contra h
-  push_neg at h
-  have hcover : ∀ ω ∈ space, E₁ ω ∨ E₂ ω ∨ E₃ ω := h
-  have hmass :
-      (1 : ℝ) ≤
-        uniformMass space E₁ + uniformMass space E₂ + uniformMass space E₃ := by
+  by_contra hnone
+  push_neg at hnone
+  have hcover : ∀ ω ∈ space, E₁ ω ∨ E₂ ω ∨ E₃ ω := by
+    intro ω hω
+    exact hnone ω hω
+  have hall :
+      uniformMass space (fun ω => E₁ ω ∨ E₂ ω ∨ E₃ ω) = 1 := by
     rw [← uniformMass_univ space hspace]
-    calc
-      uniformMass space (fun _ => True)
-        ≤ uniformMass space (fun ω => E₁ ω ∨ E₂ ω ∨ E₃ ω) := by
-          apply uniformMass_mono
-          intro ω _
-          exact hcover ω (by
-            by_contra hω
-            have : ω ∉ space := hω
-            contradiction)
-      _ ≤ _ := by
-          have h12 := uniformMass_or_le_add space E₁ E₂
-          have h123 := uniformMass_or_le_add space
-            (fun ω => E₁ ω ∨ E₂ ω) E₃
-          linarith
+    apply uniformMass_congr
+    intro ω hω
+    simp [hcover ω hω]
+  have h12 := uniformMass_or_le_add space E₁ E₂
+  have h123 := uniformMass_or_le_add space
+    (fun ω => E₁ ω ∨ E₂ ω) E₃
+  rw [hall] at h123
   linarith
 
 /-- Finite union bound for two events. -/
