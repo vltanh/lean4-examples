@@ -349,6 +349,13 @@ theorem admissibleCollection_reconstruct {n D : ℕ}
     simpa [paperPos] using (hQ.2 q hq).1
   · exact hperm
 
+def supportedAdmissibleCollections {n : ℕ}
+    (D : ℕ) (Q : Finset (Fin n)) :
+    Finset (Finset (Fin n × Fin n)) :=
+  Finset.univ.filter fun P =>
+    IsAdmissibleCollection D P ∧
+      ∀ q ∈ P, q.1 ∈ Q
+
 def IsAdmissiblePermutation {n : ℕ} (D : ℕ)
     (π : Equiv.Perm (Fin n)) : Prop :=
   ∃ P : Finset (Fin n × Fin n),
