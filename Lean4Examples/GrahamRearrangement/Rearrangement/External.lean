@@ -943,6 +943,229 @@ theorem dense_window_extract {n D : ℕ}
     · simp [Nat.dist_eq,paperPos] at hb0W hbiW ⊢
       omega
 
+theorem disjoint_swaps_commute_general {α : Type*} [DecidableEq α]
+    (a b c d : α)
+    (hac : a ≠ c) (had : a ≠ d)
+    (hbc : b ≠ c) (hbd : b ≠ d) :
+    (Equiv.swap a b).trans (Equiv.swap c d) =
+      (Equiv.swap c d).trans (Equiv.swap a b) := by
+  by_cases hab : a = b
+  · subst b; simp
+  by_cases hcd : c = d
+  · subst d; simp
+  ext x
+  by_cases hxa : x = a
+  · subst x; simp [hab,hcd,hac,had,hbc,hbd]
+  by_cases hxb : x = b
+  · subst x; simp [hab,hcd,hac,had,hbc,hbd]
+  by_cases hxc : x = c
+  · subst x; simp [hab,hcd,hac,had,hbc,hbd]
+  by_cases hxd : x = d
+  · subst x; simp [hab,hcd,hac,had,hbc,hbd]
+  simp [Equiv.swap_apply_of_ne_of_ne,hxa,hxb,hxc,hxd]
+
+theorem disjoint_swaps_commute {α : Type*} [DecidableEq α]
+    (a b c d : α)
+    (_hab : a ≠ b) (_hcd : c ≠ d)
+    (hac : a ≠ c) (had : a ≠ d)
+    (hbc : b ≠ c) (hbd : b ≠ d) :
+    (Equiv.swap a b).trans (Equiv.swap c d) =
+      (Equiv.swap c d).trans (Equiv.swap a b) :=
+  disjoint_swaps_commute_general a b c d hac had hbc hbd
+
+theorem disjoint_swaps_fix_outside_support
+    {α : Type*} [DecidableEq α]
+    (P : Finset (α × α))
+    (_hP : P.toSet.Pairwise fun q r =>
+      q.1 ≠ r.1 ∧ q.1 ≠ r.2 ∧ q.2 ≠ r.1 ∧ q.2 ≠ r.2)
+    (i : α)
+    (hi : ∀ q ∈ P, i ≠ q.1 ∧ i ≠ q.2) :
+    swapsPermList P.toList i = i := by
+  induction P.toList with
+  | nil => simp [swapsPermList]
+  | cons q qs ih =>
+      have hq : q ∈ P := by simpa using P.mem_toList q
+      have hqi := hi q hq
+      have hrest : ∀ r ∈ qs, i ≠ r.1 ∧ i ≠ r.2 := by
+        intro r hr
+        exact hi r (by
+          have : r ∈ P.toList := by simp [hr]
+          simpa using this)
+      simp [swapsPermList,Equiv.swap_apply_of_ne_of_ne hqi.1 hqi.2,
+        ih hrest]
+
+theorem nodup_lists_perm_of_toFinset_eq {α : Type*} [DecidableEq α]
+    {l r : List α} (hl : l.Nodup) (hr : r.Nodup)
+    (hset : l.toFinset = r.toFinset) :
+    l.Perm r := by
+  apply List.perm_ext_iff_of_nodup hl hr |>.2
+  intro x
+  simpa [hset]
+
+theorem swapsPermList_eq_of_perm_pairwise
+    {α : Type*} [DecidableEq α]
+    {l r : List (α × α)}
+    (hp : l.Perm r)
+    (hpair : l.toFinset.toSet.Pairwise fun q s =>
+      q.1 ≠ s.1 ∧ q.1 ≠ s.2 ∧ q.2 ≠ s.1 ∧ q.2 ≠ s.2) :
+    swapsPermList l = swapsPermList r := by
+  induction hp with
+  | nil => rfl
+  | @cons a l r hp ih =>
+      have hsub :
+          l.toFinset.toSet.Pairwise fun q s =>
+            q.1 ≠ s.1 ∧ q.1 ≠ s.2 ∧ q.2 ≠ s.1 ∧ q.2 ≠ s.2 :=
+        hpair.mono (by intro q hq; simp at hq ⊢; exact Or.inr hq)
+      simp [swapsPermList,ih hsub]
+  | @swap a b l =>
+      by_cases hab : a = b
+      · subst b; rfl
+      have ha : a ∈ (a :: b :: l).toFinset := by simp
+      have hb : b ∈ (a :: b :: l).toFinset := by simp
+      have hd := hpair ha hb hab
+      have hcomm := disjoint_swaps_commute_general
+        a.1 a.2 b.1 b.2 hd.1 hd.2.1 hd.2.2.1 hd.2.2.2
+      simp only [swapsPermList]
+      rw [hcomm]
+  | @trans l r s h₁ h₂ ih₁ ih₂ =>
+      have hset : r.toFinset = l.toFinset := by
+        ext x
+        simpa using h₁.mem_iff.symm
+      have hpairR :
+          r.toFinset.toSet.Pairwise fun q t =>
+            q.1 ≠ t.1 ∧ q.1 ≠ t.2 ∧ q.2 ≠ t.1 ∧ q.2 ≠ t.2 := by
+        simpa [hset] using hpair
+      exact (ih₁ hpair).trans (ih₂ hpairR)
+
+theorem disjoint_swaps_order_independent
+    {α : Type*} [DecidableEq α]
+    (P : Finset (α × α))
+    (hP : P.toSet.Pairwise fun q r =>
+      q.1 ≠ r.1 ∧ q.1 ≠ r.2 ∧ q.2 ≠ r.1 ∧ q.2 ≠ r.2)
+    (l : List (α × α)) (hl : l.toFinset = P) (hln : l.Nodup) :
+    swapsPermList l = swapsPermList P.toList := by
+  have hp := nodup_lists_perm_of_toFinset_eq hln P.nodup_toList
+    (by simpa [hl])
+  apply swapsPermList_eq_of_perm_pairwise hp
+  simpa [hl] using hP
+
+theorem swapsPermList_pair_action
+    {α : Type*} [LinearOrder α] [DecidableEq α]
+    (P : Finset (α × α))
+    (hPpair : P.toSet.Pairwise fun q r =>
+      q.1 ≠ r.1 ∧ q.1 ≠ r.2 ∧ q.2 ≠ r.1 ∧ q.2 ≠ r.2)
+    (hord : ∀ q ∈ P, q.1 < q.2)
+    {q : α × α} (hq : q ∈ P) :
+    swapsPermList P.toList q.1 = q.2 ∧
+      swapsPermList P.toList q.2 = q.1 := by
+  let l := q :: (P.erase q).toList
+  have hln : l.Nodup := by simp [l]
+  have hset : l.toFinset = P := by simp [l,hq]
+  have horder :=
+    disjoint_swaps_order_independent P hPpair l hset hln
+  have hrest1 :
+      swapsPermList (P.erase q).toList q.1 = q.1 := by
+    apply disjoint_swaps_fix_outside_support (P.erase q)
+    · exact hPpair.mono (by intro a ha; exact Finset.mem_of_mem_erase ha)
+    · intro r hr
+      have hrP := Finset.mem_of_mem_erase hr
+      have hrne : r ≠ q := Finset.ne_of_mem_erase hr
+      have hd := hPpair hrP hq hrne
+      exact ⟨hd.1,hd.2.1⟩
+  have hrest2 :
+      swapsPermList (P.erase q).toList q.2 = q.2 := by
+    apply disjoint_swaps_fix_outside_support (P.erase q)
+    · exact hPpair.mono (by intro a ha; exact Finset.mem_of_mem_erase ha)
+    · intro r hr
+      have hrP := Finset.mem_of_mem_erase hr
+      have hrne : r ≠ q := Finset.ne_of_mem_erase hr
+      have hd := hPpair hrP hq hrne
+      exact ⟨hd.2.2.1,hd.2.2.2⟩
+  have hqne : q.1 ≠ q.2 := ne_of_lt (hord q hq)
+  constructor
+  · rw [← horder]
+    simp [l,swapsPermList,hqne,hrest2]
+  · rw [← horder]
+    simp [l,swapsPermList,hqne,hrest1]
+
+theorem disjoint_swaps_reconstruct
+    {α : Type*} [LinearOrder α] [DecidableEq α]
+    (P Q : Finset (α × α))
+    (hPpair : P.toSet.Pairwise fun q r =>
+      q.1 ≠ r.1 ∧ q.1 ≠ r.2 ∧ q.2 ≠ r.1 ∧ q.2 ≠ r.2)
+    (hQpair : Q.toSet.Pairwise fun q r =>
+      q.1 ≠ r.1 ∧ q.1 ≠ r.2 ∧ q.2 ≠ r.1 ∧ q.2 ≠ r.2)
+    (hPord : ∀ q ∈ P, q.1 < q.2)
+    (hQord : ∀ q ∈ Q, q.1 < q.2)
+    (hperm : swapsPermList P.toList = swapsPermList Q.toList) :
+    P = Q := by
+  apply Finset.Subset.antisymm
+  · intro q hq
+    have hactP := swapsPermList_pair_action P hPpair hPord hq
+    have hmoveQ : swapsPermList Q.toList q.1 = q.2 := by
+      rw [← hperm]
+      exact hactP.1
+    by_contra hqQ
+    have hqne : q.1 ≠ q.2 := ne_of_lt (hPord q hq)
+    have hsupport : ∃ r ∈ Q, q.1 = r.1 ∨ q.1 = r.2 := by
+      by_contra hnone
+      push_neg at hnone
+      have hfix :=
+        disjoint_swaps_fix_outside_support Q hQpair q.1
+          (by intro r hr; exact ⟨(hnone r hr).1,(hnone r hr).2⟩)
+      rw [hfix] at hmoveQ
+      exact hqne hmoveQ
+    rcases hsupport with ⟨r,hr,hr1 | hr2⟩
+    · have hactQ := swapsPermList_pair_action Q hQpair hQord hr
+      have hsnd : r.2 = q.2 := by
+        rw [hr1] at hactQ
+        rw [hactQ.1] at hmoveQ
+        exact hmoveQ.symm
+      have heq : r = q := Prod.ext hr1.symm hsnd
+      exact hqQ (heq ▸ hr)
+    · have hactQ := swapsPermList_pair_action Q hQpair hQord hr
+      have hfst : r.1 = q.2 := by
+        rw [hr2] at hactQ
+        rw [hactQ.2] at hmoveQ
+        exact hmoveQ
+      have hrord := hQord r hr
+      have hqord := hPord q hq
+      rw [hr2,hfst] at hrord
+      exact (not_lt_of_ge (le_of_lt hqord)) hrord
+  · intro q hq
+    have hsym := hperm.symm
+    have hactQ := swapsPermList_pair_action Q hQpair hQord hq
+    have hmoveP : swapsPermList P.toList q.1 = q.2 := by
+      rw [← hsym]
+      exact hactQ.1
+    by_contra hqP
+    have hqne : q.1 ≠ q.2 := ne_of_lt (hQord q hq)
+    have hsupport : ∃ r ∈ P, q.1 = r.1 ∨ q.1 = r.2 := by
+      by_contra hnone
+      push_neg at hnone
+      have hfix :=
+        disjoint_swaps_fix_outside_support P hPpair q.1
+          (by intro r hr; exact ⟨(hnone r hr).1,(hnone r hr).2⟩)
+      rw [hfix] at hmoveP
+      exact hqne hmoveP
+    rcases hsupport with ⟨r,hr,hr1 | hr2⟩
+    · have hactP := swapsPermList_pair_action P hPpair hPord hr
+      have hsnd : r.2 = q.2 := by
+        rw [hr1] at hactP
+        rw [hactP.1] at hmoveP
+        exact hmoveP.symm
+      have heq : r = q := Prod.ext hr1.symm hsnd
+      exact hqP (heq ▸ hr)
+    · have hactP := swapsPermList_pair_action P hPpair hPord hr
+      have hfst : r.1 = q.2 := by
+        rw [hr2] at hactP
+        rw [hactP.2] at hmoveP
+        exact hmoveP
+      have hrord := hPord r hr
+      have hqord := hQord q hq
+      rw [hr2,hfst] at hrord
+      exact (not_lt_of_ge (le_of_lt hqord)) hrord
+
 theorem swapsPermList_append {n : ℕ}
     (l r : List (Fin n × Fin n)) :
     swapsPermList (l ++ r) =
@@ -954,25 +1177,28 @@ theorem swapsPermList_append {n : ℕ}
 
 theorem swap_image_eq_self_of_not_crosses {n : ℕ}
     (q : Fin n × Fin n) (I : Finset (Fin n))
-    (hne : q.1 ≠ q.2) (hnot : ¬ SwapCrosses q I) :
+    (hnot : ¬ SwapCrosses q I) :
     I.image (Equiv.swap q.1 q.2) = I := by
+  by_cases heq : q.1 = q.2
+  · rcases q with ⟨a,b⟩
+    simp only at heq
+    subst b
+    simp
   ext x
   constructor
   · rintro ⟨y,hy,rfl⟩
     by_cases hy1 : y = q.1
     · subst y
-      have hq1I : q.1 ∈ I := hy
       have hq2I : q.2 ∈ I := by
         by_contra hq2
-        exact hnot (Or.inl ⟨hq1I,hq2⟩)
-      simpa [Equiv.swap_apply_left hne] using hq2I
+        exact hnot (Or.inl ⟨hy,hq2⟩)
+      simpa [Equiv.swap_apply_left heq] using hq2I
     · by_cases hy2 : y = q.2
       · subst y
-        have hq2I : q.2 ∈ I := hy
         have hq1I : q.1 ∈ I := by
           by_contra hq1
-          exact hnot (Or.inr ⟨hq1,hq2I⟩)
-        simpa [Equiv.swap_apply_right hne] using hq1I
+          exact hnot (Or.inr ⟨hq1,hy⟩)
+        simpa [Equiv.swap_apply_right heq] using hq1I
       · simpa [Equiv.swap_apply_of_ne_of_ne hy1 hy2] using hy
   · intro hx
     by_cases hx1 : x = q.1
@@ -981,37 +1207,33 @@ theorem swap_image_eq_self_of_not_crosses {n : ℕ}
         by_contra hq2
         exact hnot (Or.inl ⟨hx,hq2⟩)
       exact Finset.mem_image.mpr
-        ⟨q.2,hq2I,by simp [Equiv.swap_apply_right hne]⟩
+        ⟨q.2,hq2I,by simp [Equiv.swap_apply_right heq]⟩
     · by_cases hx2 : x = q.2
       · subst x
         have hq1I : q.1 ∈ I := by
           by_contra hq1
           exact hnot (Or.inr ⟨hq1,hx⟩)
         exact Finset.mem_image.mpr
-          ⟨q.1,hq1I,by simp [Equiv.swap_apply_left hne]⟩
+          ⟨q.1,hq1I,by simp [Equiv.swap_apply_left heq]⟩
       · exact Finset.mem_image.mpr
           ⟨x,hx,by simp [Equiv.swap_apply_of_ne_of_ne hx1 hx2]⟩
 
 theorem swapsPermList_image_eq_self
     {n : ℕ} (l : List (Fin n × Fin n))
     (I : Finset (Fin n))
-    (hne : ∀ q ∈ l, q.1 ≠ q.2)
     (hnot : ∀ q ∈ l, ¬ SwapCrosses q I) :
     I.image (swapsPermList l) = I := by
   induction l with
   | nil => simp [swapsPermList]
   | cons q qs ih =>
-      have hqne := hne q (by simp)
       have hqnot := hnot q (by simp)
-      have hne' : ∀ r ∈ qs, r.1 ≠ r.2 := by
-        intro r hr; exact hne r (by simp [hr])
       have hnot' : ∀ r ∈ qs, ¬ SwapCrosses r I := by
         intro r hr; exact hnot r (by simp [hr])
       rw [show swapsPermList (q::qs) =
           (Equiv.swap q.1 q.2).trans (swapsPermList qs) by rfl]
       rw [Finset.image_image]
-      rw [swap_image_eq_self_of_not_crosses q I hqne hqnot]
-      exact ih hne' hnot'
+      rw [swap_image_eq_self_of_not_crosses q I hqnot]
+      exact ih hnot'
 
 /-- Delete swaps crossing none of the constrained index sets.  The deleted
 swaps preserve every constrained set, and pairwise-disjoint transpositions
@@ -1032,74 +1254,47 @@ theorem trim_irrelevant_disjoint_swaps
   let R := P.filter fun q => ¬ crosses q
   have hP'sub : P' ⊆ P := Finset.filter_subset _ _
   have hRsub : R ⊆ P := Finset.filter_subset _ _
-  have hP'disj :
-      P'.toSet.Pairwise swapPairsDisjoint :=
+  have hP'disj : P'.toSet.Pairwise swapPairsDisjoint :=
     hP.mono (by intro q hq; exact hP'sub hq)
-  have hRdisj :
-      R.toSet.Pairwise swapPairsDisjoint :=
-    hP.mono (by intro q hq; exact hRsub hq)
-  have hdisjSets : Disjoint P' R := by
+  have hdisjSets : Disjoint R P' := by
     rw [Finset.disjoint_left]
-    intro q hqP hqR
+    intro q hqR hqP
     exact (Finset.mem_filter.mp hqR).2
       (Finset.mem_filter.mp hqP).2
   have hunion : R ∪ P' = P := by
     ext q
     by_cases hq : crosses q <;> simp [R,P',hq]
-  have hnontrivial :
-      ∀ q ∈ P, q.1 ≠ q.2 := by
-    intro q hq
-    by_contra h
-    subst q
-    exact (hP q hq q hq (by simp)).1 rfl
   refine ⟨P',hP'sub,hP'disj,?_,?_⟩
   · intro q hq
     rcases (Finset.mem_filter.mp hq).2 with ⟨i,hi⟩
     refine ⟨i,?_⟩
     rcases hi with h | h
     · exact ⟨fun _ => h.2, fun hnot => h.1⟩
-    · exact ⟨fun hmem => False.elim (h.1 hmem),
-        fun _ => h.2⟩
+    · exact ⟨fun hmem => False.elim (h.1 hmem), fun _ => h.2⟩
   · intro i
     have hRfix :
         (I i).image (collectionPerm R) = I i := by
       unfold collectionPerm
       apply swapsPermList_image_eq_self R.toList (I i)
-      · intro q hq
-        exact hnontrivial q (hRsub (by simpa using hq))
-      · intro q hq
-        have hnotCrosses := (Finset.mem_filter.mp
-          (show q ∈ R from by simpa using hq)).2
-        intro hi
-        exact hnotCrosses ⟨i,hi⟩
-    have hRPadm :
-        (R ∪ P').toSet.Pairwise swapPairsDisjoint := by
-      simpa [hunion] using hP
+      intro q hq
+      have hnotCrosses := (Finset.mem_filter.mp
+        (show q ∈ R from by simpa using hq)).2
+      intro hi
+      exact hnotCrosses ⟨i,hi⟩
     have hlistSet :
         (R.toList ++ P'.toList).toFinset = P := by
       simp [hunion]
     have hlistNodup :
         (R.toList ++ P'.toList).Nodup := by
-      exact List.Nodup.append R.nodup_toList P'.nodup_toList
-        (by
-          intro q hqR hqP
-          exact Finset.disjoint_left.mp hdisjSets
-            (by simpa using hqP) (by simpa using hqR))
+      apply List.Nodup.append R.nodup_toList P'.nodup_toList
+      intro q hqR hqP
+      exact Finset.disjoint_left.mp hdisjSets
+        (by simpa using hqR) (by simpa using hqP)
     have horder :
-        swapsPermList (R.toList ++ P'.toList) = collectionPerm P :=
-      collectionPerm_order_independent
-        (D := 0)
-        ⟨hP,by
-          intro q hq
-          exact ⟨by
-            have hn := hnontrivial q hq
-            simpa [paperPos] using
-              (show q.1.val < q.2.val ∨ q.2.val < q.1.val by omega) |>.resolve_right
-                (fun hlt => False.elim (by
-                  have := hP q hq q hq (by simp)
-                  exact this.1 rfl)),
-            by omega⟩⟩
-        _ hlistSet hlistNodup
+        swapsPermList (R.toList ++ P'.toList) = collectionPerm P := by
+      unfold collectionPerm
+      exact disjoint_swaps_order_independent P hP
+        (R.toList ++ P'.toList) hlistSet hlistNodup
     rw [← horder,swapsPermList_append,Finset.image_image,hRfix]
     rfl
 
