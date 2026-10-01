@@ -39,6 +39,15 @@ axiom balanced_block_sqrt_two_bound {p m : ℕ} [NeZero p]
     (i : Fin m) :
     ((P i).card : ℝ) ≤ Real.sqrt 2 * S.card / m
 
+/-- After removing a fixed point, its balanced block still has at least
+|S|/(2m) remaining points in the Section 3 range. -/
+axiom point_block_remainder_lower {p m : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (x : ZMod p)
+    (hm : 0 < m) (hm4 : m ≤ S.card / 4)
+    {P : Fin m → Finset (ZMod p)}
+    (hP : IsBalancedPartition S P) (hx : x ∈ S) :
+    S.card / (2 * m) ≤ (pointBlock S P x \ {x}).card
+
 /-- If a subset has density at least 1/4, the block containing a fixed point
 misses the expected number of its points only with the hypergeometric tail used
 in Lemma 3.1. -/
