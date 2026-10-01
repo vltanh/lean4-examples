@@ -80,6 +80,13 @@ axiom cauchyDavenportProper {p : ℕ} (hp : p.Prime)
     (A B : Finset (ZMod p)) (hproper : A + B ≠ Finset.univ) :
     ((A.card : ℤ) + (B.card : ℤ) - 1) ≤ ((A + B).card : ℤ)
 
+/-- Iterated Cauchy--Davenport for a finite list of summands. -/
+axiom iteratedCauchyDavenportProper {p : ℕ} (hp : p.Prime)
+    (sets : List (Finset (ZMod p)))
+    (hproper : sets.foldl (· + ·) {0} ≠ Finset.univ) :
+    (∑ A ∈ sets, ((A.card : ℤ) - 1)) ≤
+      (((sets.foldl (· + ·) {0}).card : ℤ) - 1)
+
 /-- Properness propagates to a prefix of an iterated sumset. -/
 axiom sumset_prefix_proper {p : ℕ} [NeZero p]
     (sets : List (Finset (ZMod p))) (j : ℕ)
