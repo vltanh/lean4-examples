@@ -54,6 +54,21 @@ theorem card_indexInterval {n : ℕ} (a b : Fin n)
       simp [indexInterval]]
   simp [Nat.card_Icc, hab]
 
+/-- Half-open index interval [a,b), used after exposing the value at b. -/
+def indexHalfOpen {n : ℕ} (a b : Fin n) : Finset (Fin n) :=
+  Finset.univ.filter fun i => a.val ≤ i.val ∧ i.val < b.val
+
+theorem card_indexHalfOpen {n : ℕ} (a b : Fin n)
+    (hab : a.val ≤ b.val) :
+    (indexHalfOpen a b).card = b.val - a.val := by
+  classical
+  rw [show indexHalfOpen a b =
+      (Finset.Ico a.val b.val).attachFin n (fun _ hi =>
+        lt_trans hi.2 b.isLt) by
+      ext i
+      simp [indexHalfOpen]]
+  simp [Nat.card_Ico, hab]
+
 /-- Sum of the image of an arbitrary finite index set. -/
 def indexSetSum {n p : ℕ} (σ : Fin n → ZMod p)
     (J : Finset (Fin n)) : ZMod p :=
