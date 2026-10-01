@@ -207,6 +207,62 @@ axiom interesting_collection_count_le
     (D : ℕ) (hD : 7 ≤ D) (q : ℕ) (hq : q ≤ 7 * D ^ 2) :
     (5 * D + 1) ^ q ≤ D ^ (14 * D ^ 2)
 
+/-- Sort a finite injective tuple by a permutation of its coordinates. -/
+axiom exists_sorting_perm
+    {α : Type*} [LinearOrder α] {k : ℕ}
+    (x : Fin k → α) (hinj : Function.Injective x) :
+    ∃ ρ : Equiv.Perm (Fin k), StrictMono (x ∘ ρ)
+
+/-- Generic bookkeeping for summing all increasing prefix-chain constraints after
+conditioning on an exposed set. The substantive chain estimate is supplied by
+hchain; this axiom only identifies/sums the finite fibers. -/
+axiom conditional_prefix_chain_union_bound
+    {p k : ℕ} [NeZero p]
+    (S : Finset (ZMod p))
+    (τ : Fin S.card → ZMod p) (hτ : IsIndexedOrdering S τ)
+    (F : Finset (Fin S.card)) (cut : Fin S.card)
+    (target : Fin k → ZMod p)
+    (C : ℝ)
+    (hchain :
+      ∀ (m : Fin k → ℕ), IsChainSizeTuple
+          (S \ indexImageSet τ F).card m →
+        ∀ z : Fin k → ZMod p,
+          chainMass (S \ indexImageSet τ F) m z ≤
+            chainUpperBound p (S \ indexImageSet τ F).card C m) :
+    orderingConditionalMass S
+      (fun σ => AgreesOn F σ τ)
+      (fun σ =>
+        ∃ a : Fin k → Fin S.card,
+          StrictMono a ∧
+          (∀ i, paperPos (a i) < paperPos cut) ∧
+          (∀ i,
+            indexSetSum σ (indexHalfOpen (a i) cut) = target i)) ≤
+      lemma43LHS p (S \ indexImageSet τ F).card k C
+
+/-- Right-tail analogue of conditional_prefix_chain_union_bound. -/
+axiom conditional_suffix_chain_union_bound
+    {p k : ℕ} [NeZero p]
+    (S : Finset (ZMod p))
+    (τ : Fin S.card → ZMod p) (hτ : IsIndexedOrdering S τ)
+    (F : Finset (Fin S.card)) (cut : Fin S.card)
+    (target : Fin k → ZMod p)
+    (C : ℝ)
+    (hchain :
+      ∀ (m : Fin k → ℕ), IsChainSizeTuple
+          (S \ indexImageSet τ F).card m →
+        ∀ z : Fin k → ZMod p,
+          chainMass (S \ indexImageSet τ F) m z ≤
+            chainUpperBound p (S \ indexImageSet τ F).card C m) :
+    orderingConditionalMass S
+      (fun σ => AgreesOn F σ τ)
+      (fun σ =>
+        ∃ x : Fin k → Fin S.card,
+          StrictMono x ∧
+          (∀ i, paperPos cut < paperPos (x i)) ∧
+          (∀ i,
+            indexSetSum σ (indexHalfOpen cut (x i)) = target i)) ≤
+      lemma43LHS p (S \ indexImageSet τ F).card k C
+
 /-- Reversal transports a family of left-tail interval constraints into the
 corresponding right-tail constraints, preserving admissibility and event mass. -/
 axiom reversal_transports_tail_constraints
