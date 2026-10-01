@@ -19,6 +19,34 @@ def farSet {p : ℕ} [NeZero p] (S : Finset (ZMod p))
     8 * Real.sqrt ((t : ℝ) / m) <
       zmodNorm (χ * x - χ * x')
 
+theorem near_far_card {p m t : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (χ x' : ZMod p) :
+    (nearSet S m t χ (χ * x')).card +
+      (farSet S m t χ x').card = S.card := by
+  classical
+  have hdisj :
+      Disjoint (nearSet S m t χ (χ * x')) (farSet S m t χ x') := by
+    rw [Finset.disjoint_left]
+    intro x hnear hfar
+    have hn := (Finset.mem_filter.1 hnear).2
+    have hf := (Finset.mem_filter.1 hfar).2
+    linarith
+  have hunion :
+      nearSet S m t χ (χ * x') ∪ farSet S m t χ x' = S := by
+    ext x
+    simp only [nearSet, farSet, Finset.mem_union, Finset.mem_filter]
+    constructor
+    · rintro (⟨hx, _⟩ | ⟨hx, _⟩)
+      · exact hx
+      · exact hx
+    · intro hx
+      by_cases hle :
+          zmodNorm (χ * x - χ * x') ≤
+            8 * Real.sqrt ((t : ℝ) / m)
+      · exact Or.inl ⟨hx, hle⟩
+      · exact Or.inr ⟨hx, lt_of_not_ge hle⟩
+  rw [← Finset.card_union_of_disjoint hdisj, hunion]
+
 /-- If χ is not in D_t, every translate χx' has at least a quarter of S outside
 the radius-8 ball. -/
 theorem farSet_quarter {p m t : ℕ} [NeZero p]
@@ -35,7 +63,7 @@ theorem farSet_quarter {p m t : ℕ} [NeZero p]
     have hpartition :
         (nearSet S m t χ y).card + (farSet S m t χ x').card = S.card := by
       apply Finset.card_congr
-      exact near_far_partition_equiv S m t χ x'
+      exact near_far_card S χ x'
     omega
   have : χ ∈ Dset S m t := by
     simp [Dset, hχ0, hnear, y]
@@ -215,9 +243,7 @@ theorem lemma3_1 {p m t : ℕ} (hp : p.Prime)
             Section3External.block_sparse_tail S (farSet S m t χ x') x'
               hx' (by intro x hx; exact (Finset.mem_filter.1 hx).1)
               hfar hm hm4
-          exact le_trans (uniformMass_mono _ _ _ (by
-            intro P hbad
-            exact block_count_threshold_mono hbad)) htail
+          exact htail
     _ = (S.card : ℝ) * Real.exp (-(S.card : ℝ) / (64 * m)) := by simp
     _ ≤ 1 / (S.card : ℝ) ^ 9 :=
       section3_tail_nine S.card m hS hmUpper 64 (by norm_num)
@@ -239,7 +265,7 @@ theorem lemma3_2 {p m t : ℕ} [NeZero p]
         2 * zmodNorm (χ * x - centerAt S m t χ) ^ 2 +
         2 * zmodNorm (χ * x' - centerAt S m t χ) ^ 2 := by
     intro x x'
-    have h := fact2_3 hp_placeholder
+    have h := fact2_3_general
       [χ * x - centerAt S m t χ,
        -(χ * x' - centerAt S m t χ)]
     simpa [sub_eq_add_neg, add_comm, add_left_comm, add_assoc] using h
@@ -352,7 +378,7 @@ theorem psi_ge_five_of_dense_rows {p m t : ℕ} [NeZero p]
                   intro x' hx'
                   have hnear := (Finset.mem_inter.1 hx').2
                   have hdist := (Finset.mem_filter.1 hnear).2
-                  have htri := fact2_3 hp_placeholder
+                  have htri := fact2_3_general
                     [χ * x - χ * x',
                      χ * x' - centerAt S m t χ]
                   nlinarith
@@ -471,8 +497,11 @@ theorem lemma3_5 {p m t : ℕ} [NeZero p]
           · nlinarith [hEX]
           · positivity
     have hcompl :=
-      uniformMass_compl_eq_one Ω (fun q =>
-        q.1 - q.2 ∈ Qset S m t (10 * t / m))
+      uniformMass_compl_eq_one Ω
+        (by
+          dsimp [Ω]
+          exact hS.product hS)
+        (fun q => q.1 - q.2 ∈ Qset S m t (10 * t / m))
     nlinarith
   obtain ⟨y', hyS, hyfiber⟩ :=
     Section3External.exists_fiber_mass_ge_pair_mass S hS
@@ -575,6 +604,26 @@ theorem lemma3_6 {p m t : ℕ} (hp : p.Prime)
   field_simp
   nlinarith [hsum]
 
+theorem Qset_mono_delta {p m t : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) {δ₁ δ₂ : ℝ} (hδ : δ₁ ≤ δ₂) :
+    Qset S m t δ₁ ⊆ Qset S m t δ₂ := by
+  intro x hx
+  have hx' := (Finset.mem_filter.1 hx).2
+  apply Finset.mem_filter.2
+  refine ⟨Finset.mem_univ _, ?_⟩
+  have hB : 0 ≤ ((Bset S m t).card : ℝ) := by positivity
+  nlinarith
+
+theorem finset_list_sum_comm {ι α : Type*} [DecidableEq ι]
+    [AddCommMonoid α] (s : Finset ι) (xs : List α)
+    (f : ι → α → α) :
+    (∑ i ∈ s, (xs.map fun x => f i x).sum) =
+      (xs.map fun x => ∑ i ∈ s, f i x).sum := by
+  induction xs with
+  | nil => simp
+  | cons x xs ih =>
+      simp [ih, Finset.sum_add_distrib]
+
 /-- Lemma 3.7. -/
 theorem lemma3_7 {p m t k : ℕ} [NeZero p]
     (S : Finset (ZMod p)) (δ : ℝ)
@@ -582,14 +631,20 @@ theorem lemma3_7 {p m t k : ℕ} [NeZero p]
     kfoldSumset (Qset S m t δ) k ⊆
       Qset S m t ((k : ℝ) ^ 2 * δ) := by
   intro x hx
-  rcases mem_kfoldSumset.mp hx with ⟨xs, hlen, hmem, rfl⟩
+  rcases ((mem_kfoldSumset (Qset S m t δ) x).1 hx) with
+    ⟨xs, hlen, hmem, rfl⟩
   simp only [Qset, Finset.mem_filter, Finset.mem_univ, true_and]
   have hχ : ∀ χ ∈ Bset S m t,
       zmodNorm (χ * xs.sum) ^ 2 ≤
         (k : ℝ) * (xs.map fun y => zmodNorm (χ * y) ^ 2).sum := by
     intro χ hχ
-    simpa [map_list_sum, hlen] using
-      fact2_3 hp_placeholder (xs.map fun y => χ * y)
+    have hsum :
+        (xs.map fun y => χ * y).sum = χ * xs.sum := by
+      induction xs with
+      | nil => simp
+      | cons y ys ih => simp [ih, mul_add]
+    have h := fact2_3_general (xs.map fun y => χ * y)
+    simpa [hsum, hlen, List.map_map, Function.comp_def] using h
   calc
     ∑ χ ∈ Bset S m t, zmodNorm (χ * xs.sum) ^ 2
       ≤ ∑ χ ∈ Bset S m t,
@@ -597,21 +652,36 @@ theorem lemma3_7 {p m t k : ℕ} [NeZero p]
             gcongr with χ hχ'
             exact hχ χ hχ'
     _ = (k : ℝ) *
-        ∑ y ∈ xs.toFinset,
-          ∑ χ ∈ Bset S m t, zmodNorm (χ * y) ^ 2 := by
-          simp_rw [List.sum_eq_sum_toFinset hmem]
-          ring_nf
-          rw [Finset.sum_comm]
-    _ < (k : ℝ) * (k : ℝ) * δ * (Bset S m t).card := by
-          have hy : ∀ y ∈ xs.toFinset,
+        (xs.map fun y =>
+          ∑ χ ∈ Bset S m t, zmodNorm (χ * y) ^ 2).sum := by
+          rw [← finset_list_sum_comm]
+          simp [Finset.mul_sum]
+    _ < (k : ℝ) * ((k : ℝ) * δ * (Bset S m t).card) := by
+          have hy : ∀ y ∈ xs,
               ∑ χ ∈ Bset S m t, zmodNorm (χ * y) ^ 2 <
                 δ * (Bset S m t).card := by
             intro y hy
-            have hymem : y ∈ Qset S m t δ := hmem y (List.mem_toFinset.mp hy)
+            have hymem : y ∈ Qset S m t δ := hmem y hy
             exact (Finset.mem_filter.1 hymem).2
-          have := Finset.sum_lt_sum_of_nonempty
-            (by simpa [hlen, hk] using xs.toFinset_nonempty) hy
-          nlinarith
+          have hlist :
+              (xs.map fun y =>
+                ∑ χ ∈ Bset S m t, zmodNorm (χ * y) ^ 2).sum <
+                (xs.length : ℝ) * (δ * (Bset S m t).card) := by
+            induction xs with
+            | nil => simp at hk
+            | cons y ys ih =>
+                simp only [List.mem_cons] at hy
+                have hy0 := hy y (Or.inl rfl)
+                have hys : ∀ z ∈ ys,
+                    ∑ χ ∈ Bset S m t, zmodNorm (χ * z) ^ 2 <
+                      δ * (Bset S m t).card := by
+                  intro z hz
+                  exact hy z (Or.inr hz)
+                have ih' := ih hys
+                simp
+                nlinarith
+          rw [hlen] at hlist
+          exact mul_lt_mul_of_pos_left hlist (by positivity)
     _ = (k : ℝ) ^ 2 * δ * (Bset S m t).card := by ring
 
 /-- Lemma 3.4. -/
