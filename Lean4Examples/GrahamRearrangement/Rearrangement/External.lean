@@ -168,19 +168,6 @@ axiom witness_union_bound
     (hbound : ∀ θ ∈ params, uniformMass space (A θ) ≤ q) :
     uniformMass space E ≤ (params.card : ℝ) * q
 
-/-- Removing two exceptional events: if E outside A∪B has mass q, then E has
-mass at most mass(A)+mass(B)+q. -/
-axiom mass_le_two_exceptions
-    {Ω : Type*} [DecidableEq Ω] (space : Finset Ω)
-    (E A B : Ω → Prop)
-    [DecidablePred E] [DecidablePred A] [DecidablePred B]
-    (q : ℝ)
-    (hrest :
-      uniformMass space (fun ω => E ω ∧ ¬ A ω ∧ ¬ B ω) ≤ q) :
-    uniformMass space E ≤
-      uniformMass space A + uniformMass space B + q
-
-/-- Generic ordered-window extraction. More than D points in a symmetric 10D
 window yield a least point b₀ and D further distinct points in the following 20D
 window. -/
 axiom dense_window_extract {n D : ℕ}
@@ -503,20 +490,6 @@ axiom rightRepairParameters_card_le {n D : ℕ} :
 
 axiom leftRepairParameters_card_le {n D : ℕ} :
     (leftRepairParameters n D).card ≤ n * (5 * D) ^ (2 * D)
-
-/-- If three events have total uniform mass strictly below one in a nonempty
-finite space, there is an outcome avoiding all three. -/
-axiom exists_avoiding_three_events
-    {Ω : Type*} [DecidableEq Ω]
-    (space : Finset Ω) (hspace : space.Nonempty)
-    (E₁ E₂ E₃ : Ω → Prop)
-    [DecidablePred E₁] [DecidablePred E₂] [DecidablePred E₃]
-    (a₁ a₂ a₃ : ℝ)
-    (h₁ : uniformMass space E₁ ≤ a₁)
-    (h₂ : uniformMass space E₂ ≤ a₂)
-    (h₃ : uniformMass space E₃ ≤ a₃)
-    (hsum : a₁ + a₂ + a₃ < 1) :
-    ∃ ω ∈ space, ¬ E₁ ω ∧ ¬ E₂ ω ∧ ¬ E₃ ω
 
 /-- Generic finite choice principle used in the greedy repair: a finite candidate
 set of cardinality 5D with three forbidden subsets of sizes at most 2D,D,D
