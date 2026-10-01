@@ -14,9 +14,11 @@ Pham--Sauermann.  The paper's Lemmas 3.1--3.7 are proved in subsequent modules.
 
 noncomputable section
 
-axiom balancedPartitions_nonempty {p m : ℕ} [NeZero p]
+theorem balancedPartitions_nonempty {p m : ℕ} [NeZero p]
     (S : Finset (ZMod p)) (hm : 0 < m) (hmS : m ≤ S.card) :
-    (balancedPartitions (p := p) (m := m) S).Nonempty
+    (balancedPartitions (p := p) (m := m) S).Nonempty := by
+  refine ⟨canonicalBalancedPartition S hm hmS, ?_⟩
+  simp [balancedPartitions, canonicalBalancedPartition_spec S hm hmS]
 
 /-- The balanced-partition/one-choice-per-block sampling experiment is exactly
 uniform on size-`m` subsets. -/
