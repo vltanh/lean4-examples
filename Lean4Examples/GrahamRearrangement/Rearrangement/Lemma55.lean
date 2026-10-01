@@ -519,6 +519,148 @@ theorem lemma55HeadTail_disjoint {n D : ℕ}
   simp [indexInterval,lemma55TailSet,indexOpenClosed] at hyF hyT
   omega
 
+theorem lemma55_fixed_tail_conditional_bound
+    {p D : ℕ} [NeZero p]
+    (S : Finset (ZMod p))
+    (τ : Fin S.card → ZMod p) (hτ : IsIndexedOrdering S τ)
+    (b b' : Fin S.card)
+    (u x : Fin D → Fin S.card)
+    (hu : ∀ i,
+      paperPos b ≤ paperPos (u i) ∧
+        paperPos (u i) ≤ paperPos b')
+    (hx : x ∈ tailTuples b' D)
+    (πi : Fin D → Equiv.Perm (Fin S.card))
+    (hfix : ∀ i, FixedOutside b b' (πi i))
+    (C : ℝ)
+    (hm : IsChainSizeTuple
+      (S \ indexImageSet τ (indexInterval b b')).card
+      (tailSizes b' x))
+    (hchain :
+      ∀ z : Fin D → ZMod p,
+        chainMass (S \ indexImageSet τ (indexInterval b b'))
+            (tailSizes b' x) z ≤
+          chainUpperBound p
+            (S \ indexImageSet τ (indexInterval b b')).card
+            C (tailSizes b' x)) :
+    orderingConditionalMass S
+      (fun σ => AgreesOn (indexInterval b b') σ τ)
+      (fun σ =>
+        ∀ i,
+          indexedIntervalSum
+            (applyPositionPerm σ (πi i))
+            (u i) (x i) = 0) ≤
+      chainUpperBound p
+        (S \ indexImageSet τ (indexInterval b b')).card
+        C (tailSizes b' x) := by
+  classical
+  let F := indexInterval b b'
+  let I : Fin D → Finset (Fin S.card) :=
+    lemma55TailSet b' x
+  let H : Fin D → Finset (Fin S.card) :=
+    fun i => lemma55HeadSet u b' πi i
+  let z : Fin D → ZMod p :=
+    fun i => - indexSetSum τ (H i)
+  have hdisj : ∀ i, Disjoint F (I i) := by
+    intro i
+    rw [Finset.disjoint_left]
+    intro y hyF hyI
+    simp [F,I,indexInterval,lemma55TailSet,indexOpenClosed] at hyF hyI
+    omega
+  have hnested : ∀ i j, i ≤ j → I i ⊆ I j :=
+    lemma55TailSet_nested b' hx
+  have hcard : ∀ i, (I i).card = tailSizes b' x i :=
+    lemma55TailSet_card b' hx
+  have hevent :
+      orderingConditionalMass S
+        (fun σ => AgreesOn F σ τ)
+        (fun σ =>
+          ∀ i,
+            indexedIntervalSum
+              (applyPositionPerm σ (πi i))
+              (u i) (x i) = 0) =
+      orderingConditionalMass S
+        (fun σ => AgreesOn F σ τ)
+        (fun σ => ∀ i, indexSetSum σ (I i) = z i) := by
+    unfold orderingConditionalMass uniformConditionalMass
+    apply uniformMass_congr
+    intro σ hσ
+    have hagr : AgreesOn F σ τ := (Finset.mem_filter.mp hσ).2
+    constructor
+    · intro hz i
+      have hui := (hu i).2
+      have hxi := (Finset.mem_filter.mp hx).2.2 i
+      have hux : (u i).val ≤ (x i).val := by
+        simp [paperPos] at hui hxi
+        omega
+      have hsum :
+          indexedIntervalSum
+              (applyPositionPerm σ (πi i)) (u i) (x i) =
+            indexSetSum σ (constraintSet u x πi i) := by
+        simpa [constraintSet,applyPositionPerm] using
+          permuted_interval_sum_eq σ (Equiv.refl _) (πi i)
+            (u i) (x i) hux
+      have hsplit :=
+        lemma55_constraint_split b b' u x hu hx πi hfix i
+      have hheadSub :
+          H i ⊆ F := by
+        exact lemma55HeadSet_subset_window
+          b b' u hu πi hfix i
+      have hhead :
+          indexSetSum σ (H i) = indexSetSum τ (H i) :=
+        Section5External.indexSetSum_eq_of_agreesOn hagr hheadSub
+      have hsep :=
+        lemma55HeadTail_disjoint b b' u x hu πi hfix i
+      have hzero := hz i
+      rw [hsum,hsplit] at hzero
+      unfold indexSetSum at hzero
+      rw [Finset.sum_union hsep] at hzero
+      fold indexSetSum σ (H i) at hzero
+      fold indexSetSum σ (I i) at hzero
+      rw [hhead] at hzero
+      simp [z]
+      abel_nf at hzero ⊢
+      exact hzero
+    · intro htail i
+      have hui := (hu i).2
+      have hxi := (Finset.mem_filter.mp hx).2.2 i
+      have hux : (u i).val ≤ (x i).val := by
+        simp [paperPos] at hui hxi
+        omega
+      have hsum :
+          indexedIntervalSum
+              (applyPositionPerm σ (πi i)) (u i) (x i) =
+            indexSetSum σ (constraintSet u x πi i) := by
+        simpa [constraintSet,applyPositionPerm] using
+          permuted_interval_sum_eq σ (Equiv.refl _) (πi i)
+            (u i) (x i) hux
+      have hsplit :=
+        lemma55_constraint_split b b' u x hu hx πi hfix i
+      have hheadSub :
+          H i ⊆ F :=
+        lemma55HeadSet_subset_window b b' u hu πi hfix i
+      have hhead :
+          indexSetSum σ (H i) = indexSetSum τ (H i) :=
+        Section5External.indexSetSum_eq_of_agreesOn hagr hheadSub
+      have hsep :=
+        lemma55HeadTail_disjoint b b' u x hu πi hfix i
+      rw [hsum,hsplit]
+      unfold indexSetSum
+      rw [Finset.sum_union hsep]
+      fold indexSetSum σ (H i)
+      fold indexSetSum σ (I i)
+      rw [hhead]
+      have hi := htail i
+      simp [z] at hi
+      abel_nf at hi ⊢
+      exact hi
+  rw [hevent]
+  have hlaw :=
+    Section5External.conditional_nested_images_chainMass
+      S τ hτ F I hdisj hnested
+      (tailSizes b' x) hcard z
+  rw [hlaw]
+  exact hchain z
+
 theorem lemma55_fixed_x_pi_mass_le
     {α : ℝ} (hα0 : 0 < α) (hαh : α < 1 / 2)
     (P : Section5Parameters α)
