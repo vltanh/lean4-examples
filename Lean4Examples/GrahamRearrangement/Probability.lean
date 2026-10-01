@@ -269,6 +269,59 @@ theorem card_eq_sum_card_fibers {α β : Type*}
       rw [Finset.sum_eq_add_sum_diff_singleton hfa]
       simp [ha]
 
+theorem uniformMass_bij
+    {Ω Γ : Type*} [DecidableEq Ω] [DecidableEq Γ]
+    (A : Finset Ω) (B : Finset Γ)
+    (f : Ω → Γ)
+    (hmem : ∀ ω ∈ A, f ω ∈ B)
+    (hinj : Set.InjOn f A)
+    (hsurj : ∀ γ ∈ B, ∃ ω ∈ A, f ω = γ)
+    (E : Ω → Prop) (F : Γ → Prop)
+    [DecidablePred E] [DecidablePred F]
+    (hevent : ∀ ω ∈ A, E ω ↔ F (f ω)) :
+    uniformMass A E = uniformMass B F := by
+  unfold uniformMass
+  have hcard : A.card = B.card := by
+    apply Finset.card_bij f hmem
+    · exact fun _ hω _ hω' h => hinj hω hω' h
+    · exact hsurj
+  have hecard :
+      (A.filter E).card = (B.filter F).card := by
+    apply Finset.card_bij f
+    · intro ω hω
+      rcases Finset.mem_filter.mp hω with ⟨hA,hE⟩
+      exact Finset.mem_filter.mpr ⟨hmem ω hA,(hevent ω hA).1 hE⟩
+    · intro ω hω ω' hω' h
+      exact hinj (Finset.mem_filter.mp hω).1
+        (Finset.mem_filter.mp hω').1 h
+    · intro γ hγ
+      rcases Finset.mem_filter.mp hγ with ⟨hB,hF⟩
+      obtain ⟨ω,hA,rfl⟩ := hsurj γ hB
+      exact ⟨ω, Finset.mem_filter.mpr
+        ⟨hA,(hevent ω hA).2 hF⟩, rfl⟩
+  rw [hcard, hecard]
+
+theorem uniformMass_chain_rule
+    {Ω : Type*} [DecidableEq Ω]
+    (space : Finset Ω)
+    (A B : Ω → Prop) [DecidablePred A] [DecidablePred B] :
+    uniformMass space (fun ω => A ω ∧ B ω) =
+      uniformMass space A *
+        uniformConditionalMass space A B := by
+  unfold uniformMass uniformConditionalMass
+  have hfilter :
+      (space.filter fun ω => A ω ∧ B ω) =
+        (space.filter A).filter B := by
+    ext ω
+    simp [and_left_comm, and_assoc]
+  rw [hfilter]
+  by_cases hA : (space.filter A).card = 0
+  · simp [hA]
+  · have hApos : (0 : ℝ) < (space.filter A).card := by
+      exact_mod_cast Nat.pos_of_ne_zero hA
+    field_simp
+    ring
+
 /-- Finite union bound for two events. -/
 theorem uniformMass_or_le_add {Ω : Type*} [DecidableEq Ω]
     (space : Finset Ω) (E F : Ω → Prop)
