@@ -57,8 +57,8 @@ axiom block_sparse_tail {p m : ℕ} [NeZero p]
     (hdensity : S.card ≤ 4 * G.card)
     (hm : 0 < m) (hm4 : m ≤ S.card / 4) :
     partitionMass S (fun P =>
-      ((pointBlock S P x  {x}) ∩ G).card <
-        (pointBlock S P x  {x}).card / 8) ≤
+      ((pointBlock S P x \\ {x}) ∩ G).card <
+        S.card / (16 * m)) ≤
       Real.exp (-(S.card : ℝ) / (64 * m))
 
 /-- If a subset has density at least 3/4, the block containing a fixed point
@@ -70,8 +70,8 @@ axiom block_dense_tail {p m : ℕ} [NeZero p]
     (hdensity : 3 * S.card ≤ 4 * G.card)
     (hm : 0 < m) (hm4 : m ≤ S.card / 4) :
     partitionMass S (fun P =>
-      ((pointBlock S P x  {x}) ∩ G).card <
-        (pointBlock S P x  {x}).card / 2) ≤
+      ((pointBlock S P x \\ {x}) ∩ G).card <
+        S.card / (4 * m)) ≤
       Real.exp (-(S.card : ℝ) / (48 * m))
 
 /-- Standard finite Fourier estimate for the average of one additive character
