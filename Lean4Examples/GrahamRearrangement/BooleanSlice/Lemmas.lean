@@ -108,7 +108,7 @@ theorem section3_tail_nine (SCard m : ℕ)
     (hS : 2 ≤ SCard)
     (hmUpper : (m : ℝ) ≤
       (1 / 1000 : ℝ) * SCard / Real.log (SCard : ℝ))
-    (c : ℝ) (hc : c ≤ 48) :
+    (c : ℝ) (hc : c ≤ 100) :
     (SCard : ℝ) * Real.exp (-(SCard : ℝ) / (c * m)) ≤
       1 / (SCard : ℝ) ^ 9 := by
   have hlogmono : Real.log 2 ≤ Real.log (SCard : ℝ) := by
