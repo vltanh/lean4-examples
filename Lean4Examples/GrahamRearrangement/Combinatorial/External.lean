@@ -35,11 +35,6 @@ axiom uniformSubset_split {α : Type*} [DecidableEq α]
           uniformMass ((S \ R₁).powersetCard m₂)
             (fun R₂ => E (R₁ ∪ R₂)))
 
-/-- If R is an m-subset of S, its complement in S has cardinality |S|-m. -/
-axiom card_sdiff_of_mem_powersetCard {α : Type*} [DecidableEq α]
-    {S R : Finset α} {m : ℕ} (hR : R ∈ S.powersetCard m) :
-    (S \ R).card = S.card - m
-
 /-- Generic chain-rule bound for the standard exposure of a uniform nested chain.
 One gap j is not exposed; for every other gap, the caller supplies a uniform-subset
 anticoncentration bound valid for every possible remaining ground set. -/
@@ -80,28 +75,6 @@ axiom omittedKernelSum_le_prefix_mul (n k : ℕ) (w : ℕ → ℝ)
     omittedKernelSum n k w j ≤
       prefixKernelSum n j.val w *
         prefixKernelSum n (k - j.val) w
-
-/-- Averaging a pointwise bound over a nonempty finite uniform space. -/
-axiom uniformExpectation_le_const {Ω : Type*} [DecidableEq Ω]
-    (space : Finset Ω) (hspace : space.Nonempty)
-    (f : Ω → ℝ) (c : ℝ)
-    (h : ∀ ω ∈ space, f ω ≤ c) :
-    uniformExpectation space f ≤ c
-
-/-- PowersetCard is nonempty whenever the requested cardinality fits. -/
-axiom powersetCard_nonempty {α : Type*} [DecidableEq α]
-    (S : Finset α) {m : ℕ} (hm : m ≤ S.card) :
-    (S.powersetCard m).Nonempty
-
-/-- A generic uniform m-subset has the requested cardinality. -/
-axiom mem_powersetCard_card {α : Type*} [DecidableEq α]
-    {S R : Finset α} {m : ℕ} (hR : R ∈ S.powersetCard m) :
-    R.card = m
-
-/-- Complement monotonicity for logarithms in the positive range used in Section 4. -/
-axiom log_card_sdiff_le {α : Type*} [DecidableEq α]
-    {S R : Finset α} (hR : R ⊆ S) (hne : (S \ R).Nonempty) :
-    Real.log ((S \ R).card : ℝ) ≤ Real.log (S.card : ℝ)
 
 end
 
