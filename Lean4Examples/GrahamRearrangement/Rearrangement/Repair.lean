@@ -146,18 +146,18 @@ theorem collectionPerm_fixes_of_support_above
     FixedThrough b (collectionPerm P) := by
   intro i hi
   unfold collectionPerm
-  induction P.toList with
-  | nil => simp [swapsPermList]
-  | cons q qs ih =>
-      have hqP : q ∈ P := by
-        simpa using List.mem_toFinset.1 (by simp)
-      have hqb : paperPos b < paperPos q.1 := habove q hqP
-      have hq2 := (hP.2 q hqP).1
-      have hi1 : i ≠ q.1 := by
-        intro h; subst h; omega
-      have hi2 : i ≠ q.2 := by
-        intro h; subst h; omega
-      simp [swapsPermList, Equiv.swap_apply_of_ne_of_ne hi1 hi2, ih]
+  apply Section5External.disjoint_swaps_fix_outside_support
+    P hP.1 i
+  intro q hq
+  have hqb := habove q hq
+  have hq12 := (hP.2 q hq).1
+  constructor
+  · intro h
+    subst i
+    omega
+  · intro h
+    subst i
+    omega
 
 theorem usedSeconds_near_card_le
     {n p D : ℕ}
@@ -244,7 +244,7 @@ theorem blocked_in_repairWindow_le
   calc
     _ ≤ (blockedCandidates D σ b π).card :=
       Finset.card_inter_le_right
-    _ ≤ 2 * D := Nat.le_of_lt_succ (lt_succ_of_lt hblocked)
+    _ ≤ 2 * D := Nat.le_of_lt hblocked
 
 theorem swap_preserves_interval_of_membership_iff
     {n p : ℕ} (τ : Fin n → ZMod p)
