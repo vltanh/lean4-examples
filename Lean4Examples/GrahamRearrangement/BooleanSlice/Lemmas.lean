@@ -155,7 +155,7 @@ theorem psi_ge_two_of_far_rows {p m t : ℕ} [NeZero p]
     (χ : ZMod p)
     (hrow : ∀ x' ∈ S,
       S.card / (16 * m) ≤
-        ((pointBlock S P x'  {x'}) ∩ farSet S m t χ x').card) :
+        ((pointBlock S P x' \\ {x'}) ∩ farSet S m t χ x').card) :
     (2 : ℝ) * t ≤ psi P χ := by
   have h33 := psi_lower_bound S hS hm hm4 hP χ
   have henergy :
@@ -171,7 +171,7 @@ theorem psi_ge_two_of_far_rows {p m t : ℕ} [NeZero p]
         have hxS : x' ∈ S := hP.1 i hx'
         have hcount := hrow x' hxS
         have hthreshold :
-            ∀ x ∈ ((pointBlock S P x'  {x'}) ∩ farSet S m t χ x'),
+            ∀ x ∈ ((pointBlock S P x' \\ {x'}) ∩ farSet S m t χ x'),
               (64 : ℝ) * t / m <
                 zmodNorm (χ * x - χ * x') ^ 2 := by
           intro x hx
@@ -185,7 +185,7 @@ theorem psi_ge_two_of_far_rows {p m t : ℕ} [NeZero p]
           nlinarith
         calc
           (4 : ℝ) * t * S.card / m ^ 2
-            ≤ (((pointBlock S P x'  {x'}) ∩ farSet S m t χ x').card : ℝ) *
+            ≤ (((pointBlock S P x' \\ {x'}) ∩ farSet S m t χ x').card : ℝ) *
                 ((64 : ℝ) * t / m) := by
                   exact_mod_cast hcount
                   positivity
@@ -213,7 +213,7 @@ theorem lemma3_1 {p m t : ℕ} (hp : p.Prime)
     section3_basic_bounds S.card m hS hmLower hmUpper
   let BadRow : ZMod p → (Fin m → Finset (ZMod p)) → Prop :=
     fun x' P =>
-      ((pointBlock S P x'  {x'}) ∩ farSet S m t χ x').card <
+      ((pointBlock S P x' \\ {x'}) ∩ farSet S m t χ x').card <
         S.card / (16 * m)
   have hsubset : ∀ P, IsBalancedPartition S P →
       psi P χ < 2 * t → ∃ x' ∈ S, BadRow x' P := by
@@ -222,7 +222,7 @@ theorem lemma3_1 {p m t : ℕ} (hp : p.Prime)
     push_neg at hall
     have hrows : ∀ x' ∈ S,
         S.card / (16 * m) ≤
-          ((pointBlock S P x'  {x'}) ∩ farSet S m t χ x').card := hall
+          ((pointBlock S P x' \\ {x'}) ∩ farSet S m t χ x').card := hall
     have hge := psi_ge_two_of_far_rows S hS hm hm4 hP χ hrows
     linarith
   calc
@@ -254,7 +254,7 @@ theorem lemma3_2 {p m t : ℕ} [NeZero p]
     (χ : ZMod p) (hχD : χ ∈ Dset S m t)
     (hχB : χ ∉ Bset S m (2000 * t)) :
     (200 : ℝ) * t / m * S.card ≤
-      ∑ x ∈ S  Jset S m t χ,
+      ∑ x ∈ S \\ Jset S m t χ,
         zmodNorm (χ * x - centerAt S m t χ) ^ 2 := by
   have hPsi : (2000 : ℝ) * t < Psi S m χ := by
     have hnot :=
@@ -317,7 +317,7 @@ theorem lemma3_2 {p m t : ℕ} [NeZero p]
   have hsplit :
       ∑ x ∈ S,
           zmodNorm (χ * x - centerAt S m t χ) ^ 2 =
-        (∑ x ∈ S  Jset S m t χ,
+        (∑ x ∈ S \\ Jset S m t χ,
           zmodNorm (χ * x - centerAt S m t χ) ^ 2) +
         (∑ x ∈ S ∩ Jset S m t χ,
           zmodNorm (χ * x - centerAt S m t χ) ^ 2) := by
@@ -332,16 +332,16 @@ theorem psi_ge_five_of_dense_rows {p m t : ℕ} [NeZero p]
     {P : Fin m → Finset (ZMod p)} (hP : IsBalancedPartition S P)
     (χ : ZMod p) (hχD : χ ∈ Dset S m t)
     (hχB : χ ∉ Bset S m (2000 * t))
-    (hrow : ∀ x ∈ S  Jset S m t χ,
+    (hrow : ∀ x ∈ S \\ Jset S m t χ,
       S.card / (4 * m) ≤
-        ((pointBlock S P x  {x}) ∩
+        ((pointBlock S P x \\ {x}) ∩
           nearSet S m t χ (centerAt S m t χ)).card) :
     (5 : ℝ) * t ≤ psi P χ := by
   have h33 := psi_lower_bound S hS hm hm4 hP χ
   have hL32 := lemma3_2 S hm (by omega) χ hχD hχB
   have henergy :
       (m : ℝ) / (16 * S.card) *
-          ∑ x ∈ S  Jset S m t χ,
+          ∑ x ∈ S \\ Jset S m t χ,
             zmodNorm (χ * x - centerAt S m t χ) ^ 2 ≤
         ((m : ℝ) ^ 2 / (2 * (S.card : ℝ) ^ 2)) *
           ∑ i, ∑ x ∈ P i, ∑ x' ∈ P i,
@@ -350,13 +350,13 @@ theorem psi_ge_five_of_dense_rows {p m t : ℕ} [NeZero p]
       S P ⟨hP.1, hP.2.1, hP.2.2.1⟩
       (fun x x' => zmodNorm (χ * x - χ * x') ^ 2)
       (fun x =>
-        if x ∈ S  Jset S m t χ then
+        if x ∈ S \\ Jset S m t χ then
           (S.card : ℝ) / (16 * m) *
             zmodNorm (χ * x - centerAt S m t χ) ^ 2
         else 0)
       (by
         intro i x hx
-        by_cases hxout : x ∈ S  Jset S m t χ
+        by_cases hxout : x ∈ S \\ Jset S m t χ
         · simp [hxout]
           have hcount := hrow x hxout
           have hxJ : x ∉ Jset S m t χ := (Finset.mem_sdiff.1 hxout).2
@@ -367,7 +367,7 @@ theorem psi_ge_five_of_dense_rows {p m t : ℕ} [NeZero p]
           calc
             (S.card : ℝ) / (16 * m) *
                 zmodNorm (χ * x - centerAt S m t χ) ^ 2
-              ≤ (((pointBlock S P x  {x}) ∩
+              ≤ (((pointBlock S P x \\ {x}) ∩
                     nearSet S m t χ (centerAt S m t χ)).card : ℝ) *
                   (zmodNorm (χ * x - centerAt S m t χ) / 2) ^ 2 := by
                     exact_mod_cast hcount
@@ -406,33 +406,33 @@ theorem lemma3_3 {p m t : ℕ} (hp : p.Prime)
   have hGdensity : 3 * S.card ≤ 4 * G.card := centerAt_spec S m t hχD
   let BadRow : ZMod p → (Fin m → Finset (ZMod p)) → Prop :=
     fun x P =>
-      ((pointBlock S P x  {x}) ∩ G).card <
+      ((pointBlock S P x \\ {x}) ∩ G).card <
         S.card / (4 * m)
   have hsubset : ∀ P, IsBalancedPartition S P →
-      psi P χ < 2 * t → ∃ x ∈ S  Jset S m t χ, BadRow x P := by
+      psi P χ < 2 * t → ∃ x ∈ S \\ Jset S m t χ, BadRow x P := by
     intro P hP hψ
     by_contra hall
     push_neg at hall
-    have hrows : ∀ x ∈ S  Jset S m t χ,
+    have hrows : ∀ x ∈ S \\ Jset S m t χ,
         S.card / (4 * m) ≤
-          ((pointBlock S P x  {x}) ∩ G).card := hall
+          ((pointBlock S P x \\ {x}) ∩ G).card := hall
     have hge :=
       psi_ge_five_of_dense_rows S hS hm hm4 hP χ hχD hχB hrows
     nlinarith
   calc
     partitionMass S (fun P => psi P χ < 2 * t)
       ≤ partitionMass S
-          (fun P => ∃ x ∈ S  Jset S m t χ, BadRow x P) := by
+          (fun P => ∃ x ∈ S \\ Jset S m t χ, BadRow x P) := by
           apply uniformMass_mono
           intro P hψ
           have hP : IsBalancedPartition S P := by
             simpa [balancedPartitions] using hψ.1
           exact hsubset P hP hψ.2
-    _ ≤ ∑ x ∈ S  Jset S m t χ, partitionMass S (BadRow x) := by
+    _ ≤ ∑ x ∈ S \\ Jset S m t χ, partitionMass S (BadRow x) := by
           exact External.finite_union_bound
-            (balancedPartitions S) (S  Jset S m t χ)
+            (balancedPartitions S) (S \\ Jset S m t χ)
               (fun x P => BadRow x P)
-    _ ≤ ∑ _x ∈ S  Jset S m t χ,
+    _ ≤ ∑ _x ∈ S \\ Jset S m t χ,
           Real.exp (-(S.card : ℝ) / (48 * m)) := by
           gcongr with x hx
           have hxS := (Finset.mem_sdiff.1 hx).1
@@ -440,9 +440,7 @@ theorem lemma3_3 {p m t : ℕ} (hp : p.Prime)
             Section3External.block_dense_tail S G x hxS
               (by intro y hy; exact (Finset.mem_filter.1 hy).1)
               hGdensity hm hm4
-          exact le_trans (uniformMass_mono _ _ _ (by
-            intro P hbad
-            exact block_count_threshold_mono hbad)) htail
+          exact htail
     _ ≤ (S.card : ℝ) * Real.exp (-(S.card : ℝ) / (48 * m)) := by
           simp
           positivity
