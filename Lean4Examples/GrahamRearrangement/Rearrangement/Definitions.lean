@@ -54,6 +54,11 @@ theorem card_indexInterval {n : ℕ} (a b : Fin n)
       simp [indexInterval]]
   simp [Nat.card_Icc, hab]
 
+/-- Open-closed interval (a,b], used when splitting a right-extending
+zero-sum interval at an exposed endpoint. -/
+def indexOpenClosed {n : ℕ} (a b : Fin n) : Finset (Fin n) :=
+  Finset.univ.filter fun i => a.val < i.val ∧ i.val ≤ b.val
+
 /-- Half-open index interval [a,b), used after exposing the value at b. -/
 def indexHalfOpen {n : ℕ} (a b : Fin n) : Finset (Fin n) :=
   Finset.univ.filter fun i => a.val ≤ i.val ∧ i.val < b.val
