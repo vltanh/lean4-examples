@@ -59,6 +59,38 @@ def HasValidOrdering (S : Finset G) : Prop :=
 
 end Orderings
 
+section Segments
+
+variable {G : Type*} [AddCommMonoid G]
+
+/-- Inclusive segment sum, using zero-based list positions.
+
+For a well-formed interval `a ≤ b < xs.length`, this is
+`xs[a] + xs[a+1] + ... + xs[b]`.
+-/
+def intervalSum (xs : List G) (a b : ℕ) : G :=
+  ((xs.drop a).take (b + 1 - a)).sum
+
+/-- The Section 5 target condition in zero-based indexing: every segment whose
+left endpoint is after the first element has nonzero sum. -/
+def HasNoZeroTailSegments (xs : List G) : Prop :=
+  ∀ a b : ℕ, 1 ≤ a → a ≤ b → b < xs.length → intervalSum xs a b ≠ 0
+
+/-- Right endpoints of the zero-sum segments that obstruct a valid ordering.
+This is the list analogue of `B(σ)` from Section 5. -/
+noncomputable def badRightEndpoints (xs : List G) : Finset ℕ := by
+  classical
+  exact (Finset.range xs.length).filter fun b =>
+    ∃ a : ℕ, 1 ≤ a ∧ a ≤ b ∧ intervalSum xs a b = 0
+
+@[simp] theorem mem_badRightEndpoints_iff (xs : List G) (b : ℕ) :
+    b ∈ badRightEndpoints xs ↔
+      b < xs.length ∧ ∃ a : ℕ, 1 ≤ a ∧ a ≤ b ∧ intervalSum xs a b = 0 := by
+  classical
+  simp [badRightEndpoints]
+
+end Segments
+
 section BooleanSlice
 
 /-- The sum of a finite subset. -/
@@ -77,6 +109,16 @@ noncomputable def sliceMass {p : ℕ} (S : Finset (ZMod p)) (m : ℕ) (z : ZMod 
 theorem sliceMass_nonneg {p : ℕ} (S : Finset (ZMod p)) (m : ℕ) (z : ZMod p) :
     0 ≤ sliceMass S m z := by
   positivity
+
+theorem sliceMass_le_one {p : ℕ} (S : Finset (ZMod p)) (m : ℕ) (z : ZMod p) :
+    sliceMass S m z ≤ 1 := by
+  unfold sliceMass
+  by_cases hzero : (S.powersetCard m).card = 0
+  · simp [hzero]
+  · apply (div_le_one ?_).2
+    · exact_mod_cast Nat.pos_of_ne_zero hzero
+    · exact_mod_cast
+        (Finset.card_filter_le (S.powersetCard m) (fun R => subsetSum R = z))
 
 end BooleanSlice
 
