@@ -271,6 +271,31 @@ def pointBlock {p m : ℕ} [NeZero p] (S : Finset (ZMod p))
     (P : Fin m → Finset (ZMod p)) (x : ZMod p) : Finset (ZMod p) :=
   P (blockIndex S P x)
 
+theorem pointBlock_remainder_mem_powerset {p m : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (x : ZMod p)
+    (hm : 0 < m) (hmS : m ≤ S.card)
+    {P : Fin m → Finset (ZMod p)}
+    (hP : IsBalancedPartition S P) (hxS : x ∈ S)
+    (i : Fin m) (hi : blockIndex S P x = i) :
+    pointBlock S P x \ {x} ∈
+      (S \ {x}).powersetCard
+        (balancedBlockSize S.card m i - 1) := by
+  have hxBlock : x ∈ pointBlock S P x :=
+    mem_blockIndex S P x hm hP hxS
+  apply Finset.mem_powersetCard.mpr
+  constructor
+  · intro y hy
+    rcases Finset.mem_sdiff.mp hy with ⟨hyB,hyx⟩
+    apply Finset.mem_sdiff.mpr
+    refine ⟨hP.1 (blockIndex S P x) hyB,?_⟩
+    simpa using hyx
+  · rw [Finset.card_sdiff]
+    · rw [pointBlock_card S hm hP hxS, hi]
+      simp
+    · intro y hy
+      simp at hy
+      simpa [hy] using hxBlock
+
 /-- Conditional choices of one point from each block. -/
 def blockChoices {p m : ℕ} [NeZero p]
     (P : Fin m → Finset (ZMod p)) : Finset (Fin m → ZMod p) :=
