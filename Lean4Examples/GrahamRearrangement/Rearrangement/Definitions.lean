@@ -40,10 +40,44 @@ def indexedIntervalSum {n p : ℕ} (σ : Fin n → ZMod p)
   ∑ i ∈ Finset.Icc a.val b.val,
     if hi : i < n then σ ⟨i, hi⟩ else 0
 
+def indexInterval {n : ℕ} (a b : Fin n) : Finset (Fin n) :=
+  Finset.univ.filter fun i => a.val ≤ i.val ∧ i.val ≤ b.val
+
+theorem card_indexInterval {n : ℕ} (a b : Fin n)
+    (hab : a.val ≤ b.val) :
+    (indexInterval a b).card = b.val - a.val + 1 := by
+  classical
+  rw [show indexInterval a b =
+      (Finset.Icc a.val b.val).attachFin n (fun _ hi =>
+        lt_of_le_of_lt hi.2 b.isLt) by
+      ext i
+      simp [indexInterval]]
+  simp [Nat.card_Icc, hab]
+
 /-- Sum of the image of an arbitrary finite index set. -/
 def indexSetSum {n p : ℕ} (σ : Fin n → ZMod p)
     (J : Finset (Fin n)) : ZMod p :=
   ∑ i ∈ J, σ i
+
+theorem indexSetSum_indexInterval {n p : ℕ}
+    (σ : Fin n → ZMod p) (a b : Fin n) :
+    indexSetSum σ (indexInterval a b) =
+      indexedIntervalSum σ a b := by
+  unfold indexSetSum indexInterval indexedIntervalSum
+  apply Finset.sum_bij (fun i _ => i.val)
+  · intro i hi
+    simp at hi
+    exact ⟨Finset.mem_Icc.2 hi.2, by simp [i.isLt]⟩
+  · intro i hi
+    simp
+  · intro i₁ hi₁ i₂ hi₂ h
+    exact Fin.ext h
+  · intro j hj
+    have hjn : j < n := lt_of_le_of_lt (Finset.mem_Icc.1 hj).2 b.isLt
+    refine ⟨⟨j, hjn⟩, ?_, rfl⟩
+    simp [indexInterval, Finset.mem_Icc.1 hj]
+  · intro i hi
+    simp [i.isLt]
 
 /-- The forward paper interval {b,...,b+r}, clipped to {1,...,n}. -/
 def forwardWindow {n : ℕ} (b : Fin n) (r : ℕ) : Finset (Fin n) :=
