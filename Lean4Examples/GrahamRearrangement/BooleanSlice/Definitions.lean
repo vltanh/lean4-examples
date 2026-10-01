@@ -70,6 +70,80 @@ theorem balancedPrefix_mono {n m i j : ℕ}
   gcongr
   exact min_le_min_right _ hij
 
+def balancedBlockIndex (n m j : ℕ) : ℕ :=
+  if j < (n % m) * (n / m + 1) then
+    j / (n / m + 1)
+  else
+    n % m +
+      (j - (n % m) * (n / m + 1)) / (n / m)
+
+theorem balancedBlockIndex_lt
+    (n m : ℕ) (hm : 0 < m) (hmn : m ≤ n)
+    (j : ℕ) (hj : j < n) :
+    balancedBlockIndex n m j < m := by
+  let q := n / m
+  let r := n % m
+  have hq : 0 < q := Nat.div_pos hmn hm
+  have hr : r < m := Nat.mod_lt n hm
+  have hn : n = m * q + r := by
+    simpa [q,r, Nat.mul_comm] using (Nat.div_add_mod n m).symm
+  unfold balancedBlockIndex
+  by_cases hfirst : j < r * (q + 1)
+  · simp [hfirst]
+    have hdiv : j / (q + 1) < r := by
+      exact (Nat.div_lt_iff_lt_mul (by omega)).2 (by simpa [mul_comm] using hfirst)
+    omega
+  · simp [hfirst]
+    have hj2 : j - r * (q + 1) < (m - r) * q := by
+      rw [hn] at hj
+      omega
+    have hdiv :
+        (j - r * (q + 1)) / q < m - r := by
+      exact (Nat.div_lt_iff_lt_mul hq).2
+        (by simpa [mul_comm] using hj2)
+    omega
+
+theorem balancedBlockIndex_range
+    (n m : ℕ) (hm : 0 < m) (hmn : m ≤ n)
+    (j : ℕ) (hj : j < n) :
+    balancedPrefix n m (balancedBlockIndex n m j) ≤ j ∧
+      j < balancedPrefix n m (balancedBlockIndex n m j + 1) := by
+  let q := n / m
+  let r := n % m
+  have hq : 0 < q := Nat.div_pos hmn hm
+  have hr : r < m := Nat.mod_lt n hm
+  unfold balancedBlockIndex balancedPrefix
+  by_cases hfirst : j < r * (q + 1)
+  · have hi : j / (q + 1) < r :=
+      (Nat.div_lt_iff_lt_mul (by omega)).2
+        (by simpa [mul_comm] using hfirst)
+    simp [hfirst, q, r, Nat.min_eq_left (Nat.le_of_lt hi),
+      Nat.min_eq_left (by omega : j / (q + 1) + 1 ≤ r)]
+    constructor
+    · exact Nat.mul_div_le j (q + 1)
+    · have hmod := Nat.mod_lt j (by omega : 0 < q + 1)
+      have hdecomp := Nat.div_add_mod j (q + 1)
+      omega
+  · have hri : r ≤ r +
+        (j - r * (q + 1)) / q := by omega
+    have hltm := balancedBlockIndex_lt n m hm hmn j hj
+    have hidx :
+        r + (j - r * (q + 1)) / q < m := by
+      simpa [balancedBlockIndex, hfirst, q, r] using hltm
+    simp [hfirst, q, r, Nat.min_eq_right hri,
+      Nat.min_eq_right (by omega : r ≤ r +
+        (j - r * (q + 1)) / q + 1)]
+    have hge : r * (q + 1) ≤ j := Nat.le_of_not_gt hfirst
+    constructor
+    · have hmul := Nat.mul_div_le
+          (j - r * (q + 1)) q
+      omega
+    · have hmod :=
+        Nat.mod_lt (j - r * (q + 1)) hq
+      have hdecomp :=
+        Nat.div_add_mod (j - r * (q + 1)) q
+      omega
+
 def canonicalBalancedPartition {p m : ℕ} [NeZero p]
     (S : Finset (ZMod p)) (hm : 0 < m) (hmS : m ≤ S.card) :
     Fin m → Finset (ZMod p) := by
@@ -118,19 +192,15 @@ theorem canonicalBalancedPartition_spec {p m : ℕ} [NeZero p]
     constructor
     · intro hx
       obtain ⟨j,hj⟩ := e.surjective ⟨x,hx⟩
-      let i : ℕ := if j.val < (S.card % m) * (S.card / m + 1) then
-          j.val / (S.card / m + 1)
-        else
-          S.card % m +
-            (j.val - (S.card % m) * (S.card / m + 1)) /
-              (S.card / m)
+      let i : ℕ := balancedBlockIndex S.card m j.val
       have hi : i < m := by
-        exact balanced_block_index_lt S.card m hm hmS j.val j.isLt
+        exact balancedBlockIndex_lt S.card m hm hmS j.val j.isLt
       refine ⟨⟨i,hi⟩, ?_⟩
       apply Finset.mem_image.mpr
       refine ⟨j, ?_, congrArg Subtype.val hj⟩
       apply mem_finSegment.mpr
-      exact balanced_block_index_range S.card m hm hmS j.val j.isLt
+      simpa [i] using
+        balancedBlockIndex_range S.card m hm hmS j.val j.isLt
     · rintro ⟨i,hxi⟩
       exact (show x ∈ S from by
         rcases Finset.mem_image.mp hxi with ⟨j,hj,rfl⟩
