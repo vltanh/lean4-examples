@@ -263,6 +263,109 @@ def choiceSet {p m : ℕ} (X : Fin m → ZMod p) : Finset (ZMod p) :=
 def choiceSum {p m : ℕ} (X : Fin m → ZMod p) : ZMod p :=
   ∑ i, X i
 
+theorem blockChoices_mem_iff {p m : ℕ} [NeZero p]
+    {P : Fin m → Finset (ZMod p)} {X : Fin m → ZMod p} :
+    X ∈ blockChoices P ↔ ∀ i, X i ∈ P i := by
+  simp [blockChoices]
+
+theorem choice_injective_of_partition {p m : ℕ} [NeZero p]
+    {S : Finset (ZMod p)}
+    {P : Fin m → Finset (ZMod p)} (hP : IsBalancedPartition S P)
+    {X : Fin m → ZMod p} (hX : X ∈ blockChoices P) :
+    Function.Injective X := by
+  intro i j hij
+  by_contra hne
+  have hXi : X i ∈ P i := (blockChoices_mem_iff.mp hX) i
+  have hXj : X j ∈ P j := (blockChoices_mem_iff.mp hX) j
+  exact Finset.disjoint_left.mp (hP.2.1 i j hne) hXi
+    (by simpa [hij] using hXj)
+
+theorem choiceSet_card_of_partition {p m : ℕ} [NeZero p]
+    {S : Finset (ZMod p)}
+    {P : Fin m → Finset (ZMod p)} (hP : IsBalancedPartition S P)
+    {X : Fin m → ZMod p} (hX : X ∈ blockChoices P) :
+    (choiceSet X).card = m := by
+  unfold choiceSet
+  rw [Finset.card_image_of_injective _ (choice_injective_of_partition hP hX)]
+  simp
+
+theorem choiceSet_subset_of_partition {p m : ℕ} [NeZero p]
+    {S : Finset (ZMod p)}
+    {P : Fin m → Finset (ZMod p)} (hP : IsBalancedPartition S P)
+    {X : Fin m → ZMod p} (hX : X ∈ blockChoices P) :
+    choiceSet X ⊆ S := by
+  intro x hx
+  rcases Finset.mem_image.mp hx with ⟨i,hi,rfl⟩
+  exact hP.1 i ((blockChoices_mem_iff.mp hX) i)
+
+theorem choiceSum_eq_subsetSum_choiceSet {p m : ℕ} [NeZero p]
+    {S : Finset (ZMod p)}
+    {P : Fin m → Finset (ZMod p)} (hP : IsBalancedPartition S P)
+    {X : Fin m → ZMod p} (hX : X ∈ blockChoices P) :
+    choiceSum X = subsetSum (choiceSet X) := by
+  unfold choiceSum subsetSum choiceSet
+  rw [Finset.sum_image]
+  intro i hi j hj h
+  exact choice_injective_of_partition hP hX h
+
+def balancedChoiceMultiplicity (n m : ℕ) : ℕ :=
+  ∏ i : Fin m, balancedBlockSize n m i
+
+theorem blockChoices_card {p m : ℕ} [NeZero p]
+    (P : Fin m → Finset (ZMod p)) :
+    (blockChoices P).card = ∏ i, (P i).card := by
+  simp [blockChoices, Finset.card_pi]
+
+theorem blockChoices_card_balanced {p m : ℕ} [NeZero p]
+    {S : Finset (ZMod p)} {P : Fin m → Finset (ZMod p)}
+    (hP : IsBalancedPartition S P) :
+    (blockChoices P).card = balancedChoiceMultiplicity S.card m := by
+  rw [blockChoices_card]
+  unfold balancedChoiceMultiplicity
+  apply Finset.prod_congr rfl
+  intro i hi
+  exact hP.2.2.2 i
+
+theorem balancedChoiceMultiplicity_pos (n m : ℕ)
+    (hm : 0 < m) (hmn : m ≤ n) :
+    0 < balancedChoiceMultiplicity n m := by
+  unfold balancedChoiceMultiplicity
+  apply Finset.prod_pos
+  intro i hi
+  unfold balancedBlockSize
+  have hq : 0 < n / m := Nat.div_pos hmn hm
+  split <;> omega
+
+/-- Joint sample space: an ordered balanced partition and one selected point
+from each block. -/
+def balancedChoiceSpace {p m : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) :
+    Finset ((Fin m → Finset (ZMod p)) × (Fin m → ZMod p)) := by
+  classical
+  exact Finset.univ.filter fun q =>
+    q.1 ∈ balancedPartitions S ∧ q.2 ∈ blockChoices q.1
+
+theorem mem_balancedChoiceSpace {p m : ℕ} [NeZero p]
+    {S : Finset (ZMod p)}
+    {P : Fin m → Finset (ZMod p)}
+    {X : Fin m → ZMod p} :
+    (P,X) ∈ balancedChoiceSpace S ↔
+      P ∈ balancedPartitions S ∧ X ∈ blockChoices P := by
+  simp [balancedChoiceSpace]
+
+theorem choiceSet_mem_powersetCard {p m : ℕ} [NeZero p]
+    {S : Finset (ZMod p)}
+    {P : Fin m → Finset (ZMod p)}
+    {X : Fin m → ZMod p}
+    (h : (P,X) ∈ balancedChoiceSpace S) :
+    choiceSet X ∈ S.powersetCard m := by
+  rcases mem_balancedChoiceSpace.mp h with ⟨hPmem,hX⟩
+  have hP : IsBalancedPartition S P := by
+    simpa [balancedPartitions] using hPmem
+  exact Finset.mem_powersetCard.mpr
+    ⟨choiceSet_subset_of_partition hP hX,
+     choiceSet_card_of_partition hP hX⟩
+
 /-- Conditional point mass of the block-choice sum. -/
 def conditionalSumMass {p m : ℕ} [NeZero p]
     (P : Fin m → Finset (ZMod p)) (z : ZMod p) : ℝ :=
