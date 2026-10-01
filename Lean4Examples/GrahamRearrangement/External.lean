@@ -224,6 +224,25 @@ axiom exp_neg_mul_log {n c : ℝ} (hn : 0 < n) :
 -- Elementary asymptotic facts used to choose constants
 -- ---------------------------------------------------------------------------
 
+/-- Every real x in [1,m] lies in a dyadic interval [2^l,2^(l+1)). -/
+axiom exists_dyadic_interval {x : ℝ} {m : ℕ}
+    (hx : 1 ≤ x) (hm : x ≤ m) :
+    ∃ l < Nat.log2 m + 1,
+      (2 : ℝ) ^ l ≤ x ∧ x < 2 * (2 : ℝ) ^ l
+
+/-- Generic dyadic-shell estimate used when grouping a finite exponential sum. -/
+axiom dyadic_exp_sum_bound {α : Type*} [Fintype α] [DecidableEq α]
+    (f : α → ℝ) (A0 : Finset α) (At : ℕ → Finset α) (m : ℕ)
+    (hnonneg : ∀ a, 0 ≤ f a)
+    (hcover : ∀ a, a ∈ A0 ∨ ∃ l < Nat.log2 m + 1, a ∈ At (2 ^ l))
+    (hA0 : ∀ a ∈ A0, f a < 1)
+    (hAt : ∀ l a, a ∈ At (2 ^ l) →
+      (2 : ℝ) ^ l ≤ f a) :
+    (∑ a : α, Real.exp (-f a)) ≤
+      (A0.card : ℝ) +
+        ∑ l ∈ Finset.range (Nat.log2 m + 1),
+          (At (2 ^ l)).card * Real.exp (-(2 : ℝ) ^ l)
+
 /-- Linear eventually dominates log-squared. -/
 axiom exists_log_sq_threshold (A : ℝ) :
     ∃ N : ℕ, 2 ≤ N ∧
