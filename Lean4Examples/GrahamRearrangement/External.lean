@@ -246,6 +246,18 @@ axiom dyadic_exp_sum_bound {α : Type*} [Fintype α] [DecidableEq α]
 /-- A convenient explicit lower bound for the natural logarithm of two. -/
 axiom log_two_ge_half : (1 / 2 : ℝ) ≤ Real.log 2
 
+/-- Generic weighted dyadic split: small shells are controlled by a square-root
+bound and the at most 22 remaining shells by the trivial bound. -/
+axiom weighted_dyadic_split (m : ℕ) (p K : ℝ) (E : ℕ → ℝ)
+    (hp : 0 < p)
+    (hsmall : ∀ l, 2 ^ l ≤ m / 2 ^ 22 →
+      E l ≤ p * K * Real.sqrt ((2 : ℝ) ^ l))
+    (htriv : ∀ l, E l ≤ p) :
+    (1 / p) *
+        ∑ l ∈ Finset.range (Nat.log2 m + 1),
+          E l * Real.exp (-(2 : ℝ) ^ l)
+      ≤ 2 * K + 22 * Real.exp (-(m : ℝ) / 2 ^ 22)
+
 /-- Elementary floor estimate used with k=floor(sqrt x). -/
 axiom natFloor_ge_half {x : ℝ} (hx : 1 ≤ x) :
     x / 2 ≤ (Nat.floor x : ℝ)
