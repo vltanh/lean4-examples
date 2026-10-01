@@ -1,4 +1,5 @@
 import Lean4Examples.GrahamRearrangement.Probability
+import Lean4Examples.GrahamRearrangement.External.Hypergeometric
 import Mathlib.Analysis.Complex.ExponentialBounds
 import Mathlib.Analysis.SpecialFunctions.Pow.Asymptotics
 import Mathlib.Data.Nat.Log
@@ -111,26 +112,14 @@ theorem uniform_markov {Ω : Type*} [DecidableEq Ω]
   nlinarith
 
 -- ---------------------------------------------------------------------------
--- Hypergeometric concentration (Janson--Luczak--Rucinski)
+-- Hypergeometric concentration
 -- ---------------------------------------------------------------------------
 
-/-- The lower-tail estimate used in Lemma 3.1. -/
-axiom hypergeom_quarter_lower_tail {α : Type*} [DecidableEq α]
-    (U G : Finset α) (k : ℕ)
-    (hGU : G ⊆ U) (hdensity : U.card ≤ 4 * G.card)
-    (hk : k ≤ U.card) :
-    uniformMass (U.powersetCard k)
-      (fun T => (T ∩ G).card < k / 8) ≤
-        Real.exp (-(k : ℝ) / 32)
-
-/-- The lower-tail estimate used in Lemma 3.3. -/
-axiom hypergeom_three_quarters_lower_tail {α : Type*} [DecidableEq α]
-    (U G : Finset α) (k : ℕ)
-    (hGU : G ⊆ U) (hdensity : 3 * U.card ≤ 4 * G.card)
-    (hk : k ≤ U.card) :
-    uniformMass (U.powersetCard k)
-      (fun T => (T ∩ G).card < k / 2) ≤
-        Real.exp (-(k : ℝ) / 24)
+/-!
+The two lower-tail theorems used by Section 3 are proved in
+`External/Hypergeometric/` and re-exported in namespace
+`GrahamRearrangement.External`.  No project axiom is used.
+-/
 
 /-- A convenient monotonic consequence of exp for the numerical tail comparisons. -/
 theorem exp_antitone {a b : ℝ} (h : a ≤ b) :
