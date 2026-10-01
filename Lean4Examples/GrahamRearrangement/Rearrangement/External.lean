@@ -387,10 +387,86 @@ theorem distinct_index_subset_sums_mass_le {p : ℕ} [NeZero p]
     exact event_le_of_agreesOn_fibers S F
       (fun σ => indexSetSum σ J = indexSetSum σ J')
       _ hfiber
-  · have hswap :=
-      distinct_index_subset_sums_mass_le S W J' J hJ' hJ
-        (Ne.symm hne) hW
-    simpa [eq_comm] using hswap
+  · let i := (J' \ J).min' hright
+    have hiJ' : i ∈ J' :=
+      (Finset.mem_sdiff.mp ((J' \ J).min'_mem hright)).1
+    have hiJ : i ∉ J :=
+      (Finset.mem_sdiff.mp ((J' \ J).min'_mem hright)).2
+    have hiW : i ∈ W := hJ' hiJ'
+    let F := W.erase i
+    have hFcard : F.card = W.card - 1 := by
+      exact Finset.card_erase_of_mem hiW
+    have hfiber :
+        ∀ τ, IsIndexedOrdering S τ →
+          orderingConditionalMass S
+            (fun σ => AgreesOn F σ τ)
+            (fun σ => indexSetSum σ J = indexSetSum σ J') ≤
+          1 / ((S.card - W.card + 1 : ℕ) : ℝ) := by
+      intro τ hτ
+      let T := S \ indexImageSet τ F
+      have hTcard : T.card = S.card - F.card := by
+        rw [Finset.card_sdiff (exposedImage_subset S hτ F),
+          exposed_image_card S hτ F]
+      have hTcard' : T.card = S.card - W.card + 1 := by
+        rw [hTcard,hFcard]
+        omega
+      have hdisj : Disjoint F {i} := by
+        simp [F,hiW]
+      let z : ZMod p :=
+        indexSetSum τ J - indexSetSum τ (J'.erase i)
+      have hevent :
+          ∀ σ, AgreesOn F σ τ →
+            (indexSetSum σ J = indexSetSum σ J' ↔
+              indexSetSum σ {i} = z) := by
+        intro σ hagr
+        have hJ'ER : J'.erase i ⊆ F := by
+          intro x hx
+          have hxJ := Finset.mem_of_mem_erase hx
+          have hxW := hJ' hxJ
+          have hxi : x ≠ i := Finset.ne_of_mem_erase hx
+          exact Finset.mem_erase.mpr ⟨hxi,hxW⟩
+        have hJF : J ⊆ F := by
+          intro x hx
+          have hxW := hJ hx
+          exact Finset.mem_erase.mpr
+            ⟨by intro h; subst x; exact hiJ hx,hxW⟩
+        have hsumJ :
+            indexSetSum σ J = indexSetSum τ J :=
+          indexSetSum_eq_of_agreesOn hagr hJF
+        have hsumJ' :
+            indexSetSum σ J' =
+              σ i + indexSetSum τ (J'.erase i) := by
+          rw [show J' = insert i (J'.erase i) by
+            ext x; simp [hiJ']]
+          simp [indexSetSum,hiJ',
+            indexSetSum_eq_of_agreesOn hagr hJ'ER]
+        simp [hsumJ,hsumJ',z,indexSetSum]
+        abel
+      calc
+        orderingConditionalMass S
+            (fun σ => AgreesOn F σ τ)
+            (fun σ => indexSetSum σ J = indexSetSum σ J')
+          = orderingConditionalMass S
+              (fun σ => AgreesOn F σ τ)
+              (fun σ => indexSetSum σ {i} = z) := by
+                unfold orderingConditionalMass uniformConditionalMass
+                apply uniformMass_congr
+                intro σ hσ
+                exact hevent σ (Finset.mem_filter.mp hσ).2
+        _ = sliceMass T 1 z := by
+              simpa [T] using
+                conditional_fixedIndexSet_sumMass S τ hτ F {i} hdisj z
+        _ ≤ 1 / (T.card : ℝ) := by
+              have hTne : T.Nonempty := by
+                have hden : 1 ≤ T.card := by
+                  rw [hTcard']
+                  omega
+                exact Finset.card_pos.mp hden
+              exact sliceMass_one_le_inv_card T hTne z
+        _ = 1 / ((S.card - W.card + 1 : ℕ) : ℝ) := by rw [hTcard']
+    exact event_le_of_agreesOn_fibers S F
+      (fun σ => indexSetSum σ J = indexSetSum σ J')
+      _ hfiber
 
 theorem exposedImage_subset {p : ℕ} [NeZero p]
     (S : Finset (ZMod p))
