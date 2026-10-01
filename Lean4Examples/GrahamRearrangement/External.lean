@@ -102,6 +102,16 @@ axiom independent_block_fourier_bound {p m : ℕ} (hp : p.Prime)
           ∏ i, ‖((∑ x ∈ blocks i, ZMod.stdAddChar (χ * x)) /
             (blocks i).card : ℂ)‖
 
+/-- Generic character-algebra identity: the squared norm of a finite
+character average is the normalized double sum of the real parts of the
+difference characters. -/
+axiom zmod_character_average_norm_sq {p : ℕ} [NeZero p]
+    (T : Finset (ZMod p)) (hT : T.Nonempty) (χ : ZMod p) :
+    ‖((∑ x ∈ T, ZMod.stdAddChar (χ * x)) / (T.card : ℂ))‖ ^ 2 =
+      (1 / (T.card : ℝ) ^ 2) *
+        ∑ x ∈ T, ∑ x' ∈ T,
+          (ZMod.stdAddChar (χ * x - χ * x')).re
+
 /-- Parseval/orthogonality identity used in Lemma 3.6 for a negation-symmetric set
 of characters. -/
 axiom symmetric_character_square_sum {p : ℕ} (hp : p.Prime)
