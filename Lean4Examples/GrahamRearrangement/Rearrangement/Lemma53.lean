@@ -29,26 +29,6 @@ theorem swap_fixedOutside
     rcases hi with h | h <;> omega
   exact Equiv.swap_apply_of_ne_of_ne hib hiy
 
-theorem indexSetSum_applyPositionPerm_image
-    {n p : ℕ} (σ : Fin n → ZMod p)
-    (π : Equiv.Perm (Fin n)) (J : Finset (Fin n)) :
-    indexSetSum (applyPositionPerm σ π) J =
-      indexSetSum σ (J.image π) := by
-  unfold indexSetSum applyPositionPerm
-  rw [Finset.sum_image]
-  · rfl
-  · intro i hi j hj hij
-    exact π.injective hij
-
-theorem indexedIntervalSum_after_perm
-    {n p : ℕ} (σ : Fin n → ZMod p)
-    (π : Equiv.Perm (Fin n)) (a b : Fin n)
-    (hab : a.val ≤ b.val) :
-    indexedIntervalSum (applyPositionPerm σ π) a b =
-      indexSetSum σ ((indexInterval a b).image π) := by
-  rw [← indexSetSum_indexInterval]
-  exact indexSetSum_applyPositionPerm_image σ π (indexInterval a b)
-
 /-- Failure of B₀ says that the subset-sum map is injective on the local
 5D-window even after applying any admissible permutation fixing the prefix.
 This is the precise local-injectivity statement used in the proof of Lemma 5.3. -/
