@@ -170,7 +170,7 @@ theorem fixed_badEndpoint_mass_le_three {α : ℝ}
       ≤ ∑ a ∈ leftEndpointCandidates b,
           orderingEventMass S
             (fun σ => indexedIntervalSum σ a b = 0) := by
-          exact External.finite_union_bound
+          exact uniformMass_exists_le_sum
             (indexedOrderings S) (leftEndpointCandidates b)
               (fun a σ => indexedIntervalSum σ a b = 0)
           |>.trans' (uniformMass_mono _ _ _ (by
@@ -234,7 +234,7 @@ theorem lemma5_1 {α : ℝ}
         uniformMass_mono _ _ _ hsubset
     _ ≤ ∑ b ∈ nearRightEnd P.D,
           orderingEventMass S (fun σ => b ∈ badRightEndpoints σ) := by
-          exact External.finite_union_bound
+          exact uniformMass_exists_le_sum
             (indexedOrderings S) (nearRightEnd P.D)
               (fun b σ => b ∈ badRightEndpoints σ)
     _ ≤ ∑ _b ∈ nearRightEnd P.D,
