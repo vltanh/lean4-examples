@@ -322,6 +322,82 @@ theorem uniformMass_chain_rule
     field_simp
     ring
 
+/-- A conditional bound that holds on every fiber of a finite statistic also
+holds after conditioning on any union of such fibers. -/
+theorem uniformConditionalMass_le_of_fibers
+    {Ω K : Type*} [DecidableEq Ω] [DecidableEq K]
+    (space : Finset Ω) (key : Ω → K)
+    (P : K → Prop) (B : Ω → Prop)
+    [DecidablePred P] [DecidablePred B]
+    (q : ℝ) (hq : 0 ≤ q)
+    (hfiber :
+      ∀ κ, P κ →
+        uniformConditionalMass space (fun ω => key ω = κ) B ≤ q) :
+    uniformConditionalMass space
+      (fun ω => P (key ω)) B ≤ q := by
+  classical
+  unfold uniformConditionalMass uniformMass
+  let Kset := space.image key
+  have hnum :
+      ((space.filter fun ω => P (key ω)).filter B).card =
+        ∑ κ ∈ Kset.filter P,
+          (space.filter fun ω => key ω = κ ∧ B ω).card := by
+    apply card_eq_sum_card_fibers
+      ((space.filter fun ω => P (key ω)).filter B)
+      (Kset.filter P) key
+    intro ω hω
+    rcases Finset.mem_filter.mp hω with ⟨hPspace,hB⟩
+    rcases Finset.mem_filter.mp hPspace with ⟨hspace,hPk⟩
+    exact Finset.mem_filter.mpr
+      ⟨Finset.mem_image.mpr ⟨ω,hspace,rfl⟩,hPk⟩
+  have hden :
+      (space.filter fun ω => P (key ω)).card =
+        ∑ κ ∈ Kset.filter P,
+          (space.filter fun ω => key ω = κ).card := by
+    apply card_eq_sum_card_fibers
+      (space.filter fun ω => P (key ω))
+      (Kset.filter P) key
+    intro ω hω
+    rcases Finset.mem_filter.mp hω with ⟨hspace,hPk⟩
+    exact Finset.mem_filter.mpr
+      ⟨Finset.mem_image.mpr ⟨ω,hspace,rfl⟩,hPk⟩
+  rw [hnum,hden]
+  by_cases hzero :
+      (∑ κ ∈ Kset.filter P,
+        (space.filter fun ω => key ω = κ).card) = 0
+  · simp [hzero]
+  · have hsum :
+      (∑ κ ∈ Kset.filter P,
+          ((space.filter fun ω => key ω = κ ∧ B ω).card : ℝ)) ≤
+        q * ∑ κ ∈ Kset.filter P,
+          ((space.filter fun ω => key ω = κ).card : ℝ) := by
+      calc
+        _ ≤ ∑ κ ∈ Kset.filter P,
+            q * (space.filter fun ω => key ω = κ).card := by
+          gcongr with κ hκ
+          have hκP := (Finset.mem_filter.mp hκ).2
+          have hb := hfiber κ hκP
+          unfold uniformConditionalMass uniformMass at hb
+          have hfilter :
+              (space.filter fun ω => key ω = κ).filter B =
+                space.filter fun ω => key ω = κ ∧ B ω := by
+            ext ω
+            simp [and_assoc]
+          rw [hfilter] at hb
+          by_cases hf : (space.filter fun ω => key ω = κ).card = 0
+          · simp [hf]
+          · have hfpos : (0 : ℝ) <
+                (space.filter fun ω => key ω = κ).card := by
+              exact_mod_cast Nat.pos_of_ne_zero hf
+            exact (div_le_iff₀ hfpos).mp hb
+        _ = _ := by rw [← Finset.mul_sum]
+    have hdenpos : (0 : ℝ) <
+        ∑ κ ∈ Kset.filter P,
+          ((space.filter fun ω => key ω = κ).card : ℝ) := by
+      exact_mod_cast Nat.pos_of_ne_zero hzero
+    apply (div_le_iff₀ hdenpos).2
+    simpa [mul_comm] using hsum
+
 /-- Finite union bound for two events. -/
 theorem uniformMass_or_le_add {Ω : Type*} [DecidableEq Ω]
     (space : Finset Ω) (E F : Ω → Prop)
