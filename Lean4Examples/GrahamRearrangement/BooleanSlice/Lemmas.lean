@@ -565,6 +565,88 @@ theorem Bset_zero_neg {p m t : ℕ} [NeZero p]
     simp [Bset, hE] at hχ ⊢
     exact hχ
 
+theorem character_sum_real_of_neg_symmetric
+    {p : ℕ} [NeZero p]
+    (B : Finset (ZMod p))
+    (hsymm : ∀ χ ∈ B, -χ ∈ B)
+    (x : ZMod p) :
+    ((∑ χ ∈ B, ZMod.stdAddChar (χ * x)) : ℂ).im = 0 := by
+  let F : ℂ := ∑ χ ∈ B, ZMod.stdAddChar (χ * x)
+  have hconj : Complex.conj F = F := by
+    unfold F
+    rw [map_sum]
+    simp_rw [map_sum]
+    have hneg :
+        ∑ χ ∈ B, ZMod.stdAddChar ((-χ) * x) =
+          ∑ χ ∈ B, ZMod.stdAddChar (χ * x) := by
+      apply Finset.sum_bij (fun χ _ => -χ)
+      · intro χ hχ
+        exact hsymm χ hχ
+      · intro χ hχ
+        simp
+      · intro a ha b hb hab
+        exact neg_injective hab
+      · intro χ hχ
+        exact ⟨-χ, hsymm (-χ) (hsymm χ hχ),
+          by simp⟩
+    simpa [map_neg, neg_mul] using hneg
+  have := congrArg Complex.im hconj
+  simpa [F] using this
+
+theorem symmetric_character_square_sum
+    {p : ℕ} (hp : p.Prime)
+    (B : Finset (ZMod p)) (hzero : 0 ∈ B)
+    (hsymm : ∀ χ ∈ B, -χ ∈ B) :
+    letI : NeZero p := ⟨hp.ne_zero⟩
+    ∑ x : ZMod p,
+      ((∑ χ ∈ B, ZMod.stdAddChar (χ * x)).re) ^ 2 =
+        (p : ℝ) * B.card := by
+  letI : NeZero p := ⟨hp.ne_zero⟩
+  classical
+  have hreal : ∀ x : ZMod p,
+      ((∑ χ ∈ B, ZMod.stdAddChar (χ * x)) : ℂ).im = 0 :=
+    character_sum_real_of_neg_symmetric B hsymm
+  have hsquare : ∀ x : ZMod p,
+      ((((∑ χ ∈ B, ZMod.stdAddChar (χ * x)) : ℂ).re) ^ 2 : ℂ) =
+        (∑ χ ∈ B, ZMod.stdAddChar (χ * x)) *
+          Complex.conj (∑ ψ ∈ B, ZMod.stdAddChar (ψ * x)) := by
+    intro x
+    apply Complex.ext
+    · simp [Complex.normSq_apply, hreal x, pow_two]
+    · simp [hreal x]
+  have hexpand :
+      ∑ x : ZMod p,
+        (∑ χ ∈ B, ZMod.stdAddChar (χ * x)) *
+          Complex.conj (∑ ψ ∈ B, ZMod.stdAddChar (ψ * x)) =
+        (p : ℂ) * B.card := by
+    simp_rw [map_sum, Finset.mul_sum, Finset.sum_mul]
+    rw [Finset.sum_comm]
+    calc
+      _ = ∑ χ ∈ B, ∑ ψ ∈ B,
+          ∑ x : ZMod p,
+            ZMod.stdAddChar ((χ - ψ) * x) := by
+            apply Finset.sum_congr rfl
+            intro χ hχ
+            apply Finset.sum_congr rfl
+            intro ψ hψ
+            apply Finset.sum_congr rfl
+            intro x hx
+            simp [sub_mul, map_sub]
+      _ = ∑ χ ∈ B, ∑ ψ ∈ B,
+          if χ = ψ then (p : ℂ) else 0 := by
+            apply Finset.sum_congr rfl
+            intro χ hχ
+            apply Finset.sum_congr rfl
+            intro ψ hψ
+            have horth :=
+              External.zmod_character_orthogonality hp (χ - ψ)
+            simpa [mul_comm, sub_eq_zero] using horth
+      _ = (p : ℂ) * B.card := by
+            simp
+  have hre := congrArg Complex.re hexpand
+  simp_rw [← hsquare] at hre
+  simpa using hre
+
 /-- Lemma 3.6. -/
 theorem lemma3_6 {p m t : ℕ} (hp : p.Prime)
     (S : Finset (ZMod p)) :
@@ -574,7 +656,7 @@ theorem lemma3_6 {p m t : ℕ} (hp : p.Prime)
   letI : NeZero p := ⟨hp.ne_zero⟩
   rcases Bset_zero_neg S with ⟨hzero, hsymm⟩
   have horth :=
-    External.symmetric_character_square_sum hp (Bset S m t) hzero hsymm
+    symmetric_character_square_sum hp (Bset S m t) hzero hsymm
   have hpoint : ∀ x ∈ Qset S m t (1 / 200),
       (4 : ℝ) / 5 * (Bset S m t).card ^ 2 ≤
         ((∑ χ ∈ Bset S m t, ZMod.stdAddChar (χ * x)).re) ^ 2 := by
