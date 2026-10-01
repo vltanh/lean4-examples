@@ -37,7 +37,7 @@ theorem exists_section5_good_ordering
   have hspace :=
     Section5External.indexedOrderings_nonempty S
   have h :=
-    Section5External.exists_avoiding_three_events
+    exists_avoiding_three_events
       (indexedOrderings S) hspace
       (BadEvent1 D) (BadEvent2 D) (BadEvent3 D)
       (1 / 100 : ℝ) (3 / 100 : ℝ) (1 / 25 : ℝ)
