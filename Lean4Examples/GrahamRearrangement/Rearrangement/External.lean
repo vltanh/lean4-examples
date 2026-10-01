@@ -678,7 +678,7 @@ theorem witness_union_bound
 
 window yield a least point b₀ and D further distinct points in the following 20D
 window. -/
-axiom dense_window_extract {n D : ℕ}
+theorem dense_window_extract {n D : ℕ}
     (B : Finset (Fin n)) (hD : 0 < D)
     (h : ∃ z : Fin n,
       D < (B ∩ symmetricWindow z (10 * D)).card) :
@@ -686,7 +686,38 @@ axiom dense_window_extract {n D : ℕ}
       Function.Injective b ∧
       (∀ i, b i ∈ B) ∧
       (∀ i, paperPos b₀ < paperPos (b i) ∧
-        paperPos (b i) ≤ paperPos b₀ + 20 * D)
+        paperPos (b i) ≤ paperPos b₀ + 20 * D) := by
+  classical
+  obtain ⟨z,hz⟩ := h
+  let T := B ∩ symmetricWindow z (10 * D)
+  have hT : T.Nonempty := by
+    exact Finset.card_pos.mp (lt_trans hD hz)
+  let b₀ := T.min' hT
+  have hb₀T : b₀ ∈ T := T.min'_mem hT
+  have hb₀B : b₀ ∈ B := (Finset.mem_inter.mp hb₀T).1
+  let U := T.erase b₀
+  have hUcard : D ≤ U.card := by
+    rw [Finset.card_erase_of_mem hb₀T]
+    omega
+  obtain ⟨b,hbinj,hbU⟩ := exists_injective_fin_enum U D hUcard
+  refine ⟨b₀,hb₀B,b,hbinj,?_,?_⟩
+  · intro i
+    exact (Finset.mem_inter.mp
+      (Finset.mem_of_mem_erase (hbU i))).1
+  · intro i
+    have hbiT : b i ∈ T :=
+      Finset.mem_of_mem_erase (hbU i)
+    have hbine : b i ≠ b₀ := Finset.ne_of_mem_erase (hbU i)
+    have hmin : b₀ ≤ b i := T.min'_le _ hbiT
+    have hlt : b₀ < b i := lt_of_le_of_ne hmin (Ne.symm hbine)
+    have hb0W := (Finset.mem_inter.mp hb₀T).2
+    have hbiW := (Finset.mem_inter.mp hbiT).2
+    simp only [symmetricWindow, Finset.mem_filter,
+      Finset.mem_univ, true_and] at hb0W hbiW
+    constructor
+    · simpa [paperPos] using hlt
+    · simp [Nat.dist_eq,paperPos] at hb0W hbiW ⊢
+      omega
 
 /-- Generic trimming principle for disjoint transpositions: swaps crossing none
 of a finite family of index sets can be deleted without changing the image of
@@ -702,10 +733,35 @@ axiom trim_irrelevant_disjoint_swaps
         (I i).image (collectionPerm P)
 
 /-- Sort a finite injective tuple by a permutation of its coordinates. -/
-axiom exists_sorting_perm
-    {α : Type*} [LinearOrder α] {k : ℕ}
+theorem exists_sorting_perm
+    {α : Type*} [LinearOrder α] [DecidableEq α] {k : ℕ}
     (x : Fin k → α) (hinj : Function.Injective x) :
-    ∃ ρ : Equiv.Perm (Fin k), StrictMono (x ∘ ρ)
+    ∃ ρ : Equiv.Perm (Fin k), StrictMono (x ∘ ρ) := by
+  classical
+  let X : Finset α := Finset.univ.image x
+  have hcard : X.card = k := by
+    rw [Finset.card_image_of_injective _ hinj]
+    simp [X]
+  let ex : Fin k ≃ {a // a ∈ X} :=
+    Equiv.ofBijective (fun i => ⟨x i,by
+      apply Finset.mem_image.mpr
+      exact ⟨i,Finset.mem_univ _,rfl⟩⟩)
+      ⟨fun i j h => hinj (Subtype.ext_iff.mp h),
+       fun y => by
+        rcases Finset.mem_image.mp y.2 with ⟨i,hi,rfl⟩
+        exact ⟨i,rfl⟩⟩
+  let ord : Fin k ≃o {a // a ∈ X} := X.orderIsoOfFin hcard
+  let ρ : Equiv.Perm (Fin k) := ord.toEquiv.trans ex.symm
+  refine ⟨ρ,?_⟩
+  intro i j hij
+  have hord : ord i < ord j := ord.lt_iff_lt.mpr hij
+  have hi : x (ρ i) = (ord i).1 := by
+    have := ex.apply_symm_apply (ord i)
+    exact congrArg Subtype.val this
+  have hj : x (ρ j) = (ord j).1 := by
+    have := ex.apply_symm_apply (ord j)
+    exact congrArg Subtype.val this
+  simpa [Function.comp_def,hi,hj] using hord
 
 /-- Generic bookkeeping for summing all increasing prefix-chain constraints after
 conditioning on an exposed set. The substantive chain estimate is supplied by
@@ -967,11 +1023,24 @@ axiom reverseConjugate_admissible {n D : ℕ}
 
 /-- Reversal conjugation transports the fixed-outside condition from [b,b'] to
 the reversed interval [rev b', rev b]. -/
-axiom reverseConjugate_fixedOutside {n : ℕ}
+theorem reverseConjugate_fixedOutside {n : ℕ}
     (b b' : Fin n) (π : Equiv.Perm (Fin n))
     (hfix : FixedOutside b b' π) :
     FixedOutside (reverseIndex n b') (reverseIndex n b)
-      (reverseConjugate π)
+      (reverseConjugate π) := by
+  intro i hi
+  have hrev :
+      paperPos (reverseIndex n i) < paperPos b ∨
+        paperPos b' < paperPos (reverseIndex n i) := by
+    rcases hi with hi | hi
+    · right
+      rw [paperPos_reverseIndex, paperPos_reverseIndex] at hi
+      omega
+    · left
+      rw [paperPos_reverseIndex, paperPos_reverseIndex] at hi
+      omega
+  rw [reverseConjugate_apply,hfix (reverseIndex n i) hrev,
+    reverseIndex_involutive]
 
 end
 
