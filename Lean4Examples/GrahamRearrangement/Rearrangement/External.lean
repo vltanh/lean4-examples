@@ -177,13 +177,9 @@ theorem witness_union_bound
   have hmono :
       uniformMass space E ≤
         uniformMass space (fun ω => ∃ θ ∈ params, A θ ω) := by
-    apply uniformMass_mono
-    intro ω hE
-    by_cases hω : ω ∈ space
-    · exact hcover ω hω hE
-    · exact False.elim (hω (by
-        classical
-        exact Finset.mem_univ _))
+    apply uniformMass_mono_on
+    intro ω hω hE
+    exact hcover ω hω hE
   calc
     uniformMass space E
       ≤ uniformMass space (fun ω => ∃ θ ∈ params, A θ ω) := hmono
