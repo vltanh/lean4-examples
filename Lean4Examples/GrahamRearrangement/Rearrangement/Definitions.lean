@@ -130,6 +130,42 @@ theorem card_forwardWindow_le {n : ℕ} (b : Fin n) (r : ℕ) :
 def symmetricWindow {n : ℕ} (z : Fin n) (r : ℕ) : Finset (Fin n) :=
   Finset.univ.filter fun i => Nat.dist i.val z.val ≤ r
 
+theorem card_symmetricWindow_le {n : ℕ} (z : Fin n) (r : ℕ) :
+    (symmetricWindow z r).card ≤ 2 * r + 1 := by
+  classical
+  let f : Fin n → ℕ := fun i => i.val + r - z.val
+  apply Finset.card_le_of_injOn f
+  · intro i hi
+    simp only [symmetricWindow, Finset.mem_filter, Finset.mem_univ,
+      true_and] at hi
+    exact Finset.mem_range.2 (by
+      rw [Nat.dist_eq] at hi
+      omega)
+  · intro i hi j hj h
+    apply Fin.ext
+    dsimp [f] at h
+    omega
+
+def backwardWindow {n : ℕ} (x : Fin n) (r : ℕ) : Finset (Fin n) :=
+  Finset.univ.filter fun q =>
+    q.val ≤ x.val ∧ x.val < q.val + r
+
+theorem card_backwardWindow_le {n : ℕ} (x : Fin n) (r : ℕ) :
+    (backwardWindow x r).card ≤ r := by
+  classical
+  let f : Fin n → ℕ := fun q => x.val - q.val
+  apply Finset.card_le_of_injOn f
+  · intro q hq
+    simp only [backwardWindow, Finset.mem_filter, Finset.mem_univ,
+      true_and] at hq
+    exact Finset.mem_range.2 (by omega)
+  · intro q hq q' hq' h
+    apply Fin.ext
+    simp only [backwardWindow, Finset.mem_filter, Finset.mem_univ,
+      true_and] at hq hq'
+    dsimp [f] at h
+    omega
+
 /-- B(σ): right endpoints of zero-sum intervals [a,b] with 2≤a<b≤n. -/
 def badRightEndpoints {n p : ℕ}
     (σ : Fin n → ZMod p) : Finset (Fin n) :=
