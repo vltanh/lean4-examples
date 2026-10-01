@@ -213,6 +213,13 @@ theorem exists_avoiding_three_events
   rw [hall] at h123
   linarith
 
+theorem log_card_sdiff_le {α : Type*} [DecidableEq α]
+    {S R : Finset α} (hne : (S \ R).Nonempty) :
+    Real.log ((S \ R).card : ℝ) ≤ Real.log (S.card : ℝ) := by
+  apply Real.strictMonoOn_log.monotoneOn
+  · exact_mod_cast hne.card_pos
+  · exact_mod_cast Finset.card_sdiff_le S R
+
 /-- Finite union bound for two events. -/
 theorem uniformMass_or_le_add {Ω : Type*} [DecidableEq Ω]
     (space : Finset Ω) (E F : Ω → Prop)
