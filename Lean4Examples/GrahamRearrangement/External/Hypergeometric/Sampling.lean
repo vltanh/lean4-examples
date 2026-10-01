@@ -323,27 +323,37 @@ theorem uniformSubset_head_tail
     intro x hx
     rw [Finset.card_powersetCard,
       Finset.card_erase_of_mem hx]
+  let B : α → Finset (α × Finset α) := fun x =>
+    (((U.erase x).powersetCard k).filter
+      (fun R => E (insert x R))).image fun R => (x,R)
+  have heventSpace :
+      (headTailSpace U k).filter
+          (fun q => E (headTailSet q)) =
+        U.biUnion B := by
+    ext q
+    rcases q with ⟨x,R⟩
+    simp [headTailSpace,B,headTailSet]
+  have hpairwise :
+      (U : Set α).PairwiseDisjoint B := by
+    intro x hx y hy hxy
+    rw [Finset.disjoint_left]
+    intro q hqx hqy
+    rcases Finset.mem_image.mp hqx with ⟨R,hR,rfl⟩
+    rcases Finset.mem_image.mp hqy with ⟨Q,hQ,hEq⟩
+    exact hxy (Prod.mk.inj_iff.mp hEq).1
   have hsum :
       (∑ x ∈ U,
         (((U.erase x).powersetCard k).filter
           (fun R => E (insert x R))).card) =
       ((headTailSpace U k).filter
         (fun q => E (headTailSet q))).card := by
-    classical
-    unfold headTailSpace
-    rw [Finset.sum_biUnion]
-    · apply Finset.sum_congr rfl
-      intro x hx
-      rw [Finset.card_image_iff.mpr]
-      · rfl
-      · intro R hR Q hQ h
-        exact Prod.mk.inj_iff.mp h |>.2
-    · intro x hx y hy hxy
-      rw [Finset.disjoint_left]
-      intro q hqx hqy
-      rcases Finset.mem_image.mp hqx with ⟨R,hR,rfl⟩
-      rcases Finset.mem_image.mp hqy with ⟨Q,hQ,hEq⟩
-      exact hxy (Prod.mk.inj_iff.mp hEq).1
+    rw [heventSpace,Finset.card_biUnion hpairwise]
+    apply Finset.sum_congr rfl
+    intro x hx
+    unfold B
+    rw [Finset.card_image_iff.mpr]
+    intro R hR Q hQ h
+    exact Prod.mk.inj_iff.mp h |>.2
   have hchoose :
       U.card * Nat.choose (U.card - 1) k =
         (k + 1) * Nat.choose U.card (k + 1) := by
