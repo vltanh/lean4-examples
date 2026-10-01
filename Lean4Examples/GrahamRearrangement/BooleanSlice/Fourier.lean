@@ -176,9 +176,17 @@ theorem dyadic_conditional_bound {p m : ℕ} (hp : p.Prime)
         · right
           have hχ1 : 1 ≤ psi P χ := le_of_not_gt hχ
           obtain ⟨l, hl, hlo, hhi⟩ :=
-            exists_dyadic_interval hχ1 (hψ χ)
+            External.exists_dyadic_interval hχ1 (hψ χ)
           exact ⟨l, hl, by simp [At, hlo, hhi]⟩
-      exact dyadic_exp_sum_bound hnonneg hcover
+      have hA0 : ∀ a ∈ A0 P, psi P a < 1 := by
+        intro a ha
+        simpa [A0] using (Finset.mem_filter.1 ha).2
+      have hAt : ∀ l a, a ∈ At P (2 ^ l) →
+          (2 : ℝ) ^ l ≤ psi P a := by
+        intro l a ha
+        simpa [At] using (Finset.mem_filter.1 ha).2.1
+      exact External.dyadic_exp_sum_bound
+        (psi P) (A0 P) (At P) m hnonneg hcover hA0 hAt
 
 /-- Equation (3.4): average the preceding inequality over the random partition. -/
 theorem equation_3_4 {p m : ℕ} (hp : p.Prime)
