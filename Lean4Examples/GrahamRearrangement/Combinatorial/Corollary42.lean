@@ -291,6 +291,142 @@ theorem chainIncrements_mem {p k : ℕ} [NeZero p]
     rw [← chain_all_increments_union_eq hk S hR]
     simp
 
+def canonicalChain {p k : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (m : Fin k → ℕ)
+    (hm : IsChainSizeTuple S.card m) :
+    Fin k → Finset (ZMod p) := by
+  classical
+  let e : Fin S.card ≃ {x // x ∈ S} :=
+    Fintype.equivOfCardEq (by simp)
+  exact fun i =>
+    (finSegment S.card 0 (m i)
+      (Nat.le_of_lt (hm.2 i).2)).image
+      (fun j => (e j).1)
+
+theorem canonicalChain_mem {p k : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (m : Fin k → ℕ)
+    (hm : IsChainSizeTuple S.card m) :
+    canonicalChain S m hm ∈ chainFamily S m := by
+  classical
+  let e : Fin S.card ≃ {x // x ∈ S} :=
+    Fintype.equivOfCardEq (by simp)
+  apply Finset.mem_filter.mpr
+  refine ⟨Finset.mem_univ _, ?_, ?_⟩
+  · intro i
+    constructor
+    · intro x hx
+      rcases Finset.mem_image.mp hx with ⟨j,hj,rfl⟩
+      exact (e j).2
+    · unfold canonicalChain
+      rw [Finset.card_image_of_injOn]
+      · exact card_finSegment S.card 0 (m i)
+          (Nat.le_of_lt (hm.2 i).2) |>.trans (by omega)
+      · intro a ha b hb hab
+        exact e.injective (Subtype.ext hab)
+  · intro i j hij x hx
+    rcases Finset.mem_image.mp hx with ⟨r,hr,rfl⟩
+    apply Finset.mem_image.mpr
+    refine ⟨r, ?_, rfl⟩
+    have hri := (mem_finSegment.mp hr)
+    apply mem_finSegment.mpr
+    refine ⟨by omega, ?_⟩
+    exact lt_of_lt_of_le hri.2 (le_of_lt (hm.1 hij))
+
+theorem chainFamily_nonempty {p k : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (m : Fin k → ℕ)
+    (hm : IsChainSizeTuple S.card m) :
+    (chainFamily S m).Nonempty :=
+  ⟨canonicalChain S m hm, canonicalChain_mem S m hm⟩
+
+theorem chain_eq_of_increments_eq {p k : ℕ} [NeZero p]
+    (hk : 0 < k) (S : Finset (ZMod p))
+    {m : Fin k → ℕ}
+    {R R' : Fin k → Finset (ZMod p)}
+    (hR : R ∈ chainFamily S m) (hR' : R' ∈ chainFamily S m)
+    (hEq : chainIncrements S R = chainIncrements S R') :
+    R = R' := by
+  funext i
+  rw [← chain_prefix_union_eq hk S hR i,
+      ← chain_prefix_union_eq hk S hR' i]
+  simp [hEq]
+
+theorem increments_prefix_union_eq {p k : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (m : Fin k → ℕ)
+    {Δ : Fin (k + 1) → Finset (ZMod p)}
+    (hΔ : Δ ∈ incrementPartitionFamily S m)
+    (i : Fin k) :
+    incrementsToChain Δ i =
+      ∪ j ∈ Finset.Iic i.val, Δ ⟨j,by omega⟩ := rfl
+
+theorem increments_chain_inverse {p k : ℕ} [NeZero p]
+    (hk : 0 < k) (S : Finset (ZMod p)) (m : Fin k → ℕ)
+    (hm : IsChainSizeTuple S.card m)
+    {Δ : Fin (k + 1) → Finset (ZMod p)}
+    (hΔ : Δ ∈ incrementPartitionFamily S m) :
+    chainIncrements S (incrementsToChain Δ) = Δ := by
+  classical
+  rcases Finset.mem_filter.mp hΔ with ⟨_,hdata,hdisj,hcover⟩
+  funext i
+  by_cases hi0 : i.val = 0
+  · subst i
+    simp [chainIncrements,incrementsToChain]
+  by_cases hik : i.val = k
+  · subst i
+    have hunion :
+        (∪ j ∈ Finset.Iic (k-1), Δ ⟨j,by omega⟩) =
+          S \ Δ ⟨k,by omega⟩ := by
+      ext x
+      simp
+      constructor
+      · rintro ⟨j,hj,hx⟩
+        refine ⟨(hdata _).1 hx, ?_⟩
+        intro hxk
+        exact Finset.disjoint_left.mp
+          (hdisj ⟨j,by omega⟩ ⟨k,by omega⟩ (by omega)) hx hxk
+      · rintro ⟨hxS,hxk⟩
+        rcases (hcover x).1 hxS with ⟨j,hxj⟩
+        have hjne : j.val ≠ k := by
+          intro h; subst j; exact hxk hxj
+        exact ⟨j.val,by omega,hxj⟩
+    simp [chainIncrements,incrementsToChain,hunion]
+  · have hi : i.val < k := by omega
+    have hprev :
+        (∪ j ∈ Finset.Iic (i.val-1), Δ ⟨j,by omega⟩) ⊆
+          (∪ j ∈ Finset.Iic i.val, Δ ⟨j,by omega⟩) := by
+      intro x hx
+      simp at hx ⊢
+      rcases hx with ⟨j,hji,hxj⟩
+      exact ⟨j,by omega,hxj⟩
+    have hdiff :
+        (∪ j ∈ Finset.Iic i.val, Δ ⟨j,by omega⟩) \
+          (∪ j ∈ Finset.Iic (i.val-1), Δ ⟨j,by omega⟩) =
+          Δ ⟨i.val,hi⟩ := by
+      ext x
+      simp
+      constructor
+      · rintro ⟨⟨j,hji,hxj⟩,hnot⟩
+        have hjiEq : j = i.val := by
+          by_contra hne
+          have hjlt : j ≤ i.val - 1 := by omega
+          exact hnot ⟨j,hjlt,hxj⟩
+        subst j
+        exact hxj
+      · intro hxi
+        refine ⟨⟨i.val,le_rfl,hxi⟩,?_⟩
+        rintro ⟨j,hj,hxj⟩
+        exact Finset.disjoint_left.mp
+          (hdisj ⟨j,by omega⟩ ⟨i.val,hi⟩ (by omega))
+          hxj hxi
+    simp [chainIncrements,incrementsToChain,hi0,hik,hdiff]
+
+theorem incrementPartitionFamily_nonempty {p k : ℕ} [NeZero p]
+    (hk : 0 < k) (S : Finset (ZMod p))
+    (m : Fin k → ℕ) (hm : IsChainSizeTuple S.card m) :
+    (incrementPartitionFamily S m).Nonempty := by
+  let R := canonicalChain S m hm
+  exact ⟨chainIncrements S R,
+    chainIncrements_mem hk S m (canonicalChain_mem S m hm)⟩
+
 theorem incrementsToChain_mem {p k : ℕ} [NeZero p]
     (hk : 0 < k) (S : Finset (ZMod p))
     (m : Fin k → ℕ)
@@ -319,7 +455,7 @@ theorem incrementsToChain_mem {p k : ℕ} [NeZero p]
       have htel :
           ∑ j ∈ Finset.Iic i.val,
             chainGap S.card m ⟨j,by omega⟩ =
-            m i := chainGap_prefix_sum m (Finset.mem_filter.mp hΔ).2.1 i
+            m i := chainGap_prefix_sum m hm i
       simpa [incrementsToChain, (hdata _).2] using htel
   · intro i j hij
     intro x hx
@@ -328,7 +464,8 @@ theorem incrementsToChain_mem {p k : ℕ} [NeZero p]
     exact ⟨r, le_trans hri hij, hx⟩
 
 theorem chain_increment_bijection {p k : ℕ} [NeZero p]
-    (hk : 0 < k) (S : Finset (ZMod p)) (m : Fin k → ℕ) :
+    (hk : 0 < k) (S : Finset (ZMod p))
+    (m : Fin k → ℕ) (hm : IsChainSizeTuple S.card m) :
     (chainFamily S m).card = (incrementPartitionFamily S m).card := by
   classical
   apply Finset.card_bij
@@ -336,10 +473,11 @@ theorem chain_increment_bijection {p k : ℕ} [NeZero p]
   · intro R hR
     exact chainIncrements_mem hk S m hR
   · intro R hR R' hR' hEq
-    exact chain_eq_of_increments_eq S R R' hEq
+    exact chain_eq_of_increments_eq hk S hR hR' hEq
   · intro Δ hΔ
-    refine ⟨incrementsToChain Δ, incrementsToChain_mem hk S m hΔ, ?_⟩
-    exact increments_chain_inverse S Δ hΔ
+    refine ⟨incrementsToChain Δ,
+      incrementsToChain_mem hk S m hΔ, ?_⟩
+    exact increments_chain_inverse hk S m hm hΔ
 
 def chainGapTarget {p k : ℕ} [NeZero p]
     (S : Finset (ZMod p)) (z : Fin k → ZMod p)
