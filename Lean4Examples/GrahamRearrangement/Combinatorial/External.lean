@@ -71,7 +71,7 @@ axiom uniformChain_sumProductBound {p k : ℕ} [NeZero p]
     (b : Fin (k + 1) → ℝ)
     (hstep :
       ∀ i : Fin (k + 1), i ≠ j →
-        ∀ U : Finset (ZMod p),
+        ∀ U : Finset (ZMod p), U ⊆ S →
           ε * S.card ≤ (U.card : ℝ) →
           (chainGap S.card m i : ℝ) ≤ (1 - ε) * U.card →
           ∀ q : ZMod p,
@@ -79,6 +79,12 @@ axiom uniformChain_sumProductBound {p k : ℕ} [NeZero p]
               (fun R => subsetSum R = q) ≤ b i)
     (z : Fin k → ZMod p) :
     chainMass S m z ≤ ∏ i ∈ Finset.univ.erase j, b i
+
+/-- Pigeonhole for the k+1 consecutive gaps of an increasing size tuple. -/
+axiom exists_large_chain_gap {k n : ℕ} (m : Fin k → ℕ)
+    (hm : IsChainSizeTuple n m) :
+    ∃ j : Fin (k + 1),
+      (n : ℝ) / (k + 1 : ℝ) ≤ chainGap n m j
 
 /-- Averaging a pointwise bound over a nonempty finite uniform space. -/
 axiom uniformExpectation_le_const {Ω : Type*} [DecidableEq Ω]
