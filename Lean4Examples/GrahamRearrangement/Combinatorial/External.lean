@@ -86,6 +86,22 @@ axiom exists_large_chain_gap {k n : ℕ} (m : Fin k → ℕ)
     ∃ j : Fin (k + 1),
       (n : ℝ) / (k + 1 : ℝ) ≤ chainGap n m j
 
+/-- Generic positive-kernel induction for increasing tuples.  This is the
+finite Fubini/reindexing identity used by the induction proving (4.1). -/
+axiom prefixKernelSum_le_pow (n h : ℕ) (w : ℕ → ℝ) (B : ℝ)
+    (hw : ∀ d, 0 ≤ w d)
+    (hrow : ∀ a < n,
+      (∑ d ∈ Finset.Icc 1 (n - a), w d) ≤ B) :
+    prefixKernelSum n h w ≤ B ^ h
+
+/-- Dropping the one cross-order constraint associated with an omitted gap
+factorizes the weighted tuple sum into a left and a reversed right prefix sum. -/
+axiom omittedKernelSum_le_prefix_mul (n k : ℕ) (w : ℕ → ℝ)
+    (hw : ∀ d, 0 ≤ w d) (j : Fin (k + 1)) :
+    omittedKernelSum n k w j ≤
+      prefixKernelSum n j.val w *
+        prefixKernelSum n (k - j.val) w
+
 /-- Averaging a pointwise bound over a nonempty finite uniform space. -/
 axiom uniformExpectation_le_const {Ω : Type*} [DecidableEq Ω]
     (space : Finset Ω) (hspace : space.Nonempty)
