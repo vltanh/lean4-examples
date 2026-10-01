@@ -311,6 +311,7 @@ is bounded by twice the ambient n^{-α} bound used in Section 5. -/
 theorem half_ground_lemma43Base_le
     {n s p : ℕ} {α C : ℝ}
     (hn : 2 ≤ n) (hhalf : n / 2 ≤ s) (hsn : s ≤ n)
+    (hCnonneg : 0 ≤ C)
     (hp : (n : ℝ) / p ≤ (n : ℝ) ^ (-α))
     (hC :
       4 * C * Real.sqrt (Real.log (n : ℝ)) /
@@ -347,18 +348,8 @@ theorem half_ground_lemma43Base_le
       Real.sqrt_nonneg _
     have hsroot : 0 < Real.sqrt (s : ℝ) := Real.sqrt_pos.2 hsR
     have hnroot : 0 < Real.sqrt (n : ℝ) := Real.sqrt_pos.2 hnR
-    by_cases hC0 : C ≤ 0
-    · have hleft : 2 * C * Real.sqrt (Real.log (s : ℝ)) /
-          Real.sqrt (s : ℝ) ≤ 0 := by positivity
-      have hright : 0 ≤
-          4 * C * Real.sqrt (Real.log (n : ℝ)) /
-            Real.sqrt (n : ℝ) := by
-        have := hC
-        nlinarith [show 0 < (n : ℝ) ^ (-α) by positivity]
-      linarith
-    · have hCpos : 0 < C := lt_of_not_ge hC0
-      apply (div_le_div_iff₀ hsroot hnroot).2
-      nlinarith [hlog,hroot]
+    apply (div_le_div_iff₀ hsroot hnroot).2
+    nlinarith [hlog,hroot,hCnonneg]
   nlinarith [hsp,hp,hterm,hC]
 
 /-- The exponent comparison αD≥3 used in the D-fold chain bounds. -/
