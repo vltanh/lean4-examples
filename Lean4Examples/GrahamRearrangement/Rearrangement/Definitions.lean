@@ -195,34 +195,6 @@ def headSizes {n D : ℕ} (b : Fin n)
     (x : Fin D → Fin n) : Fin D → ℕ :=
   fun i => b.val - (x ⟨D - 1 - i.val, by omega⟩).val
 
-def Lemma55Event {n p D : ℕ}
-    (σ : Fin n → ZMod p)
-    (b b' : Fin n)
-    (u : Fin D → Fin n)
-    (πi : Fin D → Equiv.Perm (Fin n)) : Prop :=
-  ∃ x ∈ tailTuples b' D,
-    ∃ π : Equiv.Perm (Fin n),
-      IsAdmissiblePermutation D π ∧
-      ∀ i,
-        indexedIntervalSum
-          (applyPositionPerm
-            (applyPositionPerm σ π) (πi i))
-          (u i) (x i) = 0
-
-def Lemma56Event {n p D : ℕ}
-    (σ : Fin n → ZMod p)
-    (b b' : Fin n)
-    (u : Fin D → Fin n)
-    (πi : Fin D → Equiv.Perm (Fin n)) : Prop :=
-  ∃ x ∈ headTuples b D,
-    ∃ π : Equiv.Perm (Fin n),
-      IsAdmissiblePermutation D π ∧
-      ∀ i,
-        indexedIntervalSum
-          (applyPositionPerm
-            (applyPositionPerm σ π) (πi i))
-          (x i) (u i) = 0
-
 /-- B(σ): right endpoints of zero-sum intervals [a,b] with 2≤a<b≤n. -/
 def badRightEndpoints {n p : ℕ}
     (σ : Fin n → ZMod p) : Finset (Fin n) :=
@@ -286,6 +258,34 @@ def IsAdmissiblePermutation {n : ℕ} (D : ℕ)
     (π : Equiv.Perm (Fin n)) : Prop :=
   ∃ P : Finset (Fin n × Fin n),
     IsAdmissibleCollection D P ∧ collectionPerm P = π
+
+def Lemma55Event {n p D : ℕ}
+    (σ : Fin n → ZMod p)
+    (b b' : Fin n)
+    (u : Fin D → Fin n)
+    (πi : Fin D → Equiv.Perm (Fin n)) : Prop :=
+  ∃ x ∈ tailTuples b' D,
+    ∃ π : Equiv.Perm (Fin n),
+      IsAdmissiblePermutation D π ∧
+      ∀ i,
+        indexedIntervalSum
+          (applyPositionPerm
+            (applyPositionPerm σ π) (πi i))
+          (u i) (x i) = 0
+
+def Lemma56Event {n p D : ℕ}
+    (σ : Fin n → ZMod p)
+    (b b' : Fin n)
+    (u : Fin D → Fin n)
+    (πi : Fin D → Equiv.Perm (Fin n)) : Prop :=
+  ∃ x ∈ headTuples b D,
+    ∃ π : Equiv.Perm (Fin n),
+      IsAdmissiblePermutation D π ∧
+      ∀ i,
+        indexedIntervalSum
+          (applyPositionPerm
+            (applyPositionPerm σ π) (πi i))
+          (x i) (u i) = 0
 
 def IsInterestingPermutation {n k : ℕ} (D : ℕ)
     (I : Fin k → Finset (Fin n))
