@@ -201,6 +201,39 @@ axiom relabel_strictly_increasing
     ∃ y : Fin D → α, StrictMono y ∧
       Set.range y = Set.range x
 
+/-- Generic permutation fact: transpositions with disjoint supports commute. -/
+axiom disjoint_swaps_commute {α : Type*} [DecidableEq α]
+    (a b c d : α)
+    (hab : a ≠ b) (hcd : c ≠ d)
+    (hac : a ≠ c) (had : a ≠ d)
+    (hbc : b ≠ c) (hbd : b ≠ d) :
+    (Equiv.swap a b).trans (Equiv.swap c d) =
+      (Equiv.swap c d).trans (Equiv.swap a b)
+
+/-- Generic permutation fact: the product of a finite family of pairwise
+support-disjoint transpositions is independent of the enumeration. -/
+axiom disjoint_swaps_order_independent {α : Type*} [DecidableEq α]
+    (P : Finset (α × α))
+    (hP : P.toSet.Pairwise fun q r =>
+      q.1 ≠ r.1 ∧ q.1 ≠ r.2 ∧ q.2 ≠ r.1 ∧ q.2 ≠ r.2)
+    (l : List (α × α)) (hl : l.toFinset = P) (hln : l.Nodup) :
+    swapsPermList l = swapsPermList P.toList
+
+/-- Generic permutation fact: a finite collection of disjoint nontrivial
+transpositions is recovered from the resulting permutation once each pair is
+oriented by a fixed strict order. -/
+axiom disjoint_swaps_reconstruct
+    {α : Type*} [LinearOrder α] [DecidableEq α]
+    (P Q : Finset (α × α))
+    (hPpair : P.toSet.Pairwise fun q r =>
+      q.1 ≠ r.1 ∧ q.1 ≠ r.2 ∧ q.2 ≠ r.1 ∧ q.2 ≠ r.2)
+    (hQpair : Q.toSet.Pairwise fun q r =>
+      q.1 ≠ r.1 ∧ q.1 ≠ r.2 ∧ q.2 ≠ r.1 ∧ q.2 ≠ r.2)
+    (hPord : ∀ q ∈ P, q.1 < q.2)
+    (hQord : ∀ q ∈ Q, q.1 < q.2)
+    (hperm : swapsPermList P.toList = swapsPermList Q.toList) :
+    P = Q
+
 /-- Generic trimming principle for disjoint transpositions: swaps crossing none
 of a finite family of index sets can be deleted without changing the image of
 any of those sets. -/
