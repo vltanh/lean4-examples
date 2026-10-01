@@ -385,6 +385,7 @@ theorem lemma55_fixed_x_pi_mass_le
     {p : ℕ} (hp : p.Prime)
     (S : Finset (ZMod p)) (hreg : Section5Regime P p S)
     (b b' : Fin S.card)
+    (hb2 : 2 ≤ paperPos b)
     (hgap : paperPos b' - paperPos b = 5 * P.D)
     (u x : Fin P.D → Fin S.card)
     (hu : ∀ i,
@@ -446,7 +447,7 @@ theorem lemma55_fixed_x_pi_mass_le
   have hD := section5Parameters_D_pos hα0 hαh P
   have htuple : IsChainSizeTuple T.card (tailSizes b' x) := by
     exact Section5External.tailSizes_valid
-      b b' hgap x hx hTcard
+      b b' hb2 hgap x hx hTcard
   have hchain :
       ∀ z : Fin P.D → ZMod p,
         chainMass T (tailSizes b' x) z ≤
@@ -526,7 +527,7 @@ theorem lemma5_5
                 (u i) (x i) = 0) ≤ weight x := by
     intro x hx π hπ
     exact lemma55_fixed_x_pi_mass_le
-      hα0 hαh P hp S hreg b b' hgap
+      hα0 hαh P hp S hreg b b' hb2 hgap
       u x hu hx πi hfix π
   let s := S.card - (5 * P.D + 1)
   have hsum :
@@ -536,7 +537,7 @@ theorem lemma5_5
       (chainConstant P.D) X (fun x => tailSizes b' x)
     · intro x hx
       exact Section5External.tailSizes_valid
-        b b' hgap x hx rfl
+        b b' hb2 hgap x hx rfl
     · intro x hx y hy hxy
       funext i
       have := congrFun hxy i
