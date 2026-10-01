@@ -398,6 +398,95 @@ theorem uniformConditionalMass_le_of_fibers
     apply (div_le_iff₀ hdenpos).2
     simpa [mul_comm] using hsum
 
+/-- Equal-size subsets of a finite ground set can be carried to one another by
+a permutation preserving the ground set and fixing its complement. -/
+theorem exists_perm_maps_finset
+    {α : Type*} [Fintype α] [DecidableEq α]
+    (S A B : Finset α) (hAS : A ⊆ S) (hBS : B ⊆ S)
+    (hcard : A.card = B.card) :
+    ∃ π : Equiv.Perm α,
+      A.image π = B ∧ S.image π = S ∧
+      ∀ x ∉ S, π x = x := by
+  classical
+  have hcomp :
+      (S \ A).card = (S \ B).card := by
+    rw [Finset.card_sdiff hAS, Finset.card_sdiff hBS, hcard]
+  let eA : {x // x ∈ A} ≃ {x // x ∈ B} :=
+    Fintype.equivOfCardEq (by simpa using hcard)
+  let eC : {x // x ∈ S \ A} ≃ {x // x ∈ S \ B} :=
+    Fintype.equivOfCardEq (by simpa using hcomp)
+  let f : α → α := fun x =>
+    if hxA : x ∈ A then (eA ⟨x,hxA⟩).1
+    else if hxS : x ∈ S then
+      (eC ⟨x,Finset.mem_sdiff.mpr ⟨hxS,hxA⟩⟩).1
+    else x
+  let g : α → α := fun y =>
+    if hyB : y ∈ B then (eA.symm ⟨y,hyB⟩).1
+    else if hyS : y ∈ S then
+      (eC.symm ⟨y,Finset.mem_sdiff.mpr ⟨hyS,hyB⟩⟩).1
+    else y
+  have hleft : Function.LeftInverse g f := by
+    intro x
+    by_cases hxA : x ∈ A
+    · have hB : (eA ⟨x,hxA⟩).1 ∈ B := (eA ⟨x,hxA⟩).2
+      simp [f,g,hxA,hB]
+    · by_cases hxS : x ∈ S
+      · have hSB : (eC ⟨x,Finset.mem_sdiff.mpr ⟨hxS,hxA⟩⟩).1 ∈ S \ B :=
+          (eC ⟨x,Finset.mem_sdiff.mpr ⟨hxS,hxA⟩⟩).2
+        have hnotB := (Finset.mem_sdiff.mp hSB).2
+        have hinS := (Finset.mem_sdiff.mp hSB).1
+        simp [f,g,hxA,hxS,hnotB,hinS]
+      · simp [f,g,hxA,hxS,hAS,hBS]
+  have hright : Function.RightInverse g f := by
+    intro y
+    by_cases hyB : y ∈ B
+    · have hA : (eA.symm ⟨y,hyB⟩).1 ∈ A :=
+        (eA.symm ⟨y,hyB⟩).2
+      simp [f,g,hyB,hA]
+    · by_cases hyS : y ∈ S
+      · have hSA :
+          (eC.symm ⟨y,Finset.mem_sdiff.mpr ⟨hyS,hyB⟩⟩).1 ∈ S \ A :=
+          (eC.symm ⟨y,Finset.mem_sdiff.mpr ⟨hyS,hyB⟩⟩).2
+        have hnotA := (Finset.mem_sdiff.mp hSA).2
+        have hinS := (Finset.mem_sdiff.mp hSA).1
+        simp [f,g,hyB,hyS,hnotA,hinS]
+      · simp [f,g,hyB,hyS,hAS,hBS]
+  let π : Equiv.Perm α :=
+    { toFun := f
+      invFun := g
+      left_inv := hleft
+      right_inv := hright }
+  refine ⟨π, ?_, ?_, ?_⟩
+  · ext y
+    constructor
+    · rintro ⟨x,hx,rfl⟩
+      simp [π,f,hx,(eA ⟨x,hx⟩).2]
+    · intro hy
+      let x := (eA.symm ⟨y,hy⟩).1
+      refine ⟨x,(eA.symm ⟨y,hy⟩).2,?_⟩
+      simp [π,f,x,(eA.symm ⟨y,hy⟩).2]
+  · ext y
+    constructor
+    · rintro ⟨x,hx,rfl⟩
+      by_cases hxA : x ∈ A
+      · exact hBS (eA ⟨x,hxA⟩).2
+      · exact (Finset.mem_sdiff.mp
+          (eC ⟨x,Finset.mem_sdiff.mpr ⟨hx,hxA⟩⟩).2).1
+    · intro hy
+      by_cases hyB : y ∈ B
+      · let x := (eA.symm ⟨y,hyB⟩).1
+        refine ⟨x,hAS (eA.symm ⟨y,hyB⟩).2,?_⟩
+        simp [π,f,x,(eA.symm ⟨y,hyB⟩).2]
+      · let x := (eC.symm
+          ⟨y,Finset.mem_sdiff.mpr ⟨hy,hyB⟩⟩).1
+        have hx := (eC.symm
+          ⟨y,Finset.mem_sdiff.mpr ⟨hy,hyB⟩⟩).2
+        refine ⟨x,(Finset.mem_sdiff.mp hx).1,?_⟩
+        simp [π,f,x,(Finset.mem_sdiff.mp hx).2,
+          (Finset.mem_sdiff.mp hx).1]
+  · intro x hx
+    simp [π,f,hx,show x ∉ A from fun h => hx (hAS h)]
+
 /-- Finite union bound for two events. -/
 theorem uniformMass_or_le_add {Ω : Type*} [DecidableEq Ω]
     (space : Finset Ω) (E F : Ω → Prop)
