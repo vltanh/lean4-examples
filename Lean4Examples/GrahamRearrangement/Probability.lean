@@ -56,6 +56,21 @@ theorem uniformMass_univ {Ω : Type*} [DecidableEq Ω]
     uniformMass space (fun _ => True) = 1 := by
   simp [uniformMass, h.card_ne_zero]
 
+theorem uniformMass_congr {Ω : Type*} [DecidableEq Ω]
+    (space : Finset Ω) (E F : Ω → Prop)
+    [DecidablePred E] [DecidablePred F]
+    (h : ∀ ω ∈ space, (E ω ↔ F ω)) :
+    uniformMass space E = uniformMass space F := by
+  unfold uniformMass
+  congr 2
+  ext ω
+  simp only [Finset.mem_filter]
+  constructor
+  · rintro ⟨hω, hE⟩
+    exact ⟨hω, (h ω hω).1 hE⟩
+  · rintro ⟨hω, hF⟩
+    exact ⟨hω, (h ω hω).2 hF⟩
+
 /-- Monotonicity of finite uniform mass. -/
 theorem uniformMass_mono {Ω : Type*} [DecidableEq Ω]
     (space : Finset Ω) (E F : Ω → Prop)
