@@ -52,9 +52,9 @@ theorem lemma4_1 {p m : ℕ} (hp : p.Prime)
   rw [sliceMass, Section4External.uniformSubset_twoStage S m hm hmS]
   have hspace :
       (S.powersetCard (m - 1)).Nonempty := by
-    apply Section4External.powersetCard_nonempty
+    apply powersetCard_nonempty
     omega
-  apply Section4External.uniformExpectation_le_const _ hspace
+  apply uniformExpectation_le_const _ hspace
   intro R hR
   have hRsub : R ⊆ S := by
     exact (Finset.mem_powersetCard.1 hR).1
@@ -63,7 +63,7 @@ theorem lemma4_1 {p m : ℕ} (hp : p.Prime)
   have hcard :
       (S \ R).card = S.card - m + 1 := by
     have hRm1 : R.card = m - 1 :=
-      Section4External.mem_powersetCard_card hR
+      mem_powersetCard_card hR
     rw [Finset.card_sdiff hRsub, hRm1]
     omega
   have hnonempty : (S \ R).Nonempty := by
