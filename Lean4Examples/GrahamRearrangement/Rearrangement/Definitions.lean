@@ -74,6 +74,17 @@ zero-sum interval at an exposed endpoint. -/
 def indexOpenClosed {n : ℕ} (a b : Fin n) : Finset (Fin n) :=
   Finset.univ.filter fun i => a.val < i.val ∧ i.val ≤ b.val
 
+theorem card_indexOpenClosed {n : ℕ} (a b : Fin n)
+    (hab : a.val ≤ b.val) :
+    (indexOpenClosed a b).card = b.val - a.val := by
+  classical
+  rw [show indexOpenClosed a b =
+      (Finset.Ioc a.val b.val).attachFin n (fun _ hi =>
+        lt_of_le_of_lt hi.2 b.isLt) by
+      ext i
+      simp [indexOpenClosed]]
+  simp [Nat.card_Ioc, hab]
+
 /-- Half-open index interval [a,b), used after exposing the value at b. -/
 def indexHalfOpen {n : ℕ} (a b : Fin n) : Finset (Fin n) :=
   Finset.univ.filter fun i => a.val ≤ i.val ∧ i.val < b.val
