@@ -12,6 +12,77 @@ Paper equations (3.1)--(3.4).
 
 noncomputable section
 
+/-- The blockwise character estimate used in equation (3.2), proved from
+Fact 2.5 exactly as in the paper. -/
+theorem block_character_decay {p : ℕ} (hp : p.Prime)
+    (T : Finset (ZMod p)) (hT : T.Nonempty) (χ : ZMod p) :
+    letI : NeZero p := ⟨hp.ne_zero⟩
+    ‖((∑ x ∈ T, ZMod.stdAddChar (χ * x)) / (T.card : ℂ))‖ ≤
+      Real.exp (-
+        (1 / (T.card : ℝ) ^ 2) *
+          ∑ x ∈ T, ∑ x' ∈ T,
+            zmodNorm (χ * x - χ * x') ^ 2) := by
+  letI : NeZero p := ⟨hp.ne_zero⟩
+  let δ : ℝ :=
+    (1 / (T.card : ℝ) ^ 2) *
+      ∑ x ∈ T, ∑ x' ∈ T,
+        zmodNorm (χ * x - χ * x') ^ 2
+  have hδ : 0 ≤ δ := by
+    dsimp [δ]
+    positivity
+  have hsq :=
+    External.zmod_character_average_norm_sq T hT χ
+  have hdouble :
+      (∑ x ∈ T, ∑ x' ∈ T,
+          (ZMod.stdAddChar (χ * x - χ * x')).re)
+        ≤ (T.card : ℝ) ^ 2 -
+          2 * ∑ x ∈ T, ∑ x' ∈ T,
+            zmodNorm (χ * x - χ * x') ^ 2 := by
+    calc
+      _ ≤ ∑ x ∈ T, ∑ x' ∈ T,
+          (1 - 2 * zmodNorm (χ * x - χ * x') ^ 2) := by
+            gcongr with x hx x' hx'
+            simpa [ep_eq_stdAddChar] using
+              fact2_5 hp (χ * x - χ * x')
+      _ = (T.card : ℝ) ^ 2 -
+          2 * ∑ x ∈ T, ∑ x' ∈ T,
+            zmodNorm (χ * x - χ * x') ^ 2 := by
+            simp [pow_two]
+            ring
+  have hcard : 0 < (T.card : ℝ) := by
+    exact_mod_cast hT.card_pos
+  have hnormsq :
+      ‖((∑ x ∈ T, ZMod.stdAddChar (χ * x)) / (T.card : ℂ))‖ ^ 2
+        ≤ 1 - 2 * δ := by
+    rw [hsq]
+    dsimp [δ]
+    have hcoef : 0 ≤ 1 / (T.card : ℝ) ^ 2 := by positivity
+    calc
+      _ ≤ (1 / (T.card : ℝ) ^ 2) *
+          ((T.card : ℝ) ^ 2 -
+            2 * ∑ x ∈ T, ∑ x' ∈ T,
+              zmodNorm (χ * x - χ * x') ^ 2) := by
+            exact mul_le_mul_of_nonneg_left hdouble hcoef
+      _ = _ := by field_simp; ring
+  have hexp :
+      1 - 2 * δ ≤ Real.exp (-2 * δ) := by
+    simpa only [neg_mul] using Real.one_sub_le_exp_neg (2 * δ)
+  have hsquare :
+      (Real.exp (-δ)) ^ 2 = Real.exp (-2 * δ) := by
+    rw [pow_two, ← Real.exp_add]
+    congr 1
+    ring
+  have hsq' :
+      ‖((∑ x ∈ T, ZMod.stdAddChar (χ * x)) / (T.card : ℂ))‖ ^ 2
+        ≤ (Real.exp (-δ)) ^ 2 := by
+    rw [hsquare]
+    exact le_trans hnormsq hexp
+  have hnorm0 :
+      0 ≤ ‖((∑ x ∈ T, ZMod.stdAddChar (χ * x)) / (T.card : ℂ))‖ :=
+    norm_nonneg _
+  have hexp0 : 0 ≤ Real.exp (-δ) := Real.exp_nonneg _
+  nlinarith
+
 /-- Equation (3.1), followed by the blockwise decay that gives (3.2). -/
 theorem conditional_sum_mass_le_exp_psi {p m : ℕ} (hp : p.Prime)
     (S : Finset (ZMod p)) (hm : 0 < m) (hmS : m ≤ S.card)
@@ -50,7 +121,7 @@ theorem conditional_sum_mass_le_exp_psi {p m : ℕ} (hp : p.Prime)
               · intro i hi
                 positivity
               · intro i hi
-                exact Section3External.block_character_decay hp (P i) (hne i) χ
+                exact block_character_decay hp (P i) (hne i) χ
         _ = Real.exp (-psi P χ) := by
               rw [← Real.exp_sum]
               congr 1
