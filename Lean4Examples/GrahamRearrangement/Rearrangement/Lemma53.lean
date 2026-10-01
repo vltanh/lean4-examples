@@ -357,11 +357,11 @@ theorem right_witness_endpoints_injective
     have hi := hw i
     have hj := hw j
     have hsplit_i :=
-      Section5External.swap_interval_split_right
+      swap_interval_split_right
         (applyPositionPerm σ π) b b' (y i) (s i) (t i)
         hi.1 hi.2.1 hi.2.2.1 hi.2.2.2.1 hi.2.2.2.2.1
     have hsplit_j :=
-      Section5External.swap_interval_split_right
+      swap_interval_split_right
         (applyPositionPerm σ π) b b' (y j) (s j) (t j)
         hj.1 hj.2.1 hj.2.2.1 hj.2.2.2.1 hj.2.2.2.2.1
     rw [hi.2.2.2.2.2] at hsplit_i
@@ -473,11 +473,11 @@ theorem left_witness_endpoints_injective
     have hi := hw i
     have hj := hw j
     have hsplit_i :=
-      Section5External.swap_interval_split_left
+      swap_interval_split_left
         (applyPositionPerm σ π) b (y i) (s i) (t i)
         hi.1 hi.2.1 hi.2.2.1 hi.2.2.2.1 hi.2.2.2.2.1
     have hsplit_j :=
-      Section5External.swap_interval_split_left
+      swap_interval_split_left
         (applyPositionPerm σ π) b (y j) (s j) (t j)
         hj.1 hj.2.1 hj.2.2.1 hj.2.2.2.1 hj.2.2.2.2.1
     rw [hi.2.2.2.2.2] at hsplit_i
