@@ -61,6 +61,25 @@ axiom finiteConditionalProductBound
       ∀ i, uniformMass space (E i) ≤ b i) :
     uniformMass space (fun ω => ∀ i, E i ω) ≤ ∏ i, b i
 
+/-- Generic chain-rule bound for the standard exposure of a uniform nested chain.
+One gap j is not exposed; for every other gap, the caller supplies a uniform-subset
+anticoncentration bound valid for every possible remaining ground set. -/
+axiom uniformChain_sumProductBound {p k : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (m : Fin k → ℕ)
+    (hm : IsChainSizeTuple S.card m)
+    (j : Fin (k + 1)) (ε : ℝ) (hε0 : 0 < ε)
+    (b : Fin (k + 1) → ℝ)
+    (hstep :
+      ∀ i : Fin (k + 1), i ≠ j →
+        ∀ U : Finset (ZMod p),
+          ε * S.card ≤ (U.card : ℝ) →
+          (chainGap S.card m i : ℝ) ≤ (1 - ε) * U.card →
+          ∀ q : ZMod p,
+            uniformMass (U.powersetCard (chainGap S.card m i))
+              (fun R => subsetSum R = q) ≤ b i)
+    (z : Fin k → ZMod p) :
+    chainMass S m z ≤ ∏ i ∈ Finset.univ.erase j, b i
+
 /-- Averaging a pointwise bound over a nonempty finite uniform space. -/
 axiom uniformExpectation_le_const {Ω : Type*} [DecidableEq Ω]
     (space : Finset Ω) (hspace : space.Nonempty)
