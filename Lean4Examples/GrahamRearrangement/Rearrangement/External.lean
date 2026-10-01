@@ -484,6 +484,21 @@ axiom partial_matching_count_le (q r : ℕ) :
       ((r + 1 : ℕ) ^ q : ℕ) ≤ (r + 1) ^ q ∧
       0 < (r + 1) ^ q
 
+/-- Reversal conjugation preserves admissibility of a collection of local
+disjoint swaps and preserves the same distance bound. -/
+axiom reverseConjugate_admissible {n D : ℕ}
+    (π : Equiv.Perm (Fin n))
+    (hπ : IsAdmissiblePermutation D π) :
+    IsAdmissiblePermutation D (reverseConjugate π)
+
+/-- Reversal conjugation transports the fixed-outside condition from [b,b'] to
+the reversed interval [rev b', rev b]. -/
+axiom reverseConjugate_fixedOutside {n : ℕ}
+    (b b' : Fin n) (π : Equiv.Perm (Fin n))
+    (hfix : FixedOutside b b' π) :
+    FixedOutside (reverseIndex n b') (reverseIndex n b)
+      (reverseConjugate π)
+
 /-- Fixed-position reversal is a permutation and therefore preserves a uniform
 random ordering. -/
 axiom reversal_perm_invariant {p : ℕ} [NeZero p]
