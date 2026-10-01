@@ -17,6 +17,22 @@ def leftEndpointCandidates {n : ℕ} (b : Fin n) : Finset (Fin n) :=
 def nearRightEnd {n : ℕ} (D : ℕ) : Finset (Fin n) :=
   Finset.univ.filter fun b => n ≤ paperPos b + 30 * D
 
+theorem card_near_right_end_le {n D : ℕ} :
+    (nearRightEnd (n := n) D).card ≤ 30 * D + 1 := by
+  classical
+  let f : Fin n → ℕ := fun b => n - paperPos b
+  apply Finset.card_le_of_injOn f
+  · intro b hb
+    simp only [nearRightEnd, Finset.mem_filter, Finset.mem_univ,
+      true_and] at hb
+    exact Finset.mem_range.2 (by omega)
+  · intro b hb c hc h
+    apply Fin.ext
+    simp only [nearRightEnd, Finset.mem_filter, Finset.mem_univ,
+      true_and] at hb hc
+    dsimp [f, paperPos] at h
+    omega
+
 theorem badEndpoint_event_subset {n p : ℕ}
     (σ : Fin n → ZMod p) (b : Fin n) :
     b ∈ badRightEndpoints σ →
@@ -231,9 +247,7 @@ theorem lemma5_1 {α : ℝ}
           (3 * (S.card : ℝ) ^ (-α)) := by
           gcongr
           exact_mod_cast
-            (show (nearRightEnd (n := S.card) P.D).card ≤ 30 * P.D + 1 by
-              unfold nearRightEnd
-              exact card_near_right_end_le _ _)
+            (card_near_right_end_le (n := S.card) (D := P.D))
     _ ≤ 1 / 100 := by
           have hpow := section5_Calpha_power hα0 P
           have hcard := hreg.2.1
