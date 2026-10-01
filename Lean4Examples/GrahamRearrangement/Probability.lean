@@ -95,6 +95,17 @@ theorem uniformMass_mono {Ω : Type*} [DecidableEq Ω]
     simp only [Finset.mem_filter] at hω ⊢
     exact ⟨hω.1, hEF _ hω.2⟩
 
+theorem uniformMass_mono_on {Ω : Type*} [DecidableEq Ω]
+    (space : Finset Ω) (E F : Ω → Prop)
+    [DecidablePred E] [DecidablePred F]
+    (hEF : ∀ ω ∈ space, E ω → F ω) :
+    uniformMass space E ≤ uniformMass space F := by
+  unfold uniformMass
+  gcongr
+  exact Finset.card_le_card fun ω hω => by
+    rcases Finset.mem_filter.1 hω with ⟨hspace, hE⟩
+    exact Finset.mem_filter.2 ⟨hspace, hEF ω hspace hE⟩
+
 /-- Finite union bound for an indexed family of events. -/
 theorem uniformMass_exists_le_sum {Ω ι : Type*}
     [DecidableEq Ω] [DecidableEq ι]
