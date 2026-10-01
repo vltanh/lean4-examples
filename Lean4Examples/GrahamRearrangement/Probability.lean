@@ -569,6 +569,27 @@ theorem uniformMass_statistic_of_pairwise_equal_fibers
   exact uniformMass_statistic_of_equal_fibers
     space values f hmap hvalues c hc hcfiber E
 
+theorem card_biUnion_of_pairwise_disjoint
+    {ι α : Type*} [DecidableEq ι] [DecidableEq α]
+    (I : Finset ι) (A : ι → Finset α)
+    (hdisj : ∀ i ∈ I, ∀ j ∈ I, i ≠ j → Disjoint (A i) (A j)) :
+    (∪ i ∈ I, A i).card = ∑ i ∈ I, (A i).card := by
+  classical
+  induction I using Finset.induction_on with
+  | empty => simp
+  | @insert i I hi ih =>
+      have hdi :
+          Disjoint (A i) (∪ j ∈ I, A j) := by
+        rw [Finset.disjoint_biUnion_right]
+        intro j hj
+        exact hdisj i (by simp) j (by simp [hj])
+          (by intro h; subst j; exact hi hj)
+      rw [Finset.biUnion_insert, Finset.card_union_of_disjoint hdi,
+        ih (by
+          intro a ha b hb hab
+          exact hdisj a (by simp [ha]) b (by simp [hb]) hab)]
+      simp [hi]
+
 /-- Finite union bound for two events. -/
 theorem uniformMass_or_le_add {Ω : Type*} [DecidableEq Ω]
     (space : Finset Ω) (E F : Ω → Prop)
