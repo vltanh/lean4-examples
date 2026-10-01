@@ -99,8 +99,15 @@ theorem zmodNorm_neg {p : ℕ} [NeZero p] (x : ZMod p) :
   simp [cyclicDistance]
 
 /-- The `k`-fold sumset `kA` from Fact 2.4. -/
-def kfoldSumset {p : ℕ} (A : Finset (ZMod p)) (k : ℕ) : Finset (ZMod p) :=
-  (List.replicate k A).foldl (· + ·) {0}
+def kfoldSumset {p : ℕ} (A : Finset (ZMod p)) : ℕ → Finset (ZMod p)
+  | 0 => {0}
+  | k + 1 => kfoldSumset A k + A
+
+@[simp] theorem kfoldSumset_zero {p : ℕ} (A : Finset (ZMod p)) :
+    kfoldSumset A 0 = {0} := rfl
+
+@[simp] theorem kfoldSumset_succ {p k : ℕ} (A : Finset (ZMod p)) :
+    kfoldSumset A (k + 1) = kfoldSumset A k + A := rfl
 
 /-- Membership in the k-fold sumset is equivalent to a sum of a length-k list
 whose entries all lie in A. -/
@@ -113,9 +120,9 @@ theorem mem_kfoldSumset {p k : ℕ} [NeZero p]
   | zero =>
       simp [kfoldSumset]
   | succ k ih =>
-      simp only [kfoldSumset, List.replicate_succ, List.foldl_cons]
       constructor
       · intro hx
+        rw [kfoldSumset_succ] at hx
         rcases Finset.mem_add.1 hx with ⟨u, hu, a, ha, rfl⟩
         rcases (ih u).1 hu with ⟨xs, hlen, hmem, hsum⟩
         refine ⟨xs ++ [a], by simp [hlen], ?_, by simp [hsum]⟩
@@ -125,28 +132,73 @@ theorem mem_kfoldSumset {p k : ℕ} [NeZero p]
         · exact hmem y hy
         · exact ha
       · rintro ⟨xs, hlen, hmem, rfl⟩
-        have hne : xs ≠ [] := by simpa [hlen]
-        obtain ⟨ys, a, rfl⟩ := List.exists_eq_append_cons_of_ne_nil hne
-        have hyslen : ys.length = k := by simpa using hlen
-        have hys : ys.sum ∈ kfoldSumset A k :=
-          (ih ys.sum).2 ⟨ys, hyslen, by
-            intro y hy
-            exact hmem y (by simp [hy]), rfl⟩
-        have ha : a ∈ A := hmem a (by simp)
-        exact Finset.mem_add.2 ⟨ys.sum, hys, a, ha, by simp⟩
+        obtain ⟨ys, a, rfl⟩ :=
+          List.exists_eq_append_cons_of_length_succ hlen
+        rw [List.sum_append, List.sum_singleton, kfoldSumset_succ]
+        exact Finset.mem_add.2
+          ⟨ys.sum,
+            (ih ys.sum).2
+              ⟨ys, by simpa using hlen, by
+                intro y hy
+                exact hmem y (by simp [hy]), rfl⟩,
+            a, hmem a (by simp), rfl⟩
 
-/-- Fact 2.4, stated in integer cardinalities so that the paper's formula also has
-its literal meaning in the empty-set edge case. -/
+theorem kfoldSumset_empty {p k : ℕ}
+    (hk : 0 < k) :
+    kfoldSumset (∅ : Finset (ZMod p)) k = ∅ := by
+  cases k with
+  | zero => omega
+  | succ k => simp [kfoldSumset]
+
+theorem univ_add_nonempty {p : ℕ} [NeZero p]
+    {A : Finset (ZMod p)} (hA : A.Nonempty) :
+    (Finset.univ : Finset (ZMod p)) + A = Finset.univ := by
+  ext x
+  simp only [Finset.mem_add, Finset.mem_univ, iff_true]
+  rcases hA with ⟨a, ha⟩
+  exact ⟨x - a, Finset.mem_univ _, a, ha, by simp⟩
+
+/-- A proper k-fold sumset has every positive prefix proper. -/
+theorem kfoldSumset_prefix_proper {p k : ℕ} [NeZero p]
+    {A : Finset (ZMod p)} (hA : A.Nonempty)
+    (hproper : kfoldSumset A (k + 1) ≠ Finset.univ) :
+    kfoldSumset A k ≠ Finset.univ := by
+  intro hk
+  apply hproper
+  rw [kfoldSumset_succ, hk, univ_add_nonempty hA]
+
+/-- Fact 2.4, exactly as in the paper. The only external input is the ordinary
+two-set Cauchy--Davenport theorem. -/
 theorem fact2_4 {p k : ℕ} (hp : p.Prime)
     (A : Finset (ZMod p)) (hk : 0 < k)
     (hproper : kfoldSumset A k ≠ Finset.univ) :
     (1 : ℤ) + (k : ℤ) * ((A.card : ℤ) - 1) ≤
       ((kfoldSumset A k).card : ℤ) := by
-  have h :=
-    External.iteratedCauchyDavenportProper hp (List.replicate k A)
-      (by simpa [kfoldSumset] using hproper)
-  simp [kfoldSumset] at h
-  linarith
+  letI : NeZero p := ⟨hp.ne_zero⟩
+  by_cases hA : A.Nonempty
+  · induction k with
+    | zero => omega
+    | succ k ih =>
+        by_cases hk0 : k = 0
+        · subst k
+          simpa [kfoldSumset] using
+            (show (1 : ℤ) + ((A.card : ℤ) - 1) ≤ A.card by omega)
+        · have hkpos : 0 < k := Nat.pos_of_ne_zero hk0
+          have hprev :
+              kfoldSumset A k ≠ Finset.univ :=
+            kfoldSumset_prefix_proper hA hproper
+          have hih := ih hkpos hprev
+          have hcd :=
+            External.cauchyDavenportProper hp
+              (kfoldSumset A k) A hproper
+          rw [kfoldSumset_succ]
+          rw [kfoldSumset_succ] at hproper
+          linarith
+  · have hAe : A = ∅ := Finset.not_nonempty_iff_eq_empty.mp hA
+    subst A
+    rw [kfoldSumset_empty hk]
+    simp
+    omega
 
 /-- The paper's character `eₚ(x)=exp(2πix/p)`. -/
 def ep (p : ℕ) [NeZero p] (x : ZMod p) : ℂ :=
