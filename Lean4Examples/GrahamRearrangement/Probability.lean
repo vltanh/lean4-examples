@@ -487,6 +487,88 @@ theorem exists_perm_maps_finset
   · intro x hx
     simp [π,f,hx,show x ∉ A from fun h => hx (hAS h)]
 
+/-- A finite statistic with constant nonzero fiber cardinality is uniformly
+distributed on its finite range. -/
+theorem uniformMass_statistic_of_equal_fibers
+    {Ω Γ : Type*} [DecidableEq Ω] [DecidableEq Γ]
+    (space : Finset Ω) (values : Finset Γ)
+    (f : Ω → Γ)
+    (hmap : ∀ ω ∈ space, f ω ∈ values)
+    (hvalues : values.Nonempty)
+    (c : ℕ) (hc : 0 < c)
+    (hfiber :
+      ∀ γ ∈ values,
+        (space.filter fun ω => f ω = γ).card = c)
+    (E : Γ → Prop) [DecidablePred E] :
+    uniformMass space (fun ω => E (f ω)) =
+      uniformMass values E := by
+  unfold uniformMass
+  have hspaceCard :
+      space.card = values.card * c := by
+    rw [card_eq_sum_card_fibers space values f hmap]
+    simp_rw [hfiber]
+    simp [mul_comm]
+  have heventCard :
+      (space.filter fun ω => E (f ω)).card =
+        (values.filter E).card * c := by
+    calc
+      _ = ∑ γ ∈ values.filter E,
+          (space.filter fun ω => f ω = γ).card := by
+            apply card_eq_sum_card_fibers
+              (space.filter fun ω => E (f ω))
+              (values.filter E) f
+            intro ω hω
+            rcases Finset.mem_filter.mp hω with ⟨hsp,hE⟩
+            exact Finset.mem_filter.mpr ⟨hmap ω hsp,hE⟩
+      _ = ∑ _γ ∈ values.filter E, c := by
+            apply Finset.sum_congr rfl
+            intro γ hγ
+            exact hfiber γ (Finset.mem_filter.mp hγ).1
+      _ = (values.filter E).card * c := by simp [mul_comm]
+  rw [hspaceCard, heventCard]
+  have hcR : (0 : ℝ) < c := by exact_mod_cast hc
+  field_simp
+  ring
+
+/-- Equal-fiber uniformity without choosing the common cardinality explicitly. -/
+theorem uniformMass_statistic_of_pairwise_equal_fibers
+    {Ω Γ : Type*} [DecidableEq Ω] [DecidableEq Γ]
+    (space : Finset Ω) (values : Finset Γ)
+    (f : Ω → Γ)
+    (hmap : ∀ ω ∈ space, f ω ∈ values)
+    (hvalues : values.Nonempty)
+    (hspace : space.Nonempty)
+    (heq :
+      ∀ γ ∈ values, ∀ γ' ∈ values,
+        (space.filter fun ω => f ω = γ).card =
+          (space.filter fun ω => f ω = γ').card)
+    (E : Γ → Prop) [DecidablePred E] :
+    uniformMass space (fun ω => E (f ω)) =
+      uniformMass values E := by
+  classical
+  let γ₀ := values.min' hvalues
+  let c := (space.filter fun ω => f ω = γ₀).card
+  have hcfiber :
+      ∀ γ ∈ values,
+        (space.filter fun ω => f ω = γ).card = c := by
+    intro γ hγ
+    exact heq γ hγ γ₀ (values.min'_mem hvalues)
+  have hc : 0 < c := by
+    by_contra hz
+    have hc0 : c = 0 := Nat.eq_zero_of_not_pos hz
+    have hall0 :
+        ∀ γ ∈ values,
+          (space.filter fun ω => f ω = γ).card = 0 := by
+      intro γ hγ
+      rw [hcfiber γ hγ,hc0]
+    have hcard :=
+      card_eq_sum_card_fibers space values f hmap
+    simp_rw [hall0] at hcard
+    have : space.card = 0 := by simpa using hcard
+    exact hspace.card_ne_zero this
+  exact uniformMass_statistic_of_equal_fibers
+    space values f hmap hvalues c hc hcfiber E
+
 /-- Finite union bound for two events. -/
 theorem uniformMass_or_le_add {Ω : Type*} [DecidableEq Ω]
     (space : Finset Ω) (E F : Ω → Prop)
