@@ -40,18 +40,6 @@ axiom card_sdiff_of_mem_powersetCard {α : Type*} [DecidableEq α]
     {S R : Finset α} {m : ℕ} (hR : R ∈ S.powersetCard m) :
     (S \ R).card = S.card - m
 
-/-- Generic conditional product bound: if an event is the conjunction of a
-finite sequence of exposed events and the conditional probability at step i is
-at most b_i, then the total probability is at most their product. -/
-axiom finiteConditionalProductBound
-    {Ω ι : Type*} [DecidableEq Ω] [Fintype ι]
-    (space : Finset Ω) (E : ι → Ω → Prop)
-    [∀ i, DecidablePred (E i)] (b : ι → ℝ)
-    (hb : ∀ i, 0 ≤ b i)
-    (hconditional :
-      ∀ i, uniformMass space (E i) ≤ b i) :
-    uniformMass space (fun ω => ∀ i, E i ω) ≤ ∏ i, b i
-
 /-- Generic chain-rule bound for the standard exposure of a uniform nested chain.
 One gap j is not exposed; for every other gap, the caller supplies a uniform-subset
 anticoncentration bound valid for every possible remaining ground set. -/
