@@ -718,6 +718,19 @@ theorem uniformExpectation_mono {Ω : Type*} [DecidableEq Ω]
     exact Finset.sum_le_sum fun i hi =>
       Finset.sum_le_sum fun _ _ => hfg i hi
 
+theorem uniformExpectation_strictMono {Ω : Type*} [DecidableEq Ω]
+    (space : Finset Ω) (hspace : space.Nonempty)
+    (f g : Ω → ℝ)
+    (hfg : ∀ ω ∈ space, f ω < g ω) :
+    uniformExpectation space f < uniformExpectation space g := by
+  unfold uniformExpectation
+  have hsum :
+      (∑ ω ∈ space, f ω) < ∑ ω ∈ space, g ω :=
+    Finset.sum_lt_sum hspace (fun ω hω => hfg ω hω)
+  have hden : (0 : ℝ) < space.card := by
+    exact_mod_cast hspace.card_pos
+  exact (div_lt_div_iff_of_pos_right hden).2 hsum
+
 theorem uniformExpectation_add {Ω : Type*} [DecidableEq Ω]
     (space : Finset Ω) (f g : Ω → ℝ) :
     uniformExpectation space (fun ω => f ω + g ω) =
