@@ -23,8 +23,9 @@ def Lemma52Witness {n p D : ℕ}
 def lemma52Parameters (n D : ℕ) :
     Finset (Fin n × (Fin D → Fin n)) :=
   Finset.univ.filter fun θ =>
-    ∀ i, paperPos θ.1 < paperPos (θ.2 i) ∧
-      paperPos (θ.2 i) ≤ paperPos θ.1 + 20 * D
+    paperPos θ.1 + 30 * D ≤ n ∧
+      ∀ i, paperPos θ.1 < paperPos (θ.2 i) ∧
+        paperPos (θ.2 i) ≤ paperPos θ.1 + 20 * D
 
 theorem badEvent2_core_has_witness
     {n p D : ℕ} (hD : 0 < D)
@@ -348,19 +349,11 @@ theorem lemma5_2
         (P.D + 1 : ℝ) * (2 : ℝ) ^ P.D /
           (S.card : ℝ) ^ 3 := by
     intro θ hθ
-    by_cases hb : paperPos θ.1 + 30 * P.D ≤ S.card
-    · exact lemma52_fixed_parameter_mass_le
-        hα0 hαh P hp S hreg θ hθ hb
-    · have hempty :
-          ∀ σ, Core σ → ¬ Lemma52Witness σ θ.1 θ.2 := by
-        intro σ hc hw
-        have hbmem : θ.1 ∈ badRightEndpoints σ := by
-          -- Any witness parameter produced by the core reduction has a bad base
-          -- endpoint; parameters not satisfying this cannot cover Core.
-          by_contra hnot
-          exact hnot.elim
-        exact hc.2.2 ⟨θ.1, hbmem, by omega⟩
-      exact uniformMass_nonneg _ _
+    have hb :
+        paperPos θ.1 + 30 * P.D ≤ S.card := by
+      simpa [lemma52Parameters] using (Finset.mem_filter.1 hθ).2.1
+    exact lemma52_fixed_parameter_mass_le
+      hα0 hαh P hp S hreg θ hθ hb
   have hCore :
       orderingEventMass S Core ≤
         (lemma52Parameters S.card P.D).card *
