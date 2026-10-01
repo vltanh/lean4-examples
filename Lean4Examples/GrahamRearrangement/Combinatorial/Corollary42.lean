@@ -128,6 +128,132 @@ def incrementsToChain {p k : ℕ} [NeZero p]
     Fin k → Finset (ZMod p) :=
   fun i => ∪ j ∈ Finset.Iic i.val, Δ ⟨j, by omega⟩
 
+theorem chain_nested_from_mem {p k : ℕ} [NeZero p]
+    {S : Finset (ZMod p)} {m : Fin k → ℕ}
+    {R : Fin k → Finset (ZMod p)}
+    (hR : R ∈ chainFamily S m) :
+    ∀ i j, i ≤ j → R i ⊆ R j := by
+  exact (Finset.mem_filter.mp hR).2.2
+
+theorem chain_data_from_mem {p k : ℕ} [NeZero p]
+    {S : Finset (ZMod p)} {m : Fin k → ℕ}
+    {R : Fin k → Finset (ZMod p)}
+    (hR : R ∈ chainFamily S m) :
+    ∀ i, R i ⊆ S ∧ (R i).card = m i := by
+  exact (Finset.mem_filter.mp hR).2.1
+
+theorem subsetSum_sdiff {p : ℕ} [NeZero p]
+    {A B : Finset (ZMod p)} (hAB : A ⊆ B) :
+    subsetSum (B \ A) = subsetSum B - subsetSum A := by
+  unfold subsetSum
+  have hsum := Finset.sum_sdiff hAB (fun x => x)
+  rw [← hsum]
+  abel
+
+theorem chain_prefix_union_eq {p k : ℕ} [NeZero p]
+    (hk : 0 < k) (S : Finset (ZMod p))
+    {m : Fin k → ℕ} {R : Fin k → Finset (ZMod p)}
+    (hR : R ∈ chainFamily S m) (i : Fin k) :
+    (∪ j ∈ Finset.Iic i.val,
+      chainIncrements S R ⟨j,by omega⟩) = R i := by
+  classical
+  induction i.val with
+  | zero =>
+      simp [chainIncrements]
+  | succ r ih =>
+      let ip : Fin k := ⟨r,by omega⟩
+      have hprev : R ip ⊆ R i :=
+        chain_nested_from_mem hR ip i (by simp [ip]; omega)
+      have hinc :
+          chainIncrements S R ⟨r+1,by omega⟩ =
+            R i \ R ip := by
+        simp [chainIncrements,ip]
+      rw [Finset.biUnion_Iic_succ, ih ip, hinc]
+      exact Finset.union_sdiff_of_subset hprev
+
+theorem chain_all_increments_union_eq {p k : ℕ} [NeZero p]
+    (hk : 0 < k) (S : Finset (ZMod p))
+    {m : Fin k → ℕ} {R : Fin k → Finset (ZMod p)}
+    (hR : R ∈ chainFamily S m) :
+    (∪ j : Fin (k + 1), chainIncrements S R j) = S := by
+  classical
+  let last : Fin k := ⟨k-1,by omega⟩
+  have hlastSub := (chain_data_from_mem hR last).1
+  have hprefix := chain_prefix_union_eq hk S hR last
+  rw [show (∪ j : Fin (k + 1), chainIncrements S R j) =
+      (∪ j ∈ Finset.Iic (k-1),
+        chainIncrements S R ⟨j,by omega⟩) ∪
+          chainIncrements S R ⟨k,by omega⟩ by
+      ext x
+      simp
+      omega]
+  rw [hprefix]
+  simp [chainIncrements, last, Finset.union_sdiff_of_subset hlastSub]
+
+theorem chain_increment_subset {p k : ℕ} [NeZero p]
+    (hk : 0 < k) (S : Finset (ZMod p))
+    {m : Fin k → ℕ} {R : Fin k → Finset (ZMod p)}
+    (hR : R ∈ chainFamily S m)
+    (i : Fin (k + 1)) :
+    chainIncrements S R i ⊆ S := by
+  by_cases hi0 : i.val = 0
+  · subst i
+    simpa [chainIncrements] using
+      (chain_data_from_mem hR ⟨0,hk⟩).1
+  by_cases hik : i.val = k
+  · subst i
+    intro x hx
+    exact (Finset.mem_sdiff.mp
+      (by simpa [chainIncrements] using hx)).1
+  · have hi : i.val < k := by omega
+    exact Finset.sdiff_subset.trans
+      (chain_data_from_mem hR ⟨i.val,hi⟩).1
+
+theorem chain_increment_disjoint_of_lt {p k : ℕ} [NeZero p]
+    (hk : 0 < k) (S : Finset (ZMod p))
+    {m : Fin k → ℕ} {R : Fin k → Finset (ZMod p)}
+    (hR : R ∈ chainFamily S m)
+    {i j : Fin (k + 1)} (hij : i.val < j.val) :
+    Disjoint (chainIncrements S R i) (chainIncrements S R j) := by
+  rw [Finset.disjoint_left]
+  intro x hxi hxj
+  by_cases hjk : j.val = k
+  · subst j
+    have hxiS := chain_increment_subset hk S hR i hxi
+    have hxiLast :
+        x ∈ R ⟨k-1,by omega⟩ := by
+      have hprefix := chain_prefix_union_eq hk S hR ⟨k-1,by omega⟩
+      rw [← hprefix]
+      simp
+      exact ⟨i.val,by omega,hxi⟩
+    have hxnot :=
+      (Finset.mem_sdiff.mp
+        (by simpa [chainIncrements] using hxj)).2
+    exact hxnot hxiLast
+  · have hj : j.val < k := by omega
+    have hxjnot :
+        x ∉ R ⟨j.val-1,by omega⟩ := by
+      by_cases hj0 : j.val = 0
+      · omega
+      · exact (Finset.mem_sdiff.mp
+          (by simpa [chainIncrements,hj0,hjk] using hxj)).2
+    have hxiPrev :
+        x ∈ R ⟨j.val-1,by omega⟩ := by
+      by_cases hi0 : i.val = 0
+      · have hxRi : x ∈ R ⟨0,hk⟩ := by
+          simpa [chainIncrements,hi0] using hxi
+        exact chain_nested_from_mem hR _ _
+          (by simp; omega) hxRi
+      · by_cases hik : i.val = k
+        · omega
+        · have hi : i.val < k := by omega
+          have hxRi : x ∈ R ⟨i.val,hi⟩ :=
+            (Finset.mem_sdiff.mp
+              (by simpa [chainIncrements,hi0,hik] using hxi)).1
+          exact chain_nested_from_mem hR _ _
+            (by simp; omega) hxRi
+    exact hxjnot hxiPrev
+
 theorem chainIncrements_mem {p k : ℕ} [NeZero p]
     (hk : 0 < k) (S : Finset (ZMod p))
     (m : Fin k → ℕ) {R : Fin k → Finset (ZMod p)}
@@ -157,22 +283,13 @@ theorem chainIncrements_mem {p k : ℕ} [NeZero p]
       exact ⟨by intro x hx; exact (Finset.mem_sdiff.mp hx).1,
         by rw [Finset.card_sdiff hlastData.1, hlastData.2]; simp [hk]⟩
   · intro i j hij
-    unfold chainIncrements
     by_cases h : i.val < j.val
-    · exact chain_increment_disjoint_of_lt S R hnested h
-    · have : j.val < i.val := by omega
-      exact (chain_increment_disjoint_of_lt S R hnested this).symm
+    · exact chain_increment_disjoint_of_lt hk S hR h
+    · have h' : j.val < i.val := by omega
+      exact (chain_increment_disjoint_of_lt hk S hR h').symm
   · intro x
-    constructor
-    · intro hx
-      by_cases hxk : x ∈ R ⟨k-1,by omega⟩
-      · let i : Fin k := Finset.min' (Finset.univ.filter fun i : Fin k => x ∈ R i)
-          ⟨⟨k-1,by omega⟩, by simp [hxk]⟩
-        exact ⟨⟨i.val,by omega⟩,
-          x_mem_chain_increment_of_min S R i hx⟩
-      · exact ⟨⟨k,by omega⟩, by simp [chainIncrements,hx,hxk]⟩
-    · rintro ⟨i,hi⟩
-      exact chain_increment_subset S R hdata i hi
+    rw [← chain_all_increments_union_eq hk S hR]
+    simp
 
 theorem incrementsToChain_mem {p k : ℕ} [NeZero p]
     (hk : 0 < k) (S : Finset (ZMod p))
