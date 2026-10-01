@@ -84,7 +84,7 @@ axiom cauchyDavenportProper {p : ℕ} (hp : p.Prime)
 axiom iteratedCauchyDavenportProper {p : ℕ} (hp : p.Prime)
     (sets : List (Finset (ZMod p)))
     (hproper : sets.foldl (· + ·) {0} ≠ Finset.univ) :
-    (∑ A ∈ sets, ((A.card : ℤ) - 1)) ≤
+    (sets.map fun A => ((A.card : ℤ) - 1)).sum ≤
       (((sets.foldl (· + ·) {0}).card : ℤ) - 1)
 
 /-- Properness propagates to a prefix of an iterated sumset. -/
