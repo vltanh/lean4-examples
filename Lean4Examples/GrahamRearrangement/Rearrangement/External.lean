@@ -691,10 +691,175 @@ theorem conditional_index_family_sumMass_le_zmod
             conditional_fixedIndexSet_sumMass
               S τ hτ F (I a) (hdisj a ha) (z a)
 
-/-- Conditioning a uniform bijection on its values on F leaves a uniform bijection
-between the unexposed positions and S minus the exposed image. Nested image sets
-therefore have exactly the chain law on the remaining ground set. -/
-axiom conditional_nested_images_chainMass {p k : ℕ} [NeZero p]
+theorem partition_member_unique
+    {α : Type*} [DecidableEq α] {k : ℕ}
+    (T : Finset α) (Δ : Fin (k + 1) → Finset α)
+    (hdisj : ∀ i j, i ≠ j → Disjoint (Δ i) (Δ j))
+    (hcover : ∀ x, x ∈ T ↔ ∃ i, x ∈ Δ i)
+    {x : α} (hxT : x ∈ T)
+    {i j : Fin (k + 1)} (hxi : x ∈ Δ i) (hxj : x ∈ Δ j) :
+    i = j := by
+  by_contra hij
+  exact Finset.disjoint_left.mp (hdisj i j hij) hxi hxj
+
+/-- Two nested chains with the same cardinality vector are carried to one
+another by a permutation of the ground set, obtained by matching the disjoint
+increment layers. -/
+theorem exists_value_perm_maps_chain
+    {p k : ℕ} [NeZero p] (hk : 0 < k)
+    (T : Finset (ZMod p)) (m : Fin k → ℕ)
+    {R R' : Fin k → Finset (ZMod p)}
+    (hR : R ∈ chainFamily T m) (hR' : R' ∈ chainFamily T m) :
+    ∃ π : Equiv.Perm (ZMod p),
+      T.image π = T ∧
+      (∀ x ∉ T, π x = x) ∧
+      ∀ i, (R i).image π = R' i := by
+  classical
+  let Δ := chainIncrements T R
+  let Γ := chainIncrements T R'
+  have hΔmem := chainIncrements_mem hk T m hR
+  have hΓmem := chainIncrements_mem hk T m hR'
+  have hΔdata := (Finset.mem_filter.mp hΔmem).2.1
+  have hΓdata := (Finset.mem_filter.mp hΓmem).2.1
+  have hΔdisj := (Finset.mem_filter.mp hΔmem).2.2.1
+  have hΓdisj := (Finset.mem_filter.mp hΓmem).2.2.1
+  have hΔcover := (Finset.mem_filter.mp hΔmem).2.2.2
+  have hΓcover := (Finset.mem_filter.mp hΓmem).2.2.2
+  let idxΔ : {x // x ∈ T} → Fin (k + 1) :=
+    fun x => Classical.choose ((hΔcover x.1).1 x.2)
+  let idxΓ : {x // x ∈ T} → Fin (k + 1) :=
+    fun x => Classical.choose ((hΓcover x.1).1 x.2)
+  have hidxΔ : ∀ x : {x // x ∈ T}, x.1 ∈ Δ (idxΔ x) :=
+    fun x => Classical.choose_spec ((hΔcover x.1).1 x.2)
+  have hidxΓ : ∀ x : {x // x ∈ T}, x.1 ∈ Γ (idxΓ x) :=
+    fun x => Classical.choose_spec ((hΓcover x.1).1 x.2)
+  have huniqΔ :
+      ∀ x : {x // x ∈ T}, ∀ i, x.1 ∈ Δ i → idxΔ x = i := by
+    intro x i hxi
+    exact partition_member_unique T Δ hΔdisj hΔcover x.2
+      (hidxΔ x) hxi
+  have huniqΓ :
+      ∀ x : {x // x ∈ T}, ∀ i, x.1 ∈ Γ i → idxΓ x = i := by
+    intro x i hxi
+    exact partition_member_unique T Γ hΓdisj hΓcover x.2
+      (hidxΓ x) hxi
+  let e : ∀ i : Fin (k + 1),
+      {x // x ∈ Δ i} ≃ {x // x ∈ Γ i} :=
+    fun i => Fintype.equivOfCardEq (by
+      simp only [Fintype.card_coe]
+      rw [(hΔdata i).2,(hΓdata i).2])
+  let fT : {x // x ∈ T} → {x // x ∈ T} := fun x =>
+    let i := idxΔ x
+    let y := e i ⟨x.1,hidxΔ x⟩
+    ⟨y.1,(hΓdata i).1 y.2⟩
+  let gT : {x // x ∈ T} → {x // x ∈ T} := fun y =>
+    let i := idxΓ y
+    let x := (e i).symm ⟨y.1,hidxΓ y⟩
+    ⟨x.1,(hΔdata i).1 x.2⟩
+  have hleft : Function.LeftInverse gT fT := by
+    intro x
+    apply Subtype.ext
+    let i := idxΔ x
+    have hfmem : (fT x).1 ∈ Γ i := by
+      dsimp [fT,i]
+      exact (e i ⟨x.1,hidxΔ x⟩).2
+    have hidx : idxΓ (fT x) = i := huniqΓ (fT x) i hfmem
+    dsimp [gT]
+    rw [hidx]
+    dsimp [fT,i]
+    simp
+  have hright : Function.RightInverse gT fT := by
+    intro y
+    apply Subtype.ext
+    let i := idxΓ y
+    have hgmem : (gT y).1 ∈ Δ i := by
+      dsimp [gT,i]
+      exact ((e i).symm ⟨y.1,hidxΓ y⟩).2
+    have hidx : idxΔ (gT y) = i := huniqΔ (gT y) i hgmem
+    dsimp [fT]
+    rw [hidx]
+    dsimp [gT,i]
+    simp
+  let eT : {x // x ∈ T} ≃ {x // x ∈ T} :=
+    { toFun := fT, invFun := gT, left_inv := hleft, right_inv := hright }
+  let π : Equiv.Perm (ZMod p) :=
+    { toFun := fun x =>
+        if hx : x ∈ T then (eT ⟨x,hx⟩).1 else x
+      invFun := fun y =>
+        if hy : y ∈ T then (eT.symm ⟨y,hy⟩).1 else y
+      left_inv := by
+        intro x
+        by_cases hx : x ∈ T
+        · have hy : (eT ⟨x,hx⟩).1 ∈ T := (eT ⟨x,hx⟩).2
+          simp [hx,hy,eT]
+        · simp [hx]
+      right_inv := by
+        intro y
+        by_cases hy : y ∈ T
+        · have hx : (eT.symm ⟨y,hy⟩).1 ∈ T :=
+            (eT.symm ⟨y,hy⟩).2
+          simp [hy,hx,eT]
+        · simp [hy] }
+  have hπT : T.image π = T := by
+    ext y
+    constructor
+    · rintro ⟨x,hx,rfl⟩
+      simp [π,hx,(eT ⟨x,hx⟩).2]
+    · intro hy
+      let x := (eT.symm ⟨y,hy⟩).1
+      have hx : x ∈ T := (eT.symm ⟨y,hy⟩).2
+      refine Finset.mem_image.mpr ⟨x,hx,?_⟩
+      simp [π,x,hx,hy,eT]
+  have hπout : ∀ x ∉ T, π x = x := by
+    intro x hx
+    simp [π,hx]
+  have hΔΓ : ∀ j : Fin (k + 1), (Δ j).image π = Γ j := by
+    intro j
+    ext y
+    constructor
+    · rintro ⟨x,hx,rfl⟩
+      have hxT := (hΔdata j).1 hx
+      have hidx : idxΔ ⟨x,hxT⟩ = j :=
+        huniqΔ ⟨x,hxT⟩ j hx
+      simp [π,hxT,eT,fT,hidx]
+    · intro hy
+      have hyT := (hΓdata j).1 hy
+      let xsub := (e j).symm ⟨y,hy⟩
+      have hx : xsub.1 ∈ Δ j := xsub.2
+      have hxT := (hΔdata j).1 hx
+      refine Finset.mem_image.mpr ⟨xsub.1,hx,?_⟩
+      have hidx : idxΔ ⟨xsub.1,hxT⟩ = j :=
+        huniqΔ ⟨xsub.1,hxT⟩ j hx
+      simp [π,hxT,eT,fT,hidx,xsub]
+  refine ⟨π,hπT,hπout,?_⟩
+  intro i
+  rw [← chain_prefix_union_eq hk T hR i,
+      ← chain_prefix_union_eq hk T hR' i]
+  ext y
+  constructor
+  · intro hy
+    rcases Finset.mem_image.mp hy with ⟨x,hx,rfl⟩
+    simp at hx
+    rcases hx with ⟨j,hji,hxj⟩
+    have himg : π x ∈ Γ ⟨j,by omega⟩ := by
+      rw [← hΔΓ ⟨j,by omega⟩]
+      exact Finset.mem_image.mpr ⟨x,hxj,rfl⟩
+    simp
+    exact ⟨j,hji,himg⟩
+  · intro hy
+    simp at hy
+    rcases hy with ⟨j,hji,hyj⟩
+    rw [← hΔΓ ⟨j,by omega⟩] at hyj
+    rcases Finset.mem_image.mp hyj with ⟨x,hx,rfl⟩
+    apply Finset.mem_image.mpr
+    refine ⟨x,?_,rfl⟩
+    simp
+    exact ⟨j,hji,hx⟩
+
+/-- After fixing the values on F, the images of fixed nested unexposed index
+sets are uniformly distributed over nested chains of the prescribed sizes in
+the remaining ground set. -/
+theorem conditional_nested_images_chainMass {p k : ℕ} [NeZero p]
     (S : Finset (ZMod p))
     (τ : Fin S.card → ZMod p) (hτ : IsIndexedOrdering S τ)
     (F : Finset (Fin S.card))
@@ -706,7 +871,152 @@ axiom conditional_nested_images_chainMass {p k : ℕ} [NeZero p]
     orderingConditionalMass S
       (fun σ => AgreesOn F σ τ)
       (fun σ => ∀ i, indexSetSum σ (I i) = z i) =
-      chainMass (S \ indexImageSet τ F) m z
+      chainMass (S \ indexImageSet τ F) m z := by
+  classical
+  by_cases hk : 0 < k
+  · let T := S \ indexImageSet τ F
+    let Ω := (indexedOrderings S).filter fun σ => AgreesOn F σ τ
+    let V := chainFamily T m
+    let stat : (Fin S.card → ZMod p) → Fin k → Finset (ZMod p) :=
+      fun σ i => indexImageSet σ (I i)
+    have hΩ : Ω.Nonempty := by
+      refine ⟨τ,?_⟩
+      apply Finset.mem_filter.mpr
+      exact ⟨by simpa [indexedOrderings] using hτ, fun i hi => rfl⟩
+    have hmap : ∀ σ ∈ Ω, stat σ ∈ V := by
+      intro σ hσ
+      rcases Finset.mem_filter.mp hσ with ⟨hσmem,hagr⟩
+      have hσord : IsIndexedOrdering S σ := by
+        simpa [indexedOrderings] using (Finset.mem_filter.mp hσmem).2
+      apply Finset.mem_filter.mpr
+      refine ⟨Finset.mem_univ _, ?_, ?_⟩
+      · intro i
+        constructor
+        · exact unexposed_indexImage_subset_remaining
+            S τ σ hτ hσord F (I i) hagr (hdisj i)
+        · unfold stat indexImageSet
+          rw [Finset.card_image_iff.mpr hσord.1,hcard i]
+      · intro i j hij
+        unfold stat indexImageSet
+        exact Finset.image_mono (hnested i j hij)
+    have hV : V.Nonempty := by
+      have hTcard :
+          ∀ i, m i ≤ T.card := by
+        intro i
+        have hsub := unexposed_indexImage_subset_remaining
+          S τ τ hτ hτ F (I i) (fun _ _ => rfl) (hdisj i)
+        have hc := Finset.card_le_card hsub
+        rw [show (indexImageSet τ (I i)).card = (I i).card by
+          unfold indexImageSet
+          exact Finset.card_image_iff.mpr hτ.1,hcard i] at hc
+        exact hc
+      exact ⟨stat τ, hmap τ (by
+        apply Finset.mem_filter.mpr
+        exact ⟨by simpa [indexedOrderings] using hτ,fun _ _ => rfl⟩)⟩
+    have heq :
+        ∀ R ∈ V, ∀ R' ∈ V,
+          (Ω.filter fun σ => stat σ = R).card =
+            (Ω.filter fun σ => stat σ = R').card := by
+      intro R hR R' hR'
+      obtain ⟨π,hπT,hπout,hπchain⟩ :=
+        exists_value_perm_maps_chain hk T m hR hR'
+      have hfixE :
+          ∀ x ∈ indexImageSet τ F, π x = x := by
+        intro x hx
+        exact hπout x (by
+          intro hxT
+          exact (Finset.mem_sdiff.mp hxT).2 hx)
+      have hπS : S.image π = S := by
+        ext x
+        by_cases hxE : x ∈ indexImageSet τ F
+        · have hfix := hfixE x hxE
+          simp [hfix,(exposedImage_subset S hτ F hxE)]
+        · have hxT : x ∈ T ↔ x ∈ S := by simp [T,hxE]
+          rw [← hπT]
+          constructor
+          · rintro ⟨y,hy,rfl⟩
+            exact Finset.mem_image.mpr ⟨y,hxT.mp hy,rfl⟩
+          · intro hx
+            rcases Finset.mem_image.mp hx with ⟨y,hy,rfl⟩
+            exact Finset.mem_image.mpr
+              ⟨y,(by
+                apply Finset.mem_sdiff.mpr
+                refine ⟨hy,?_⟩
+                intro hyE
+                have hyfix := hfixE y hyE
+                have : π y = y := hyfix
+                subst x
+                exact hxE hyE),rfl⟩
+      apply Finset.card_bij (fun σ _ => applyValuePerm π σ)
+      · intro σ hσ
+        rcases Finset.mem_filter.mp hσ with ⟨hσΩ,hstat⟩
+        rcases Finset.mem_filter.mp hσΩ with ⟨hσmem,hagr⟩
+        have hσord : IsIndexedOrdering S σ := by
+          simpa [indexedOrderings] using (Finset.mem_filter.mp hσmem).2
+        apply Finset.mem_filter.mpr
+        constructor
+        · apply Finset.mem_filter.mpr
+          exact ⟨by simpa [indexedOrderings] using
+              applyValuePerm_isIndexedOrdering S π hπS hσord,
+            valuePerm_preserves_agreement S τ σ F π hfixE hagr⟩
+        · funext i
+          unfold stat
+          rw [indexImageSet_applyValuePerm,hstat]
+          exact hπchain i
+      · intro σ hσ ρ hρ he
+        funext i
+        apply π.injective
+        exact congrFun he i
+      · intro ρ hρ
+        let σ := applyValuePerm π.symm ρ
+        refine ⟨σ,?_,?_⟩
+        · rcases Finset.mem_filter.mp hρ with ⟨hρΩ,hstat⟩
+          rcases Finset.mem_filter.mp hρΩ with ⟨hρmem,hagr⟩
+          have hρord : IsIndexedOrdering S ρ := by
+            simpa [indexedOrderings] using (Finset.mem_filter.mp hρmem).2
+          have hπsymS : S.image π.symm = S := by
+            apply Finset.image_injective π.injective
+            simpa using congrArg (Finset.image π) hπS
+          have hfixEsym :
+              ∀ x ∈ indexImageSet τ F, π.symm x = x := by
+            intro x hx
+            exact perm_symm_fixes_of_fixes π (hfixE x hx)
+          apply Finset.mem_filter.mpr
+          constructor
+          · apply Finset.mem_filter.mpr
+            exact ⟨by simpa [indexedOrderings,σ] using
+                applyValuePerm_isIndexedOrdering S π.symm hπsymS hρord,
+              valuePerm_preserves_agreement S τ ρ F π.symm hfixEsym hagr⟩
+          · funext i
+            unfold stat
+            rw [indexImageSet_applyValuePerm,hstat]
+            apply Finset.image_injective π.injective
+            simpa using congrArg (Finset.image π.symm) (hπchain i)
+        · funext i
+          simp [σ,applyValuePerm]
+    have huniform :
+        uniformMass Ω
+          (fun σ => ∀ i, subsetSum (stat σ i) = z i) =
+        uniformMass V
+          (fun R => ∀ i, subsetSum (R i) = z i) :=
+      uniformMass_statistic_of_pairwise_equal_fibers
+        Ω V stat hmap hV hΩ heq
+        (fun R => ∀ i, subsetSum (R i) = z i)
+    unfold orderingConditionalMass chainMass uniformConditionalMass
+    rw [← huniform]
+    apply uniformMass_congr
+    intro σ hσ
+    rcases Finset.mem_filter.mp hσ with ⟨hσmem,hagr⟩
+    have hσord : IsIndexedOrdering S σ := by
+      simpa [indexedOrderings] using (Finset.mem_filter.mp hσmem).2
+    constructor <;> intro h i
+    · rw [indexSetSum_eq_subsetSum_image hσord.1]
+      exact h i
+    · rw [indexSetSum_eq_subsetSum_image hσord.1] at h
+      exact h i
+  · have hk0 : k = 0 := Nat.eq_zero_of_not_pos hk
+    subst k
+    simp [orderingConditionalMass,chainMass,chainFamily]
 
 /-- Conditioning on a window gives the obvious complement cardinality. -/
 theorem exposed_image_card {p : ℕ} [NeZero p]
