@@ -379,6 +379,146 @@ theorem interestingPermutations_card_le
       congr 1
       ring
 
+def lemma55HeadSet {n D : ℕ}
+    (u : Fin D → Fin n) (b' : Fin n)
+    (πi : Fin D → Equiv.Perm (Fin n))
+    (i : Fin D) : Finset (Fin n) :=
+  (indexInterval (u i) b').image (πi i)
+
+def lemma55TailSet {n D : ℕ}
+    (b' : Fin n) (x : Fin D → Fin n)
+    (i : Fin D) : Finset (Fin n) :=
+  indexOpenClosed b' (x i)
+
+theorem lemma55HeadSet_subset_window {n D : ℕ}
+    (b b' : Fin n)
+    (u : Fin D → Fin n)
+    (hu : ∀ i,
+      paperPos b ≤ paperPos (u i) ∧
+        paperPos (u i) ≤ paperPos b')
+    (πi : Fin D → Equiv.Perm (Fin n))
+    (hfix : ∀ i, FixedOutside b b' (πi i))
+    (i : Fin D) :
+    lemma55HeadSet u b' πi i ⊆ indexInterval b b' := by
+  intro y hy
+  rcases Finset.mem_image.mp hy with ⟨w,hw,rfl⟩
+  have hwData := (Finset.mem_filter.mp hw).2
+  have hwb : b.val ≤ w.val := by
+    have hui := (hu i).1
+    simp [paperPos] at hui
+    exact le_trans hui hwData.1
+  have hwb' : w.val ≤ b'.val := hwData.2
+  by_contra hout
+  have hout' :
+      paperPos (πi i w) < paperPos b ∨
+        paperPos b' < paperPos (πi i w) := by
+    simp [indexInterval,paperPos] at hout
+    omega
+  have hfixed := hfix i (πi i w) hout'
+  have hEq : w = πi i w := by
+    apply (πi i).injective
+    simpa [hfixed]
+  have hwmem : w ∈ indexInterval b b' := by
+    simp [indexInterval,hwb,hwb']
+  exact hout (by simpa [hEq] using hwmem)
+
+theorem lemma55TailSet_fixed {n D : ℕ}
+    (b b' : Fin n) (x : Fin D → Fin n)
+    (πi : Fin D → Equiv.Perm (Fin n))
+    (hfix : ∀ i, FixedOutside b b' (πi i))
+    (i : Fin D) :
+    (lemma55TailSet b' x i).image (πi i) =
+      lemma55TailSet b' x i := by
+  ext y
+  constructor
+  · rintro ⟨z,hz,rfl⟩
+    have hzData := (Finset.mem_filter.mp hz).2
+    have hfixz := hfix i z (Or.inr (by
+      simp [paperPos] at hzData ⊢
+      omega))
+    simpa [hfixz] using hz
+  · intro hy
+    refine Finset.mem_image.mpr ⟨y,hy,?_⟩
+    have hyData := (Finset.mem_filter.mp hy).2
+    exact hfix i y (Or.inr (by
+      simp [paperPos] at hyData ⊢
+      omega))
+
+theorem lemma55_constraint_split {n D : ℕ}
+    (b b' : Fin n)
+    (u x : Fin D → Fin n)
+    (hu : ∀ i,
+      paperPos b ≤ paperPos (u i) ∧
+        paperPos (u i) ≤ paperPos b')
+    (hx : x ∈ tailTuples b' D)
+    (πi : Fin D → Equiv.Perm (Fin n))
+    (hfix : ∀ i, FixedOutside b b' (πi i))
+    (i : Fin D) :
+    constraintSet u x πi i =
+      lemma55HeadSet u b' πi i ∪ lemma55TailSet b' x i := by
+  have hxi := (Finset.mem_filter.mp hx).2.2 i
+  have huib := (hu i).2
+  have hux : (u i).val ≤ (x i).val := by
+    simp [paperPos] at hxi huib
+    omega
+  have hsplit :
+      indexInterval (u i) (x i) =
+        indexInterval (u i) b' ∪ indexOpenClosed b' (x i) := by
+    ext y
+    simp [indexInterval,indexOpenClosed]
+    constructor
+    · intro h
+      by_cases hy : y.val ≤ b'.val
+      · exact Or.inl ⟨h.1,hy⟩
+      · exact Or.inr ⟨by omega,h.2⟩
+    · rintro (h | h)
+      · exact ⟨h.1,le_trans h.2 (by
+          simp [paperPos] at hxi; omega)⟩
+      · exact ⟨le_trans (by
+          simp [paperPos] at huib
+          omega) (le_of_lt h.1),h.2⟩
+  unfold constraintSet lemma55HeadSet lemma55TailSet
+  rw [hsplit,Finset.image_union,lemma55TailSet_fixed b b' x πi hfix i]
+
+theorem lemma55TailSet_nested {n D : ℕ}
+    (b' : Fin n) {x : Fin D → Fin n}
+    (hx : x ∈ tailTuples b' D) :
+    ∀ i j, i ≤ j →
+      lemma55TailSet b' x i ⊆ lemma55TailSet b' x j := by
+  intro i j hij y hy
+  have hmono := (Finset.mem_filter.mp hx).2.1.monotone hij
+  simp only [lemma55TailSet,indexOpenClosed,Finset.mem_filter,
+    Finset.mem_univ,true_and] at hy ⊢
+  exact ⟨hy.1,le_trans hy.2 (by exact_mod_cast hmono)⟩
+
+theorem lemma55TailSet_card {n D : ℕ}
+    (b' : Fin n) {x : Fin D → Fin n}
+    (hx : x ∈ tailTuples b' D) (i : Fin D) :
+    (lemma55TailSet b' x i).card = tailSizes b' x i := by
+  have hxi := (Finset.mem_filter.mp hx).2.2 i
+  have hle : b'.val ≤ (x i).val := by
+    simp [paperPos] at hxi
+    omega
+  simpa [lemma55TailSet,tailSizes] using
+    card_indexOpenClosed b' (x i) hle
+
+theorem lemma55HeadTail_disjoint {n D : ℕ}
+    (b b' : Fin n)
+    (u x : Fin D → Fin n)
+    (hu : ∀ i,
+      paperPos b ≤ paperPos (u i) ∧
+        paperPos (u i) ≤ paperPos b')
+    (πi : Fin D → Equiv.Perm (Fin n))
+    (hfix : ∀ i, FixedOutside b b' (πi i))
+    (i : Fin D) :
+    Disjoint (lemma55HeadSet u b' πi i)
+      (lemma55TailSet b' x i) := by
+  rw [Finset.disjoint_left]
+  intro y hyH hyT
+  have hyF := lemma55HeadSet_subset_window b b' u hu πi hfix i hyH
+  simp [indexInterval,lemma55TailSet,indexOpenClosed] at hyF hyT
+  omega
+
 theorem lemma55_fixed_x_pi_mass_le
     {α : ℝ} (hα0 : 0 < α) (hαh : α < 1 / 2)
     (P : Section5Parameters α)
