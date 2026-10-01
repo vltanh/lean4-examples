@@ -299,10 +299,10 @@ theorem lemma3_2 {p m t : ℕ} [NeZero p]
   have hJ :
       ∑ x ∈ S ∩ Jset S m t χ,
           zmodNorm (χ * x - centerAt S m t χ) ^ 2
-        ≤ (265 : ℝ) * t / m * S.card := by
+        ≤ (256 : ℝ) * t / m * S.card := by
     calc
       _ ≤ ∑ _x ∈ S ∩ Jset S m t χ,
-          (265 : ℝ) * t / m := by
+          (256 : ℝ) * t / m := by
             gcongr with x hx
             have hxJ := (Finset.mem_inter.1 hx).2
             have hdist := (Finset.mem_filter.1 hxJ).2
@@ -311,7 +311,7 @@ theorem lemma3_2 {p m t : ℕ} [NeZero p]
               rw [Real.sq_sqrt]
               positivity
             nlinarith [zmodNorm_nonneg (χ * x - centerAt S m t χ)]
-      _ ≤ (265 : ℝ) * t / m * S.card := by
+      _ ≤ (256 : ℝ) * t / m * S.card := by
             simp
             positivity
   have hsplit :
