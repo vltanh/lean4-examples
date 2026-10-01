@@ -21,100 +21,91 @@ noncomputable section
 -- Standard real/complex analysis
 -- ---------------------------------------------------------------------------
 
-/-- Finite Cauchy--Schwarz in the exact scalar form used in Fact 2.1. -/
-axiom cauchySchwarz_sq (xs : List ℝ) :
-    xs.sum ^ 2 ≤ (xs.length : ℝ) * (xs.map fun x => x ^ 2).sum
-
-/-- Normed-group list estimate combining the triangle inequality and finite
-Cauchy--Schwarz. -/
-axiom norm_list_sum_sq {E : Type*} [SeminormedAddCommGroup E] (xs : List E) :
-    ‖xs.sum‖ ^ 2 ≤
-      (xs.length : ℝ) * (xs.map fun x => ‖x‖ ^ 2).sum
-
-/-- Triangle inequality for distance to the nearest integer. -/
-axiom distToInt_triangle (ys : List ℝ) :
-    min (Int.fract ys.sum) (1 - Int.fract ys.sum) ≤
-      (ys.map fun y => min (Int.fract y) (1 - Int.fract y)).sum
-
-/-- Periodicity/symmetry reduction for the cosine estimate. -/
-axiom cosine_nearest_integer_reduction (y : ℝ) :
-    Real.cos (2 * Real.pi * y) =
-      Real.cos (2 * Real.pi * min (Int.fract y) (1 - Int.fract y))
-
-/-- The lower Taylor estimate used in Fact 2.2. -/
-axiom cosine_taylor_lower {y : ℝ} (hy0 : 0 ≤ y) (hyh : y ≤ 1 / 2) :
-    1 - 20 * y ^ 2 ≤ Real.cos (2 * Real.pi * y)
-
-/-- The upper Taylor estimate used in Fact 2.2. -/
-axiom cosine_taylor_upper {y : ℝ} (hy0 : 0 ≤ y) (hyh : y ≤ 1 / 2) :
-    Real.cos (2 * Real.pi * y) ≤ 1 - 2 * y ^ 2
-
-/-- Nearest-integer distance lies in [0,1/2]. -/
-axiom fract_min_mem_half (y : ℝ) :
-    0 ≤ min (Int.fract y) (1 - Int.fract y) ∧
-      min (Int.fract y) (1 - Int.fract y) ≤ 1 / 2
-
-/-- Real part of the standard additive character. -/
-axiom zmod_stdAddChar_re {p : ℕ} [NeZero p] (x : ZMod p) :
-    (ZMod.stdAddChar x).re =
-      Real.cos (2 * Real.pi * ((x.val : ℝ) / (p : ℝ)))
-
-/-- Compatibility between the AddCircle norm and the paper's representative formula. -/
-axiom zmod_addCircle_norm_eq {p : ℕ} [NeZero p] (x : ZMod p) :
-    ‖ZMod.toAddCircle x‖ =
-      min (Int.fract ((x.val : ℝ) / (p : ℝ)))
-        (1 - Int.fract ((x.val : ℝ) / (p : ℝ)))
-
-/-- The paper's explicit exponential character agrees with mathlib's standard one. -/
-axiom zmod_exp_character_eq {p : ℕ} [NeZero p] (x : ZMod p) :
-    Complex.exp (((2 * Real.pi : ℝ) : ℂ) * Complex.I *
-      (((x.val : ℝ) / (p : ℝ) : ℝ) : ℂ)) = ZMod.stdAddChar x
-
 -- ---------------------------------------------------------------------------
 -- Additive combinatorics
 -- ---------------------------------------------------------------------------
-
-/-- Cauchy--Davenport, written in integer cardinalities so the empty-set edge case
-has the same meaning as the paper's displayed inequality. -/
-axiom cauchyDavenportProper {p : ℕ} (hp : p.Prime)
-    (A B : Finset (ZMod p)) (hproper : A + B ≠ Finset.univ) :
-    ((A.card : ℤ) + (B.card : ℤ) - 1) ≤ ((A + B).card : ℤ)
 
 -- ---------------------------------------------------------------------------
 -- Finite Fourier analysis
 -- ---------------------------------------------------------------------------
 
 /-- Orthogonality of the additive characters of Z/pZ. -/
-axiom zmod_character_orthogonality {p : ℕ} (hp : p.Prime) (a : ZMod p) :
+theorem zmod_character_orthogonality {p : ℕ} (hp : p.Prime) (a : ZMod p) :
     (∑ χ : ZMod p, ZMod.stdAddChar (χ * a)) =
-      if a = 0 then (p : ℂ) else 0
+      if a = 0 then (p : ℂ) else 0 := by
+  letI : NeZero p := ⟨hp.ne_zero⟩
+  let ψ : AddChar (ZMod p) ℂ := ZMod.stdAddChar.mulShift a
+  have hsum := AddChar.sum_eq_ite ψ
+  have hzero : ψ = 0 ↔ a = 0 := by
+    constructor
+    · intro hψ
+      have h1 := congrArg (fun φ : AddChar (ZMod p) ℂ => φ 1) hψ
+      simp [ψ, AddChar.mulShift_apply] at h1
+      exact ZMod.injective_stdAddChar (by simpa using h1)
+    · intro ha
+      subst a
+      simp [ψ]
+  simpa [ψ, AddChar.mulShift_apply, hzero] using hsum
 
-/-- Generic character-algebra identity: the squared norm of a finite
-character average is the normalized double sum of the real parts of the
-difference characters. -/
-axiom zmod_character_average_norm_sq {p : ℕ} [NeZero p]
+/-- Character-average norm-square identity, obtained by expanding the square. -/
+theorem zmod_character_average_norm_sq {p : ℕ} [NeZero p]
     (T : Finset (ZMod p)) (hT : T.Nonempty) (χ : ZMod p) :
     ‖((∑ x ∈ T, ZMod.stdAddChar (χ * x)) / (T.card : ℂ))‖ ^ 2 =
       (1 / (T.card : ℝ) ^ 2) *
         ∑ x ∈ T, ∑ x' ∈ T,
-          (ZMod.stdAddChar (χ * x - χ * x')).re
+          (ZMod.stdAddChar (χ * x - χ * x')).re := by
+  let A : ℂ := ∑ x ∈ T, ZMod.stdAddChar (χ * x)
+  have hcard : (0 : ℝ) < T.card := by exact_mod_cast hT.card_pos
+  have hnorm :
+      ‖A / (T.card : ℂ)‖ ^ 2 =
+        Complex.normSq A / (T.card : ℝ) ^ 2 := by
+    rw [Complex.sq_norm, map_div]
+    simp [Complex.normSq_natCast, pow_two]
+  have hexpand :
+      Complex.normSq A =
+        ∑ x ∈ T, ∑ x' ∈ T,
+          (ZMod.stdAddChar (χ * x - χ * x')).re := by
+    have hmul :
+        ((Complex.normSq A : ℝ) : ℂ) =
+          Complex.conj A * A := Complex.normSq_eq_conj_mul_self
+    unfold A at hmul ⊢
+    rw [map_sum, Finset.sum_mul, Finset.mul_sum] at hmul
+    have hre := congrArg Complex.re hmul
+    simp only [Complex.ofReal_re] at hre
+    simpa [AddChar.map_sub_eq_div, div_eq_mul_inv, mul_comm,
+      mul_left_comm, mul_assoc] using hre
+  rw [hnorm, hexpand]
+  ring
 
 -- ---------------------------------------------------------------------------
 -- Finite probability and sampling symmetry
 -- ---------------------------------------------------------------------------
 
 /-- Markov inequality on a finite uniform sample space. -/
-axiom uniform_markov {Ω : Type*} [DecidableEq Ω]
+theorem uniform_markov {Ω : Type*} [DecidableEq Ω]
     (space : Finset Ω) (X : Ω → ℝ) (a : ℝ)
     (hX : ∀ ω ∈ space, 0 ≤ X ω) (ha : 0 < a) :
     uniformMass space (fun ω => a ≤ X ω) ≤
-      uniformExpectation space X / a
-
-/-- Translation of a uniformly random subset by a fixed group element is uniform. -/
-axiom uniform_subset_translate {G : Type*} [AddCommGroup G] [DecidableEq G]
-    (S : Finset G) (k : ℕ) (a : G) :
-    (S.powersetCard k).card =
-      ((S + {a}).powersetCard k).card
+      uniformExpectation space X / a := by
+  unfold uniformMass uniformExpectation
+  by_cases hs : space.card = 0
+  · simp [hs]
+  have hcardpos : (0 : ℝ) < space.card := by
+    exact_mod_cast Nat.pos_of_ne_zero hs
+  have hsum :
+      a * ((space.filter fun ω => a ≤ X ω).card : ℝ) ≤
+        ∑ ω ∈ space, X ω := by
+    calc
+      _ = ∑ _ω ∈ (space.filter fun ω => a ≤ X ω), a := by simp
+      _ ≤ ∑ ω ∈ (space.filter fun ω => a ≤ X ω), X ω := by
+            gcongr with ω hω
+            exact (Finset.mem_filter.mp hω).2
+      _ ≤ ∑ ω ∈ space, X ω := by
+            apply Finset.sum_le_sum_of_subset (Finset.filter_subset _ _)
+            intro ω hω hnot
+            exact hX ω hω
+  apply (div_le_div_iff₀ hcardpos ha).2
+  nlinarith
 
 -- ---------------------------------------------------------------------------
 -- Hypergeometric concentration (Janson--Luczak--Rucinski)
@@ -155,19 +146,6 @@ axiom exists_dyadic_interval {x : ℝ} {m : ℕ}
     (hx : 1 ≤ x) (hm : x ≤ m) :
     ∃ l < Nat.log2 m + 1,
       (2 : ℝ) ^ l ≤ x ∧ x < 2 * (2 : ℝ) ^ l
-
-/-- Generic dyadic-shell estimate used when grouping a finite exponential sum. -/
-axiom dyadic_exp_sum_bound {α : Type*} [Fintype α] [DecidableEq α]
-    (f : α → ℝ) (A0 : Finset α) (At : ℕ → Finset α) (m : ℕ)
-    (hnonneg : ∀ a, 0 ≤ f a)
-    (hcover : ∀ a, a ∈ A0 ∨ ∃ l < Nat.log2 m + 1, a ∈ At (2 ^ l))
-    (hA0 : ∀ a ∈ A0, f a < 1)
-    (hAt : ∀ l a, a ∈ At (2 ^ l) →
-      (2 : ℝ) ^ l ≤ f a) :
-    (∑ a : α, Real.exp (-f a)) ≤
-      (A0.card : ℝ) +
-        ∑ l ∈ Finset.range (Nat.log2 m + 1),
-          (At (2 ^ l)).card * Real.exp (-(2 : ℝ) ^ l)
 
 /-- A convenient explicit lower bound for the natural logarithm of two. -/
 axiom log_two_ge_half : (1 / 2 : ℝ) ≤ Real.log 2
