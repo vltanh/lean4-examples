@@ -472,6 +472,75 @@ axiom reversal_perm_invariant {p : ℕ} [NeZero p]
       orderingEventMass S (fun σ =>
         E (fun i => σ ⟨S.card - 1 - i.val, by omega⟩))
 
+/-- An admissible local permutation fixing the prefix sends a subset of the
+5D-window into the 10D-window. -/
+axiom admissible_local_image_subset
+    {n D : ℕ} (b : Fin n)
+    (π : Equiv.Perm (Fin n))
+    (hadm : IsAdmissiblePermutation D π)
+    (hfix : FixedBelow b π)
+    (J : Finset (Fin n))
+    (hJ : J ⊆ forwardWindow b (5 * D)) :
+    J.image π ⊆ forwardWindow b (10 * D)
+
+/-- Generic blocked-witness dichotomy. If every nonempty local interval image has
+nonzero sum and at least 2D local choices are blocked, then D witnesses extend
+to the right with distinct right endpoints, or D witnesses extend to the left
+with distinct left endpoints. -/
+axiom blocked_family_split
+    {n p D : ℕ} (hD : 0 < D)
+    (σ : Fin n → ZMod p) (b : Fin n)
+    (π : Equiv.Perm (Fin n))
+    (hlocal :
+      ∀ J : Finset (Fin n),
+        J.Nonempty →
+        J ⊆ forwardWindow b (5 * D) →
+        indexSetSum (applyPositionPerm σ π) J ≠ 0)
+    (hblocked :
+      2 * D ≤ (blockedCandidates D σ b π).card) :
+    (∃ y s t : Fin D → Fin n,
+      Function.Injective y ∧ Function.Injective t ∧
+      (∀ i,
+        paperPos b < paperPos (y i) ∧
+        paperPos (y i) ≤ paperPos b + 5 * D ∧
+        paperPos b < paperPos (s i) ∧
+        paperPos (s i) ≤ paperPos (y i) ∧
+        paperPos b + 5 * D < paperPos (t i) ∧
+        indexedIntervalSum
+          (applyPositionPerm
+            (applyPositionPerm σ π) (Equiv.swap b (y i)))
+          (s i) (t i) = 0)) ∨
+    (∃ y s t : Fin D → Fin n,
+      Function.Injective y ∧ Function.Injective s ∧
+      (∀ i,
+        paperPos b < paperPos (y i) ∧
+        paperPos (y i) ≤ paperPos b + 5 * D ∧
+        paperPos (s i) < paperPos b ∧
+        paperPos b ≤ paperPos (t i) ∧
+        paperPos (t i) < paperPos (y i) ∧
+        indexedIntervalSum
+          (applyPositionPerm
+            (applyPositionPerm σ π) (Equiv.swap b (y i)))
+          (s i) (t i) = 0))
+
+/-- Crude count of the local parameters (b,b',y,u) used on either side of
+Lemma 5.3. -/
+axiom repair_side_parameter_count {n D : ℕ} :
+    (Finset.univ :
+      Finset (Fin n × Fin n ×
+        (Fin D → Fin n) × (Fin D → Fin n))).filter
+      (fun θ =>
+        2 ≤ paperPos θ.1 ∧
+        paperPos θ.1 + 30 * D ≤ n ∧
+        paperPos θ.2.1 - paperPos θ.1 = 5 * D ∧
+        (∀ i,
+          paperPos θ.1 < paperPos θ.2.2.1 i ∧
+            paperPos (θ.2.2.1 i) ≤ paperPos θ.2.1) ∧
+        (∀ i,
+          paperPos θ.1 ≤ paperPos θ.2.2.2 i ∧
+            paperPos (θ.2.2.2 i) ≤ paperPos θ.2.1))
+      |>.card ≤ n * (5 * D) ^ (2 * D)
+
 /-- Generic finite choice principle used in the greedy repair: a finite candidate
 set of cardinality 5D with three forbidden subsets of sizes at most 2D,D,D
 has a remaining element when D>0. -/
