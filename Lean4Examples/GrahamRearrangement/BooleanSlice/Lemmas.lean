@@ -292,7 +292,7 @@ theorem lemma3_2 {p m t : ℕ} [NeZero p]
               ring_nf
               simp
     have hSpos : 0 < (S.card : ℝ) := by
-      have hc := centerAt_spec S m t hχD
+      have hc := centerAt_spec S m t ht hχD
       omega
     field_simp [Psi] at hPsi
     nlinarith [hsum]
@@ -403,7 +403,7 @@ theorem lemma3_3 {p m t : ℕ} (hp : p.Prime)
   obtain ⟨hm, hm4, hbig⟩ :=
     section3_basic_bounds S.card m hS hmLower hmUpper
   let G := nearSet S m t χ (centerAt S m t χ)
-  have hGdensity : 3 * S.card ≤ 4 * G.card := centerAt_spec S m t hχD
+  have hGdensity : 3 * S.card ≤ 4 * G.card := centerAt_spec S m t ht hχD
   let BadRow : ZMod p → (Fin m → Finset (ZMod p)) → Prop :=
     fun x P =>
       ((pointBlock S P x \\ {x}) ∩ G).card <
