@@ -245,6 +245,21 @@ def HasNoZeroPaperSegments {n p : ℕ} (σ : Fin n → ZMod p) : Prop :=
       indexedIntervalSum σ a b ≠ 0
 
 /-- Apply a permutation of paper positions. Composition order agrees with σ∘π. -/
+/-- Conjugation of a position permutation by order reversal. -/
+def reverseConjugate {n : ℕ} (π : Equiv.Perm (Fin n)) :
+    Equiv.Perm (Fin n) :=
+  (reverseIndex n).trans (π.trans (reverseIndex n))
+
+@[simp] theorem reverseConjugate_apply {n : ℕ}
+    (π : Equiv.Perm (Fin n)) (i : Fin n) :
+    reverseConjugate π i =
+      reverseIndex n (π (reverseIndex n i)) := rfl
+
+theorem paperPos_reverseIndex {n : ℕ} (i : Fin n) :
+    paperPos (reverseIndex n i) = n + 1 - paperPos i := by
+  simp [paperPos, reverseIndex_apply_val]
+  omega
+
 def applyPositionPerm {n p : ℕ} (σ : Fin n → ZMod p)
     (π : Equiv.Perm (Fin n)) : Fin n → ZMod p :=
   σ ∘ π
