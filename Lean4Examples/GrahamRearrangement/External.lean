@@ -287,6 +287,19 @@ axiom section5_rpow_threshold {α : ℝ} {D : ℕ}
     (10 ^ 4 * (2 : ℝ) ^ (40 * D)) ≤
       (((10 ^ 4 : ℝ) * (2 : ℝ) ^ (40 * D)) ^ (1 / α)) ^ α
 
+/-- Standard real-power consequence used in Section 5:
+n ≤ p^(1-α) implies n/p ≤ n^(-α). -/
+axiom card_div_prime_le_neg_rpow {α : ℝ} {n p : ℕ}
+    (hα0 : 0 < α) (hα1 : α < 1)
+    (hn : 1 ≤ n) (hp : 1 ≤ p)
+    (hupper : (n : ℝ) ≤ (p : ℝ) ^ (1 - α)) :
+    (n : ℝ) / p ≤ (n : ℝ) ^ (-α)
+
+/-- Monotonicity of x↦x^{-α} for positive α on [1,∞). -/
+axiom neg_rpow_antitone {α : ℝ} (hα : 0 < α)
+    {x y : ℝ} (hx : 1 ≤ x) (hxy : x ≤ y) :
+    y ^ (-α) ≤ x ^ (-α)
+
 /-- Linear eventually dominates log-squared. -/
 axiom exists_log_sq_threshold (A : ℝ) :
     ∃ N : ℕ, 2 ≤ N ∧
