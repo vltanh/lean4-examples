@@ -89,19 +89,6 @@ axiom zmod_character_orthogonality {p : ℕ} (hp : p.Prime) (a : ZMod p) :
     (∑ χ : ZMod p, ZMod.stdAddChar (χ * a)) =
       if a = 0 then (p : ℂ) else 0
 
-/-- Character factorization for independent uniform choices from nonempty finite blocks.
-This is the standard finite-product expectation identity used in (3.1). -/
-axiom independent_block_fourier_bound {p m : ℕ} (hp : p.Prime)
-    (blocks : Fin m → Finset (ZMod p))
-    (hne : ∀ i, (blocks i).Nonempty) (z : ZMod p) :
-    uniformMass
-        (Finset.univ.pi blocks)
-        (fun X => (∑ i, X i) = z) ≤
-      (1 / (p : ℝ)) *
-        ∑ χ : ZMod p,
-          ∏ i, ‖((∑ x ∈ blocks i, ZMod.stdAddChar (χ * x)) /
-            (blocks i).card : ℂ)‖
-
 /-- Generic character-algebra identity: the squared norm of a finite
 character average is the normalized double sum of the real parts of the
 difference characters. -/
