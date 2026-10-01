@@ -194,6 +194,11 @@ def FixedBelow {n : ℕ} (b : Fin n)
     (π : Equiv.Perm (Fin n)) : Prop :=
   ∀ i : Fin n, paperPos i < paperPos b → π i = i
 
+def FixedOutside {n : ℕ} (b b' : Fin n)
+    (π : Equiv.Perm (Fin n)) : Prop :=
+  ∀ i : Fin n,
+    (paperPos i < paperPos b ∨ paperPos b' < paperPos i) → π i = i
+
 def FixedThrough {n : ℕ} (b : Fin n)
     (π : Equiv.Perm (Fin n)) : Prop :=
   ∀ i : Fin n, paperPos i ≤ paperPos b → π i = i
