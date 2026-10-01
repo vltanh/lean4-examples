@@ -349,6 +349,39 @@ def AgreesOn {n p : ℕ} (F : Finset (Fin n))
     (σ τ : Fin n → ZMod p) : Prop :=
   ∀ i ∈ F, σ i = τ i
 
+structure RepairParams (n D : ℕ) where
+  b : Fin n
+  b' : Fin n
+  y : Fin D → Fin n
+  u : Fin D → Fin n
+deriving DecidableEq, Fintype
+
+def rightRepairParameters (n D : ℕ) :
+    Finset (RepairParams n D) :=
+  Finset.univ.filter fun θ =>
+    2 ≤ paperPos θ.b ∧
+    paperPos θ.b + 30 * D ≤ n ∧
+    paperPos θ.b' - paperPos θ.b = 5 * D ∧
+    (∀ i,
+      paperPos θ.b < paperPos (θ.y i) ∧
+        paperPos (θ.y i) ≤ paperPos θ.b') ∧
+    (∀ i,
+      paperPos θ.b < paperPos (θ.u i) ∧
+        paperPos (θ.u i) ≤ paperPos θ.b')
+
+def leftRepairParameters (n D : ℕ) :
+    Finset (RepairParams n D) :=
+  Finset.univ.filter fun θ =>
+    2 ≤ paperPos θ.b ∧
+    paperPos θ.b + 30 * D ≤ n ∧
+    paperPos θ.b' - paperPos θ.b = 5 * D ∧
+    (∀ i,
+      paperPos θ.b < paperPos (θ.y i) ∧
+        paperPos (θ.y i) ≤ paperPos θ.b') ∧
+    (∀ i,
+      paperPos θ.b ≤ paperPos (θ.u i) ∧
+        paperPos (θ.u i) < paperPos θ.b')
+
 /-- Right-extending witness event used in the proof of Lemma 5.3. -/
 def RightRepairEvent {n p : ℕ} (D : ℕ)
     (σ : Fin n → ZMod p) : Prop :=
