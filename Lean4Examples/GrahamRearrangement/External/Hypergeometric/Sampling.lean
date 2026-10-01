@@ -102,6 +102,89 @@ theorem withoutReplacementExpectation_const
       rw [heq]
       exact uniformExpectation_const U hU c
 
+def IsWithoutReplacementSample {α : Type*} [DecidableEq α]
+    (U : Finset α) (k : ℕ) (xs : List α) : Prop :=
+  xs.length = k ∧ xs.Nodup ∧ ∀ x ∈ xs, x ∈ U
+
+theorem withoutReplacementExpectation_congr_on_samples
+    {α : Type*} [DecidableEq α]
+    (U : Finset α) (k : ℕ) (f g : List α → ℝ)
+    (h :
+      ∀ xs, IsWithoutReplacementSample U k xs → f xs = g xs) :
+    withoutReplacementExpectation U k f =
+      withoutReplacementExpectation U k g := by
+  induction k generalizing U f g with
+  | zero =>
+      have hnil : IsWithoutReplacementSample U 0 [] := by
+        simp [IsWithoutReplacementSample]
+      simpa [withoutReplacementExpectation] using h [] hnil
+  | succ k ih =>
+      rw [withoutReplacementExpectation_succ,
+        withoutReplacementExpectation_succ]
+      apply le_antisymm
+      · by_cases hU : U.Nonempty
+        · apply uniformExpectation_mono U hU
+          intro x hx
+          have htail :
+              ∀ xs, IsWithoutReplacementSample (U.erase x) k xs →
+                f (x::xs) = g (x::xs) := by
+            intro xs hxs
+            apply h
+            rcases hxs with ⟨hlen,hnd,hmem⟩
+            have hxnot : x ∉ xs := by
+              intro hxin
+              have hxerase := hmem x hxin
+              exact (Finset.mem_erase.mp hxerase).1 rfl
+            refine ⟨by simp [hlen], ?_, ?_⟩
+            · exact List.nodup_cons.mpr ⟨hxnot,hnd⟩
+            · intro y hy
+              simp at hy
+              rcases hy with rfl | hy
+              · exact hx
+              · exact Finset.mem_of_mem_erase (hmem y hy)
+          exact (ih (U.erase x)
+            (fun xs => f (x::xs)) (fun xs => g (x::xs)) htail).le
+        · simp [uniformExpectation, Finset.not_nonempty_iff_eq_empty.mp hU]
+      · by_cases hU : U.Nonempty
+        · apply uniformExpectation_mono U hU
+          intro x hx
+          have htail :
+              ∀ xs, IsWithoutReplacementSample (U.erase x) k xs →
+                g (x::xs) = f (x::xs) := by
+            intro xs hxs
+            symm
+            apply h
+            rcases hxs with ⟨hlen,hnd,hmem⟩
+            have hxnot : x ∉ xs := by
+              intro hxin
+              have hxerase := hmem x hxin
+              exact (Finset.mem_erase.mp hxerase).1 rfl
+            refine ⟨by simp [hlen], ?_, ?_⟩
+            · exact List.nodup_cons.mpr ⟨hxnot,hnd⟩
+            · intro y hy
+              simp at hy
+              rcases hy with rfl | hy
+              · exact hx
+              · exact Finset.mem_of_mem_erase (hmem y hy)
+          exact (ih (U.erase x)
+            (fun xs => g (x::xs)) (fun xs => f (x::xs)) htail).le
+        · simp [uniformExpectation, Finset.not_nonempty_iff_eq_empty.mp hU]
+
+theorem withoutReplacementMass_congr_on_samples
+    {α : Type*} [DecidableEq α]
+    (U : Finset α) (k : ℕ)
+    (E F : List α → Prop) [DecidablePred E] [DecidablePred F]
+    (h : ∀ xs, IsWithoutReplacementSample U k xs → (E xs ↔ F xs)) :
+    withoutReplacementMass U k E =
+      withoutReplacementMass U k F := by
+  unfold withoutReplacementMass
+  apply withoutReplacementExpectation_congr_on_samples U k
+  intro xs hxs
+  by_cases hE : E xs <;> by_cases hF : F xs <;>
+    simp [hE,hF] at *
+  · exact False.elim ((h xs hxs).1 hE hF)
+  · exact False.elim ((h xs hxs).2 hF hE)
+
 /-- The joint space obtained by first choosing x in U and then a k-subset of
 U\{x}. -/
 def headTailSpace {α : Type*} [DecidableEq α]
