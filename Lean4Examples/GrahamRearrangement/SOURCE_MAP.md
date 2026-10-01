@@ -23,9 +23,9 @@ paper from [8, Theorem 2.10 and Eq. (2.6)] is formalized under
 | Paper | Lean |
 | --- | --- |
 | distance `||y||_Z` | `distToInt` |
-| Fact 2.1 | `fact2_1`, `fact2_1_finset` |
+| Fact 2.1 | `fact2_1` |
 | Fact 2.2 | `fact2_2` |
-| `||x||_p` | `zmodNorm`, `cyclicDistance`, `cyclicDistance_eq_zmodNorm` |
+| `||x||_p` | `zmodNorm`, `zmodNorm_neg` |
 | Fact 2.3 | `fact2_3`, `fact2_3_finset` |
 | k-fold sumset | `kfoldSumset` |
 | Fact 2.4 | `fact2_4` |
