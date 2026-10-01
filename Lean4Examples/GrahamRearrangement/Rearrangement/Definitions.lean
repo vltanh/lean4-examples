@@ -99,6 +99,22 @@ def forwardWindow {n : ℕ} (b : Fin n) (r : ℕ) : Finset (Fin n) :=
   Finset.univ.filter fun i =>
     b.val ≤ i.val ∧ i.val ≤ b.val + r
 
+theorem card_forwardWindow_le {n : ℕ} (b : Fin n) (r : ℕ) :
+    (forwardWindow b r).card ≤ r + 1 := by
+  classical
+  let f : Fin n → ℕ := fun i => i.val - b.val
+  apply Finset.card_le_of_injOn f
+  · intro i hi
+    simp only [forwardWindow, Finset.mem_filter, Finset.mem_univ,
+      true_and] at hi
+    exact Finset.mem_range.2 (by omega)
+  · intro i hi j hj h
+    apply Fin.ext
+    simp only [forwardWindow, Finset.mem_filter, Finset.mem_univ,
+      true_and] at hi hj
+    dsimp [f] at h
+    omega
+
 /-- Symmetric paper window {z-r,...,z+r}, clipped to {1,...,n}. -/
 def symmetricWindow {n : ℕ} (z : Fin n) (r : ℕ) : Finset (Fin n) :=
   Finset.univ.filter fun i => Nat.dist i.val z.val ≤ r
