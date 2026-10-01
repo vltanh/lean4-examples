@@ -20,14 +20,319 @@ theorem balancedPartitions_nonempty {p m : ℕ} [NeZero p]
   refine ⟨canonicalBalancedPartition S hm hmS, ?_⟩
   simp [balancedPartitions, canonicalBalancedPartition_spec S hm hmS]
 
+theorem balancedChoiceSpace_card {p m : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) :
+    (balancedChoiceSpace S).card =
+      (balancedPartitions S).card *
+        balancedChoiceMultiplicity S.card m := by
+  classical
+  rw [card_eq_sum_card_fibers
+    (balancedChoiceSpace S) (balancedPartitions S)
+    Prod.fst
+    (by
+      intro q hq
+      exact (mem_balancedChoiceSpace.mp hq).1)]
+  calc
+    ∑ P ∈ balancedPartitions S,
+        ((balancedChoiceSpace S).filter fun q => q.1 = P).card
+      = ∑ P ∈ balancedPartitions S, (blockChoices P).card := by
+          apply Finset.sum_congr rfl
+          intro P hP
+          apply Finset.card_bij (fun q _ => q.2)
+          · intro q hq
+            rcases Finset.mem_filter.mp hq with ⟨hqS,hqP⟩
+            have hmem := mem_balancedChoiceSpace.mp hqS
+            simpa [hqP] using hmem.2
+          · intro q hq r hr heq
+            rcases q with ⟨Pq,Xq⟩
+            rcases r with ⟨Pr,Xr⟩
+            have hqP := (Finset.mem_filter.mp hq).2
+            have hrP := (Finset.mem_filter.mp hr).2
+            simp only at heq
+            subst Pq
+            subst Pr
+            simp_all
+          · intro X hX
+            refine ⟨(P,X), ?_, rfl⟩
+            apply Finset.mem_filter.mpr
+            exact ⟨mem_balancedChoiceSpace.mpr ⟨hP,hX⟩, rfl⟩
+    _ = ∑ _P ∈ balancedPartitions S,
+          balancedChoiceMultiplicity S.card m := by
+          apply Finset.sum_congr rfl
+          intro P hP
+          exact blockChoices_card_balanced
+            (by simpa [balancedPartitions] using hP)
+    _ = (balancedPartitions S).card *
+          balancedChoiceMultiplicity S.card m := by simp [mul_comm]
+
+theorem balancedChoice_event_card {p m : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (E : (Fin m → ZMod p) → Prop)
+    [DecidablePred E] :
+    ((balancedChoiceSpace S).filter fun q => E q.2).card =
+      ∑ P ∈ balancedPartitions S,
+        (blockChoices P).filter E |>.card := by
+  classical
+  rw [card_eq_sum_card_fibers
+    ((balancedChoiceSpace S).filter fun q => E q.2)
+    (balancedPartitions S) Prod.fst
+    (by
+      intro q hq
+      exact (mem_balancedChoiceSpace.mp
+        (Finset.mem_filter.mp hq).1).1)]
+  apply Finset.sum_congr rfl
+  intro P hP
+  apply Finset.card_bij (fun q _ => q.2)
+  · intro q hq
+    rcases Finset.mem_filter.mp hq with ⟨hqE,hqP⟩
+    rcases Finset.mem_filter.mp hqE with ⟨hqS,hEq⟩
+    have hmem := mem_balancedChoiceSpace.mp hqS
+    apply Finset.mem_filter.mpr
+    simpa [hqP] using ⟨hmem.2,hEq⟩
+  · intro q hq r hr heq
+    rcases q with ⟨Pq,Xq⟩
+    rcases r with ⟨Pr,Xr⟩
+    have hqP := (Finset.mem_filter.mp hq).2
+    have hrP := (Finset.mem_filter.mp hr).2
+    simp only at heq
+    subst Pq
+    subst Pr
+    simp_all
+  · intro X hX
+    rcases Finset.mem_filter.mp hX with ⟨hXP,hE⟩
+    refine ⟨(P,X), ?_, rfl⟩
+    apply Finset.mem_filter.mpr
+    constructor
+    · apply Finset.mem_filter.mpr
+      exact ⟨mem_balancedChoiceSpace.mpr ⟨hP,hXP⟩,hE⟩
+    · rfl
+
+def permuteBalancedPartition {p m : ℕ}
+    (π : Equiv.Perm (ZMod p))
+    (P : Fin m → Finset (ZMod p)) :
+    Fin m → Finset (ZMod p) :=
+  fun i => (P i).image π
+
+def permuteBlockChoice {p m : ℕ}
+    (π : Equiv.Perm (ZMod p))
+    (X : Fin m → ZMod p) :
+    Fin m → ZMod p :=
+  fun i => π (X i)
+
+theorem permuteBalancedPartition_spec {p m : ℕ} [NeZero p]
+    (S : Finset (ZMod p))
+    (π : Equiv.Perm (ZMod p)) (hπS : S.image π = S)
+    {P : Fin m → Finset (ZMod p)}
+    (hP : IsBalancedPartition S P) :
+    IsBalancedPartition S (permuteBalancedPartition π P) := by
+  classical
+  constructor
+  · intro i x hx
+    rcases Finset.mem_image.mp hx with ⟨y,hy,rfl⟩
+    rw [← hπS]
+    exact Finset.mem_image.mpr ⟨y,hP.1 i hy,rfl⟩
+  constructor
+  · intro i j hij
+    rw [Finset.disjoint_left]
+    intro x hxi hxj
+    rcases Finset.mem_image.mp hxi with ⟨a,hai,ha⟩
+    rcases Finset.mem_image.mp hxj with ⟨b,hbj,hb⟩
+    have hab : a = b := π.injective (ha.trans hb.symm)
+    subst b
+    exact Finset.disjoint_left.mp (hP.2.1 i j hij) hai hbj
+  constructor
+  · intro x
+    constructor
+    · intro hx
+      rw [← hπS] at hx
+      rcases Finset.mem_image.mp hx with ⟨y,hy,rfl⟩
+      rcases (hP.2.2.1 y).1 hy with ⟨i,hyi⟩
+      exact ⟨i,Finset.mem_image.mpr ⟨y,hyi,rfl⟩⟩
+    · rintro ⟨i,hxi⟩
+      rcases Finset.mem_image.mp hxi with ⟨y,hyi,rfl⟩
+      rw [← hπS]
+      exact Finset.mem_image.mpr
+        ⟨y,(hP.2.2.1 y).2 ⟨i,hyi⟩,rfl⟩
+  · intro i
+    unfold permuteBalancedPartition
+    rw [Finset.card_image_of_injective _ π.injective,
+      hP.2.2.2 i]
+
+theorem permuteBlockChoice_mem {p m : ℕ} [NeZero p]
+    (π : Equiv.Perm (ZMod p))
+    {P : Fin m → Finset (ZMod p)}
+    {X : Fin m → ZMod p}
+    (hX : X ∈ blockChoices P) :
+    permuteBlockChoice π X ∈
+      blockChoices (permuteBalancedPartition π P) := by
+  apply blockChoices_mem_iff.mpr
+  intro i
+  exact Finset.mem_image.mpr
+    ⟨X i,(blockChoices_mem_iff.mp hX) i,rfl⟩
+
+theorem choiceSet_permute {p m : ℕ}
+    (π : Equiv.Perm (ZMod p)) (X : Fin m → ZMod p) :
+    choiceSet (permuteBlockChoice π X) =
+      (choiceSet X).image π := by
+  ext x
+  simp [choiceSet,permuteBlockChoice]
+
+theorem balancedChoice_fiber_equipotent {p m : ℕ} [NeZero p]
+    (S : Finset (ZMod p))
+    {R R' : Finset (ZMod p)}
+    (hR : R ∈ S.powersetCard m)
+    (hR' : R' ∈ S.powersetCard m) :
+    ((balancedChoiceSpace S).filter fun q => choiceSet q.2 = R).card =
+    ((balancedChoiceSpace S).filter fun q => choiceSet q.2 = R').card := by
+  classical
+  obtain ⟨π,hπR,hπS,hπout⟩ :=
+    exists_perm_maps_finset S R R'
+      (Finset.mem_powersetCard.mp hR).1
+      (Finset.mem_powersetCard.mp hR').1
+      (by rw [(Finset.mem_powersetCard.mp hR).2,
+              (Finset.mem_powersetCard.mp hR').2])
+  apply Finset.card_bij
+    (fun q _ =>
+      (permuteBalancedPartition π q.1,
+       permuteBlockChoice π q.2))
+  · intro q hq
+    rcases Finset.mem_filter.mp hq with ⟨hqS,hset⟩
+    rcases mem_balancedChoiceSpace.mp hqS with ⟨hPmem,hX⟩
+    have hP : IsBalancedPartition S q.1 := by
+      simpa [balancedPartitions] using hPmem
+    apply Finset.mem_filter.mpr
+    constructor
+    · apply mem_balancedChoiceSpace.mpr
+      constructor
+      · simpa [balancedPartitions] using
+          permuteBalancedPartition_spec S π hπS hP
+      · exact permuteBlockChoice_mem π hX
+    · rw [choiceSet_permute,hset,hπR]
+  · intro q hq r hr heq
+    rcases q with ⟨P,X⟩
+    rcases r with ⟨Q,Y⟩
+    have hP := congrArg Prod.fst heq
+    have hX := congrArg Prod.snd heq
+    funext i at hP
+    funext i at hX
+    apply Prod.ext
+    · funext i
+      apply Finset.image_injective π.injective
+      exact hP i
+    · funext i
+      exact π.injective (hX i)
+  · intro q hq
+    rcases q with ⟨P,X⟩
+    let pre :=
+      (permuteBalancedPartition π.symm P,
+       permuteBlockChoice π.symm X)
+    refine ⟨pre, ?_, ?_⟩
+    · rcases Finset.mem_filter.mp hq with ⟨hqS,hset⟩
+      rcases mem_balancedChoiceSpace.mp hqS with ⟨hPmem,hXmem⟩
+      have hP : IsBalancedPartition S P := by
+        simpa [balancedPartitions] using hPmem
+      have hπsymS : S.image π.symm = S := by
+        apply Finset.image_injective π.injective
+        simp [hπS]
+      apply Finset.mem_filter.mpr
+      constructor
+      · apply mem_balancedChoiceSpace.mpr
+        constructor
+        · simpa [balancedPartitions] using
+            permuteBalancedPartition_spec S π.symm hπsymS hP
+        · exact permuteBlockChoice_mem π.symm hXmem
+      · rw [choiceSet_permute]
+        apply Finset.image_injective π.injective
+        simp [hπR,hset]
+    · apply Prod.ext <;> funext i <;> simp [pre,
+        permuteBalancedPartition,permuteBlockChoice]
+
+theorem balancedChoiceSpace_nonempty {p m : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (hm : 0 < m) (hmS : m ≤ S.card) :
+    (balancedChoiceSpace S).Nonempty := by
+  obtain ⟨P,hPmem⟩ := balancedPartitions_nonempty S hm hmS
+  have hP : IsBalancedPartition S P := by
+    simpa [balancedPartitions] using hPmem
+  have hne : ∀ i, (P i).Nonempty := by
+    intro i
+    have hb := balanced_block_size_bounds S hm hmS hP i
+    have hq := Nat.div_pos hmS hm
+    exact Finset.card_pos.mp (lt_of_lt_of_le hq hb.1)
+  let X : Fin m → ZMod p := fun i => Classical.choose (hne i)
+  have hX : X ∈ blockChoices P := by
+    apply blockChoices_mem_iff.mpr
+    intro i
+    exact Classical.choose_spec (hne i)
+  exact ⟨(P,X),mem_balancedChoiceSpace.mpr ⟨hPmem,hX⟩⟩
+
+theorem balancedChoice_choiceSet_uniform {p m : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (hm : 0 < m) (hmS : m ≤ S.card)
+    (E : Finset (ZMod p) → Prop) [DecidablePred E] :
+    uniformMass (balancedChoiceSpace S)
+        (fun q => E (choiceSet q.2)) =
+      uniformMass (S.powersetCard m) E := by
+  classical
+  have hvalues : (S.powersetCard m).Nonempty :=
+    powersetCard_nonempty S hmS
+  have hspace := balancedChoiceSpace_nonempty S hm hmS
+  apply uniformMass_statistic_of_pairwise_equal_fibers
+    (balancedChoiceSpace S) (S.powersetCard m)
+    (fun q => choiceSet q.2)
+  · intro q hq
+    exact choiceSet_mem_powersetCard hq
+  · exact hvalues
+  · exact hspace
+  · intro R hR R' hR'
+    exact balancedChoice_fiber_equipotent S hR hR'
+  · exact E
+
+theorem balancedChoice_mass_eq_partitionExpectation {p m : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (hm : 0 < m) (hmS : m ≤ S.card)
+    (z : ZMod p) :
+    uniformMass (balancedChoiceSpace S)
+        (fun q => choiceSum q.2 = z) =
+      partitionExpectation S (fun P => conditionalSumMass P z) := by
+  classical
+  let K := balancedChoiceMultiplicity S.card m
+  have hK : 0 < K := balancedChoiceMultiplicity_pos S.card m hm hmS
+  unfold partitionExpectation conditionalSumMass
+  unfold uniformExpectation uniformMass
+  rw [balancedChoice_event_card S (fun X => choiceSum X = z),
+      balancedChoiceSpace_card S]
+  have hpart :
+      ∀ P ∈ balancedPartitions S,
+        (blockChoices P).card = K := by
+    intro P hP
+    exact blockChoices_card_balanced
+      (by simpa [balancedPartitions] using hP)
+  have hden :
+      ∀ P ∈ balancedPartitions S,
+        ((blockChoices P).card : ℝ) = K := by
+    intro P hP
+    exact_mod_cast hpart P hP
+  simp_rw [hden]
+  have hKR : (0 : ℝ) < K := by exact_mod_cast hK
+  field_simp
+  ring
+
 /-- The balanced-partition/one-choice-per-block sampling experiment is exactly
 uniform on size-`m` subsets. -/
-axiom sliceMass_eq_partition_average {p m : ℕ} (hp : p.Prime)
+theorem sliceMass_eq_partition_average {p m : ℕ} (hp : p.Prime)
     (S : Finset (ZMod p)) (hm : 0 < m) (hmS : m ≤ S.card)
     (z : ZMod p) :
     letI : NeZero p := ⟨hp.ne_zero⟩
     sliceMass S m z =
-      partitionExpectation S (fun P => conditionalSumMass P z)
+      partitionExpectation S (fun P => conditionalSumMass P z) := by
+  letI : NeZero p := ⟨hp.ne_zero⟩
+  rw [← balancedChoice_mass_eq_partitionExpectation S hm hmS z]
+  unfold sliceMass
+  rw [← balancedChoice_choiceSet_uniform S hm hmS
+      (fun R => subsetSum R = z)]
+  apply uniformMass_congr
+  intro q hq
+  rcases mem_balancedChoiceSpace.mp hq with ⟨hPmem,hX⟩
+  have hP : IsBalancedPartition S q.1 := by
+    simpa [balancedPartitions] using hPmem
+  rw [choiceSum_eq_subsetSum_choiceSet hP hX]
 
 /-- Every block in a valid balanced partition has the prescribed size. -/
 theorem balanced_block_size_bounds {p m : ℕ} [NeZero p]
