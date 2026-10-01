@@ -230,35 +230,26 @@ theorem lemma55_fixed_x_pi_mass_le
       simp [indexImageSet] at hz
       rcases hz with ⟨i, hi, rfl⟩
       exact (hτ.2 _).2 ⟨i, rfl⟩
-  let target : Fin P.D → ZMod p :=
-    fun i => -
-      indexSetSum τ
-        ((indexInterval (u i) b').image (πi i))
   have hT2 : 2 ≤ T.card := by
     rw [hTcard]
     have h50 := section5_card_ge_fiftyD hreg
     omega
   have hD := section5Parameters_D_pos hα0 hαh P
-  have hchain :
-      ∀ (m : Fin P.D → ℕ), IsChainSizeTuple T.card m →
-        ∀ z : Fin P.D → ZMod p,
-          chainMass T m z ≤
-            chainUpperBound p T.card (chainConstant P.D) m :=
-    chainConstant_spec P.D hD p hp T hT2
-  have hsuffix :=
-    Section5External.conditional_suffix_chain_union_bound
-      S τ hτ F b' target (chainConstant P.D) hchain
   have htuple : IsChainSizeTuple T.card (tailSizes b' x) := by
     exact Section5External.tailSizes_valid
       b b' hgap x hx hTcard
-  exact le_trans
-    (Section5External.fixed_tail_tuple_conditional_le
-      S τ hτ F b b' u x πi hu hfix target)
-    (le_trans hsuffix
-      (by
-        exact Section5External.single_tuple_le_chain_sum
-          p T.card P.D (chainConstant P.D)
-          (tailSizes b' x) htuple))
+  have hchain :
+      ∀ z : Fin P.D → ZMod p,
+        chainMass T (tailSizes b' x) z ≤
+          chainUpperBound p T.card (chainConstant P.D)
+            (tailSizes b' x) := by
+    intro z
+    exact chainConstant_spec P.D hD p hp T hT2
+      (tailSizes b' x) htuple z
+  simpa [T, hTcard] using
+    Section5External.fixed_tail_tuple_conditional_chainBound
+      S τ hτ F b b' u x πi hu hfix
+      (chainConstant P.D) htuple hchain
 
 /-- Lemma 5.5. -/
 theorem lemma5_5
