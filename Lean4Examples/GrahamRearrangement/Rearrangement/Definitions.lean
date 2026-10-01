@@ -166,6 +166,26 @@ theorem card_backwardWindow_le {n : ℕ} (x : Fin n) (r : ℕ) :
     dsimp [f] at h
     omega
 
+def tailTuples {n : ℕ} (b' : Fin n) (D : ℕ) :
+    Finset (Fin D → Fin n) :=
+  Finset.univ.filter fun x =>
+    StrictMono x ∧ ∀ i, paperPos b' < paperPos (x i)
+
+def tailSizes {n D : ℕ} (b' : Fin n)
+    (x : Fin D → Fin n) : Fin D → ℕ :=
+  fun i => (x i).val - b'.val
+
+def constraintSet {n D : ℕ}
+    (u x : Fin D → Fin n)
+    (πi : Fin D → Equiv.Perm (Fin n)) (i : Fin D) :
+    Finset (Fin n) :=
+  (indexInterval (u i) (x i)).image (πi i)
+
+def interestingLeftSupport {n D : ℕ}
+    (b : Fin n) (x : Fin D → Fin n) : Finset (Fin n) :=
+  symmetricWindow b (5 * D) ∪
+    Finset.univ.biUnion fun i => backwardWindow (x i) (5 * D)
+
 /-- B(σ): right endpoints of zero-sum intervals [a,b] with 2≤a<b≤n. -/
 def badRightEndpoints {n p : ℕ}
     (σ : Fin n → ZMod p) : Finset (Fin n) :=
