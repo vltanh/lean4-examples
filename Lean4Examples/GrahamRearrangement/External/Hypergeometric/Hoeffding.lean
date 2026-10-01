@@ -68,36 +68,9 @@ theorem withoutReplacementMass_le_one
           split <;> norm_num
     _ = 1 := withoutReplacementExpectation_const U hk 1
 
-/-- Uniform finite expectation as an integral under mathlib's uniform PMF. -/
-theorem integral_uniformOfFinset_eq_uniformExpectation
-    {Ω : Type*} [DecidableEq Ω]
-    (space : Finset Ω) (hspace : space.Nonempty)
-    (f : Ω → ℝ) :
-    letI : MeasurableSpace Ω := ⊤
-    ∫ ω, f ω ∂(PMF.uniformOfFinset space hspace).toMeasure =
-      uniformExpectation space f := by
-  letI : MeasurableSpace Ω := ⊤
-  rw [PMF.integral_eq_tsum]
-  unfold uniformExpectation
-  have hsupport :
-      ∑' ω : Ω,
-          ((PMF.uniformOfFinset space hspace ω).toReal) • f ω =
-        ∑ ω ∈ space, ((space.card : ℝ)⁻¹) * f ω := by
-    rw [tsum_eq_sum' space]
-    · apply Finset.sum_congr rfl
-      intro ω hω
-      rw [PMF.uniformOfFinset_apply_of_mem hspace hω]
-      simp
-    · intro ω hω
-      rw [PMF.uniformOfFinset_apply_of_notMem hspace hω]
-      simp
-  rw [hsupport]
-  have hcard : (0 : ℝ) < space.card := by
-    exact_mod_cast hspace.card_pos
-  field_simp
-  ring
-
-/-- Hoeffding's lemma written for the repository's finite uniform expectation. -/
+/-- Hoeffding's lemma written for the repository's finite uniform expectation.
+We pass to the finite subtype of points in the sample space, use mathlib's
+uniform probability mass function, and translate the resulting finite sum back. -/
 theorem finite_uniform_hoeffding_mgf
     {Ω : Type*} [DecidableEq Ω]
     (space : Finset Ω) (hspace : space.Nonempty)
@@ -108,36 +81,54 @@ theorem finite_uniform_hoeffding_mgf
     (ht : 0 < t) :
     uniformExpectation space (fun ω => Real.exp (t * X ω)) ≤
       Real.exp ((b - a) ^ 2 * t ^ 2 / 8) := by
-  letI : MeasurableSpace Ω := ⊤
-  let μ := (PMF.uniformOfFinset space hspace).toMeasure
-  have hprob : IsProbabilityMeasure μ :=
-    PMF.toMeasure.isProbabilityMeasure _
-  letI : IsProbabilityMeasure μ := hprob
-  have hmeas : AEMeasurable X μ := AEMeasurable.of_discrete _
-  have hbound : ∀ᵐ ω ∂μ, X ω ∈ Set.Icc a b := by
+  classical
+  let Ωs := {ω // ω ∈ space}
+  letI : Fintype Ωs := Fintype.ofFinite Ωs
+  letI : Nonempty Ωs := ⟨⟨hspace.choose,hspace.choose_spec⟩⟩
+  letI : MeasurableSpace Ωs := ⊤
+  let μ := (PMF.uniformOfFintype Ωs).toMeasure
+  let Xs : Ωs → ℝ := fun ω => X ω.1
+  have hsum (f : Ω → ℝ) :
+      (∑ ω : Ωs, f ω.1) = ∑ ω ∈ space, f ω := by
+    simpa [Ωs] using (Finset.sum_attach space f)
+  have hint (f : Ω → ℝ) :
+      ∫ ω : Ωs, f ω.1 ∂μ = uniformExpectation space f := by
+    rw [PMF.integral_eq_sum]
+    simp_rw [PMF.uniformOfFintype_apply]
+    change (∑ ω : Ωs,
+      ((Fintype.card Ωs : ℝ≥0∞)⁻¹).toReal * f ω.1) =
+        uniformExpectation space f
+    have hcard : Fintype.card Ωs = space.card := by
+      simp [Ωs]
+    rw [hcard]
+    simp only [ENNReal.toReal_inv, ENNReal.toReal_nat]
+    rw [← Finset.mul_sum, hsum]
+    unfold uniformExpectation
+    have hcardpos : (0 : ℝ) < space.card := by
+      exact_mod_cast hspace.card_pos
+    field_simp
+    ring
+  have hmeas : AEMeasurable Xs μ := AEMeasurable.of_discrete _
+  have hbound : ∀ᵐ ω ∂μ, Xs ω ∈ Set.Icc a b := by
     filter_upwards with ω
-    by_cases hω : ω ∈ space
-    · exact hX ω hω
-    · have hzero : μ {ω} = 0 := by
-        simp [μ,PMF.toMeasure_uniformOfFinset_apply,
-          PMF.uniformOfFinset_apply_of_notMem hspace hω]
-      exact Set.mem_Icc.mpr ⟨hab.trans (le_refl _),le_refl _⟩
-  have hcenter : ∫ ω, X ω ∂μ = 0 := by
-    rw [integral_uniformOfFinset_eq_uniformExpectation space hspace X]
+    exact hX ω.1 ω.2
+  have hcenter : ∫ ω, Xs ω ∂μ = 0 := by
+    rw [hint X]
     exact hmean
   have hmgf :=
     ProbabilityTheory.mgf_le_of_mem_Icc_of_integral_eq_zero
       hmeas hbound hcenter ht
   have hleft :
-      ProbabilityTheory.mgf X μ t =
+      ProbabilityTheory.mgf Xs μ t =
         uniformExpectation space (fun ω => Real.exp (t * X ω)) := by
     unfold ProbabilityTheory.mgf
-    rw [integral_uniformOfFinset_eq_uniformExpectation]
+    simpa [Xs] using hint (fun ω => Real.exp (t * X ω))
   rw [hleft] at hmgf
   have hnorm :
       (((↑‖b - a‖₊ : ℝ) / 2) ^ 2 * t ^ 2 / 2) =
         (b - a) ^ 2 * t ^ 2 / 8 := by
-    rw [coe_nnnorm, Real.norm_eq_abs, abs_of_nonneg (sub_nonneg.mpr hab)]
+    rw [coe_nnnorm, Real.norm_eq_abs,
+      abs_of_nonneg (sub_nonneg.mpr hab)]
     ring
   simpa [hnorm] using hmgf
 
