@@ -885,9 +885,8 @@ theorem component_fiber_equipotent
   · intro Δ hΔ Γ hΓ hEq
     funext r
     apply π.injective
-    have := congrFun hEq r
-    simpa [partitionPermMap] using
-      Finset.image_injective π.injective this
+    exact finset_image_injective_of_injective π.injective
+      (congrFun hEq r)
   · intro Γ hΓ
     let Δ := partitionPermMap π.symm Γ
     refine ⟨Δ, ?_, ?_⟩
@@ -944,17 +943,6 @@ theorem increment_conditional_uniform_given_history
       rw [hrem]
       exact unexposed_component_subset_remaining S m hΔ₀ L hi
     · exact (Finset.mem_filter.mp hmem).2.1 i |>.2
-  have heq :
-      ∀ A ∈ choices,
-        (ΩH.filter fun Δ => Δ i = A).card =
-          (ΩH.filter fun Δ => Δ i =
-            Classical.choose (powersetCard_nonempty U
-              (unexposed_component_card_le_remaining S m hΔ₀ L hi))).card := by
-    intro A hA
-    exact component_fiber_equipotent S m L i hi H Δ₀ hΔ₀ hH
-      A _ hA (Classical.choose_spec
-        (powersetCard_nonempty U
-          (unexposed_component_card_le_remaining S m hΔ₀ L hi)))
   have hchoices : choices.Nonempty :=
     powersetCard_nonempty U
       (unexposed_component_card_le_remaining S m hΔ₀ L hi)
@@ -1117,8 +1105,9 @@ theorem increment_event_list_bound
             apply propext
             simp [Prev,Cur]]
       rw [hchain]
-      have hprev :=
-        ih (List.nodup_of_append_singleton hLnodup) hjL'
+      have hLnodup' : L.Nodup :=
+        (List.nodup_append.mp hLnodup).1
+      have hprev := ih hLnodup' hjL'
       have hnonneg : 0 ≤ uniformConditionalMass
           (incrementPartitionFamily S m) Prev Cur :=
         uniformMass_nonneg _ _
@@ -1169,7 +1158,8 @@ theorem incrementPartition_product_bound {p k : ℕ} [NeZero p]
         (fun Δ => ∀ i ∈ L, subsetSum (Δ i) = target i)
       ≤ (L.map b).prod := hlist
     _ = ∏ i ∈ Finset.univ.erase j, b i := by
-      rw [List.prod_map_eq_prod_toFinset (exposureOrder_nodup j)]
+      rw [list_prod_eq_finset_prod_of_nodup
+        L (exposureOrder_nodup j) b]
       congr 1
       ext i
       simp [L,mem_exposureOrder_iff]
