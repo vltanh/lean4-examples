@@ -46,6 +46,18 @@ theorem uniformMass_le_one {Ω : Type*} [DecidableEq Ω]
     apply (div_le_one hpos).2
     exact_mod_cast Finset.card_filter_le space event
 
+theorem uniformMass_empty_of_forall_not
+    {Ω : Type*} [DecidableEq Ω]
+    (space : Finset Ω) (E : Ω → Prop) [DecidablePred E]
+    (hE : ∀ ω, ¬ E ω) :
+    uniformMass space E = 0 := by
+  unfold uniformMass
+  have hempty : space.filter E = ∅ := by
+    ext ω
+    simp [hE ω]
+  rw [hempty]
+  simp
+
 theorem uniformMass_empty {Ω : Type*} [DecidableEq Ω]
     (space : Finset Ω) :
     uniformMass space (fun _ => False) = 0 := by
