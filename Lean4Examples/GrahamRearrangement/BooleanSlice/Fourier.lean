@@ -83,6 +83,154 @@ theorem block_character_decay {p : ℕ} (hp : p.Prime)
   have hexp0 : 0 ≤ Real.exp (-δ) := Real.exp_nonneg _
   nlinarith
 
+theorem zmod_eq_indicator_fourier {p : ℕ} (hp : p.Prime)
+    (a : ZMod p) :
+    letI : NeZero p := ⟨hp.ne_zero⟩
+    (((if a = 0 then 1 else 0 : ℝ) : ℂ)) =
+      (1 / (p : ℂ)) *
+        ∑ χ : ZMod p, ZMod.stdAddChar (χ * a) := by
+  letI : NeZero p := ⟨hp.ne_zero⟩
+  rw [External.zmod_character_orthogonality hp a]
+  by_cases ha : a = 0
+  · simp [ha, hp.ne_zero]
+  · simp [ha]
+
+theorem character_choiceSum_factorization {p m : ℕ}
+    [NeZero p]
+    (P : Fin m → Finset (ZMod p)) (χ : ZMod p) :
+    (∑ X ∈ blockChoices P,
+        ZMod.stdAddChar (χ * choiceSum X)) =
+      ∏ i : Fin m,
+        ∑ x ∈ P i, ZMod.stdAddChar (χ * x) := by
+  classical
+  unfold blockChoices choiceSum
+  rw [Finset.sum_pi]
+  simp_rw [Finset.mul_sum]
+  apply Finset.prod_congr rfl
+  intro i hi
+  rfl
+
+theorem conditional_sum_mass_fourier_eq {p m : ℕ}
+    (hp : p.Prime)
+    (P : Fin m → Finset (ZMod p))
+    (hne : ∀ i, (P i).Nonempty) (z : ZMod p) :
+    letI : NeZero p := ⟨hp.ne_zero⟩
+    (conditionalSumMass P z : ℂ) =
+      (1 / (p : ℂ)) *
+        ∑ χ : ZMod p,
+          ZMod.stdAddChar (-χ * z) *
+            ∏ i : Fin m,
+              ((∑ x ∈ P i, ZMod.stdAddChar (χ * x)) /
+                ((P i).card : ℂ)) := by
+  letI : NeZero p := ⟨hp.ne_zero⟩
+  classical
+  have hcardP :
+      (blockChoices P).card = ∏ i : Fin m, (P i).card :=
+    blockChoices_card P
+  have hcardpos :
+      (0 : ℝ) < (blockChoices P).card := by
+    rw [hcardP]
+    exact_mod_cast Finset.prod_pos (fun i hi => (hne i).card_pos)
+  unfold conditionalSumMass uniformMass
+  have hindicator :
+      (((((blockChoices P).filter fun X => choiceSum X = z).card : ℝ)) : ℂ) =
+        ∑ X ∈ blockChoices P,
+          (((if choiceSum X - z = 0 then 1 else 0 : ℝ) : ℂ)) := by
+    norm_cast
+    simp [Finset.sum_boole, sub_eq_zero]
+  rw [hindicator]
+  simp_rw [zmod_eq_indicator_fourier hp]
+  rw [Finset.sum_mul, Finset.sum_comm]
+  have hfactor :
+      ∀ χ : ZMod p,
+        (∑ X ∈ blockChoices P,
+            ZMod.stdAddChar (χ * (choiceSum X - z))) =
+          ZMod.stdAddChar (-χ * z) *
+            ∏ i : Fin m,
+              ∑ x ∈ P i, ZMod.stdAddChar (χ * x) := by
+    intro χ
+    calc
+      _ = ∑ X ∈ blockChoices P,
+          (ZMod.stdAddChar (χ * choiceSum X) *
+            ZMod.stdAddChar (-χ * z)) := by
+            apply Finset.sum_congr rfl
+            intro X hX
+            simp [mul_sub, map_add, sub_eq_add_neg,
+              mul_add, add_comm, add_left_comm, add_assoc]
+      _ = ZMod.stdAddChar (-χ * z) *
+          ∑ X ∈ blockChoices P,
+            ZMod.stdAddChar (χ * choiceSum X) := by
+            rw [Finset.mul_sum]
+            ring
+      _ = _ := by rw [character_choiceSum_factorization P χ]
+  simp_rw [hfactor]
+  rw [hcardP]
+  have hprodCard :
+      (((∏ i : Fin m, (P i).card : ℕ) : ℝ) : ℂ) =
+        ∏ i : Fin m, ((P i).card : ℂ) := by
+    norm_cast
+    simp
+  rw [hprodCard]
+  field_simp
+  ring_nf
+  simp_rw [Finset.prod_div_distrib]
+  ring
+
+theorem conditional_sum_mass_fourier_bound {p m : ℕ}
+    (hp : p.Prime)
+    (P : Fin m → Finset (ZMod p))
+    (hne : ∀ i, (P i).Nonempty) (z : ZMod p) :
+    letI : NeZero p := ⟨hp.ne_zero⟩
+    conditionalSumMass P z ≤
+      (1 / (p : ℝ)) *
+        ∑ χ : ZMod p,
+          ∏ i,
+            ‖((∑ x ∈ P i, ZMod.stdAddChar (χ * x)) /
+              ((P i).card : ℂ))‖ := by
+  letI : NeZero p := ⟨hp.ne_zero⟩
+  have heq := conditional_sum_mass_fourier_eq hp P hne z
+  have hnonneg : 0 ≤ conditionalSumMass P z :=
+    uniformMass_nonneg _ _
+  have hnorm :
+      conditionalSumMass P z ≤
+        ‖((conditionalSumMass P z : ℝ) : ℂ)‖ := by
+    simpa [Real.norm_eq_abs, abs_of_nonneg hnonneg]
+  rw [heq] at hnorm
+  calc
+    conditionalSumMass P z
+      ≤ ‖(1 / (p : ℂ)) *
+          ∑ χ : ZMod p,
+            ZMod.stdAddChar (-χ * z) *
+              ∏ i : Fin m,
+                ((∑ x ∈ P i, ZMod.stdAddChar (χ * x)) /
+                  ((P i).card : ℂ))‖ := hnorm
+    _ = (1 / (p : ℝ)) *
+        ‖∑ χ : ZMod p,
+            ZMod.stdAddChar (-χ * z) *
+              ∏ i : Fin m,
+                ((∑ x ∈ P i, ZMod.stdAddChar (χ * x)) /
+                  ((P i).card : ℂ))‖ := by
+          rw [norm_mul]
+          simp [hp.pos.ne']
+    _ ≤ (1 / (p : ℝ)) *
+        ∑ χ : ZMod p,
+          ‖ZMod.stdAddChar (-χ * z) *
+              ∏ i : Fin m,
+                ((∑ x ∈ P i, ZMod.stdAddChar (χ * x)) /
+                  ((P i).card : ℂ))‖ := by
+          gcongr
+          exact norm_sum_le _ _
+    _ = (1 / (p : ℝ)) *
+        ∑ χ : ZMod p,
+          ∏ i,
+            ‖((∑ x ∈ P i, ZMod.stdAddChar (χ * x)) /
+              ((P i).card : ℂ))‖ := by
+          congr 1
+          apply Finset.sum_congr rfl
+          intro χ hχ
+          rw [norm_mul, norm_prod]
+          simp
+
 /-- Equation (3.1), followed by the blockwise decay that gives (3.2). -/
 theorem conditional_sum_mass_le_exp_psi {p m : ℕ} (hp : p.Prime)
     (S : Finset (ZMod p)) (hm : 0 < m) (hmS : m ≤ S.card)
@@ -97,7 +245,7 @@ theorem conditional_sum_mass_le_exp_psi {p m : ℕ} (hp : p.Prime)
     have hb := Section3External.balanced_block_size_bounds S hm hmS hP i
     have hdiv : 0 < S.card / m := Nat.div_pos (Nat.le_of_lt hm) hmS
     exact Finset.card_pos.mp (lt_of_lt_of_le hdiv hb.1)
-  have h31 := External.independent_block_fourier_bound hp P hne z
+  have h31 := conditional_sum_mass_fourier_bound hp P hne z
   calc
     conditionalSumMass P z
         ≤ (1 / (p : ℝ)) *
@@ -105,7 +253,7 @@ theorem conditional_sum_mass_le_exp_psi {p m : ℕ} (hp : p.Prime)
               ∏ i,
                 ‖((∑ x ∈ P i, ZMod.stdAddChar (χ * x)) /
                   ((P i).card : ℂ))‖ := by
-            simpa [conditionalSumMass, blockChoices, choiceSum] using h31
+            exact h31
     _ ≤ (1 / (p : ℝ)) * ∑ χ : ZMod p, Real.exp (-psi P χ) := by
       gcongr with χ
       calc
