@@ -343,6 +343,27 @@ axiom bad0_parameter_count {n D : ℕ} :
       Finset (Fin n × Finset (Fin n) × Finset (Fin n))).card ≤
         n * 2 ^ (40 * D + 2)
 
+/-- Generic two-level witness union bound: for each outer parameter there are
+at most M inner choices, each inner event has weight w(theta), and the outer
+weights sum to at most B. -/
+axiom bounded_choice_witness_union
+    {Ω Θ Ξ : Type*} [DecidableEq Ω] [DecidableEq Θ] [DecidableEq Ξ]
+    (space : Finset Ω) (outer : Finset Θ)
+    (inner : Θ → Finset Ξ)
+    (E : Ω → Prop) (A : Θ → Ξ → Ω → Prop)
+    [DecidablePred E] [∀ θ ξ, DecidablePred (A θ ξ)]
+    (M : ℕ) (w : Θ → ℝ) (B : ℝ)
+    (hcover :
+      ∀ ω ∈ space, E ω →
+        ∃ θ ∈ outer, ∃ ξ ∈ inner θ, A θ ξ ω)
+    (hcount : ∀ θ ∈ outer, (inner θ).card ≤ M)
+    (hpoint :
+      ∀ θ ∈ outer, ∀ ξ ∈ inner θ,
+        uniformMass space (A θ ξ) ≤ w θ)
+    (hsum : (∑ θ ∈ outer, w θ) ≤ B)
+    (hw : ∀ θ ∈ outer, 0 ≤ w θ) :
+    uniformMass space E ≤ (M : ℝ) * B
+
 /-- A generic upper bound for the number of partial matchings when each of q
 possible first endpoints has at most r possible partners. -/
 axiom partial_matching_count_le (q r : ℕ) :
