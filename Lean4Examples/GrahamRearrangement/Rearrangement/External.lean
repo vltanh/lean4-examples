@@ -1815,40 +1815,6 @@ theorem tailSizes_valid
       have hxlt := (x i).isLt
       omega
 
-/-- After exposing [b,b'], a fixed right-tail tuple has exactly the nested-chain
-law on the remaining values. The bound supplied as hchain is therefore inherited
-by the corresponding interval-sum event. -/
-axiom fixed_tail_tuple_conditional_chainBound
-    {p D : ℕ} [NeZero p]
-    (S : Finset (ZMod p))
-    (τ : Fin S.card → ZMod p) (hτ : IsIndexedOrdering S τ)
-    (F : Finset (Fin S.card))
-    (b b' : Fin S.card)
-    (u x : Fin D → Fin S.card)
-    (πi : Fin D → Equiv.Perm (Fin S.card))
-    (hu : ∀ i,
-      paperPos b ≤ paperPos (u i) ∧
-        paperPos (u i) ≤ paperPos b')
-    (hfix : ∀ i, FixedOutside b b' (πi i))
-    (C : ℝ)
-    (hm : IsChainSizeTuple
-      (S \ indexImageSet τ F).card (tailSizes b' x))
-    (hchain :
-      ∀ z : Fin D → ZMod p,
-        chainMass (S \ indexImageSet τ F)
-            (tailSizes b' x) z ≤
-          chainUpperBound p (S \ indexImageSet τ F).card
-            C (tailSizes b' x)) :
-    orderingConditionalMass S
-      (fun σ => AgreesOn F σ τ)
-      (fun σ =>
-        ∀ i,
-          indexedIntervalSum
-            (applyPositionPerm σ (πi i))
-            (u i) (x i) = 0) ≤
-      chainUpperBound p (S \ indexImageSet τ F).card
-        C (tailSizes b' x)
-
 /-- Generic two-level witness union bound: for each outer parameter there are
 at most M inner choices, each inner event has weight w(theta), and the outer
 weights sum to at most B. -/
