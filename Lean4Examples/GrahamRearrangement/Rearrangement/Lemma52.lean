@@ -284,28 +284,31 @@ theorem lemma52_fixed_parameter_mass_le
               chainUpperBound p T.card (chainConstant P.D) m := by
       intro m hm z
       exact chainConstant_spec P.D hD p hp T hT2 m hm z
+    have hFright :
+        ∀ x ∈ F, b₀.val ≤ x.val := by
+      intro x hx
+      simp [F,forwardWindow] at hx
+      exact hx.1
+    have hroom :
+        b₀.val < T.card := by
+      rw [hTcard]
+      simp [paperPos] at hbfit
+      omega
     have hcond :
         orderingConditionalMass S
           (fun σ => AgreesOn F σ τ)
           (fun σ => Lemma52Witness σ b₀ b) ≤
           lemma43LHS p T.card P.D (chainConstant P.D) := by
-      have hprefix :=
-        Section5External.conditional_prefix_chain_union_bound
-          S τ hτ F b₀ target (chainConstant P.D) hchain
-      apply le_trans ?_ hprefix
+      apply le_trans ?_
+        (lemma52_prefix_chain_bound
+          S τ hτ F b₀ hFright
+          (by simpa [T] using hroom)
+          target (chainConstant P.D) hchain)
       apply uniformMass_mono
       intro σ hag hw
       rcases hw with ⟨hbwin, a, hmono, hab₀, hzero⟩
       refine ⟨a, hmono, hab₀, ?_⟩
       intro i
-      have hbiF : b i ∈ F := by
-        have hwin := hbwin i
-        simp only [F, forwardWindow, Finset.mem_filter,
-          Finset.mem_univ, true_and]
-        simp [paperPos] at hwin ⊢
-        exact ⟨le_of_lt hwin.1, hwin.2⟩
-      have hb₀F : b₀ ∈ F := by
-        simp [F, forwardWindow]
       have hsum :
           indexSetSum σ (indexHalfOpen (a i) b₀) +
             indexSetSum σ (indexInterval b₀ (b i)) = 0 := by
@@ -318,13 +321,13 @@ theorem lemma52_fixed_parameter_mass_le
         rw [show indexInterval (a i) (b i) =
             indexHalfOpen (a i) b₀ ∪ indexInterval b₀ (b i) by
               ext x
-              simp [indexInterval, indexHalfOpen]
+              simp [indexInterval,indexHalfOpen]
               omega] at this
         rw [Finset.sum_union] at this
         · exact this
         · rw [Finset.disjoint_left]
           intro x hx hy
-          simp [indexHalfOpen, indexInterval] at hx hy
+          simp [indexHalfOpen,indexInterval] at hx hy
           omega
       have htail :
           indexSetSum σ (indexInterval b₀ (b i)) =
@@ -333,10 +336,10 @@ theorem lemma52_fixed_parameter_mass_le
         apply Finset.sum_congr rfl
         intro x hx
         apply hag x
-        simp only [F, forwardWindow, Finset.mem_filter,
-          Finset.mem_univ, true_and]
-        simp only [indexInterval, Finset.mem_filter,
-          Finset.mem_univ, true_and] at hx
+        simp only [F,forwardWindow,Finset.mem_filter,
+          Finset.mem_univ,true_and]
+        simp only [indexInterval,Finset.mem_filter,
+          Finset.mem_univ,true_and] at hx
         have hwin := hbwin i
         simp [paperPos] at hwin
         omega
