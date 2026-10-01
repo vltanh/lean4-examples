@@ -2,6 +2,18 @@
 
 Formalization of Huy Tuan Pham and Lisa Sauermann, *On Graham's rearrangement conjecture* (arXiv:2602.15797v1).
 
+## Status
+
+The source-level mathematical formalization and deep paper-fidelity audit are complete under the requested no-compile policy.
+
+- No `sorry` or `admit` remains.
+- Every numbered Fact, Lemma, Corollary, and Theorem in the paper has an internal theorem body.
+- Every finite sampling, conditioning, permutation-invariance, counting, and repair argument proved in the paper is internal.
+- The only axioms are the two hypergeometric Chernoff specializations used in Lemmas 3.1 and 3.3, corresponding exactly to the result explicitly cited by the paper as [8, Theorem 2.10 and Eq. (2.6)].
+- Reference [8] is S. Janson, T. Łuczak, and A. Ruciński, *Random Graphs*, John Wiley & Sons, 2011.
+- No CI workflow is present.
+- Lean has not been compiled or typechecked, by explicit request.
+
 ## Layout
 
 ```text
@@ -37,7 +49,7 @@ Lean4Examples/
     │   ├── Lemma54.lean
     │   ├── Lemma52.lean
     │   ├── Lemma55.lean
-    │   ├── ReversalExternal.lean
+    │   ├── Reversal.lean
     │   ├── Lemma56.lean
     │   ├── Lemma53.lean
     │   ├── Repair.lean
@@ -45,47 +57,19 @@ Lean4Examples/
     ├── Main.lean
     ├── SOURCE_MAP.md
     ├── CHECKLIST.md
+    ├── DEEP_AUDIT_CHECKLIST.md
     └── README.md
 ```
 
-## Dependency flow
+## Fidelity notes
 
-```text
-Introduction
-    ↓
-Preliminaries                        Section 2
-    ↓
-BooleanSlice/{Definitions,Fourier,Lemmas,Theorem}
-                                     Section 3
-    ↓
-Combinatorial/{Lemma41,Corollary14,Corollary42,Lemma43}
-                                     Section 4
-    ↓
-Rearrangement/{Definitions,IntervalLemmas,Parameters}
-    ↓
-Lemma51 → Lemma54 → Lemma52
-    ↓
-Lemma55 → Lemma56 → Lemma53
-    ↓
-Repair → BadEvents
-    ↓
-Main                                 Theorem 1.2
-```
+Two paper-text inconsistencies are recorded explicitly.
 
-`Lean4Examples.GrahamRearrangement` is the umbrella module.
+1. Two Section 3 transition sentences use (B_{32t}), whereas Lemmas 3.2/3.3 and the later proof use (B_{2000t}). The formalization follows the numbered lemmas and proof.
+2. Lemma 3.2 prints (265t/m) for the contribution inside (J_{\chi,t}), but the next line uses (4\cdot256=1024) and then (2000-1024=976). The radius (16\sqrt{t/m}) gives (256t/m), so the formalization follows the intended (256\to1024\to976) calculation and documents the printed (265) as an arithmetic typo.
 
-## Formalization policy
+See `DEEP_AUDIT_CHECKLIST.md` for the completed strict proof-boundary audit and `SOURCE_MAP.md` for the paper-to-Lean map.
 
-The paper-facing source has been filled in, but a subsequent deep audit found paper-internal proof steps still hidden behind External axioms. Mathematical audit completeness is therefore **not yet claimed**:
+## Verification boundary
 
-- every numbered Fact, Lemma, Corollary, and Theorem has a theorem declaration, but some theorem bodies still depend on External axioms that must be internalized;
-- the Lean source tree contains no `sorry`;
-- external/general mathematical, probabilistic, sampling, and permutation inputs are axiomatized only in files whose names contain `External`, per request;
-- the exact constants and bad-event architecture of the paper are retained;
-- `SOURCE_MAP.md` records the paper-to-Lean mapping and fidelity notes.
-
-`DEEP_AUDIT_CHECKLIST.md` is the authoritative missing-proof checklist. `CHECKLIST.md` records the earlier source-coverage pass.
-
-## Verification status
-
-No CI workflow is included and no Lean compilation/typechecking was performed, by explicit request. Completion here means the source formalization and dependency structure are filled in; it is **not** a claim that Lean has accepted the files.
+Because compilation was explicitly forbidden, completion means the source proof architecture, axiom boundary, and paper-fidelity audit are complete. It is not a claim that Lean has accepted the files; syntax/elaboration/type correctness remain unverified until compilation is later authorized.
