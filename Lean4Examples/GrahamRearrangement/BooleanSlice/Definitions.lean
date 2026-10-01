@@ -146,26 +146,93 @@ def Dset {p : ℕ} [NeZero p] (S : Finset (ZMod p))
   Finset.univ.filter fun χ =>
     χ ≠ 0 ∧ ∃ y : ZMod p, 3 * S.card ≤ 4 * (nearSet S m t χ y).card
 
-/-- A center witnessing membership in `D_t`; outside `D_t` its value is irrelevant. -/
-def centerAt {p : ℕ} [NeZero p] (S : Finset (ZMod p))
-    (m t : ℕ) (χ : ZMod p) : ZMod p := by
+/-- There is some positive scale at which `χ` belongs to `D_t`. -/
+def HasDTime {p : ℕ} [NeZero p] (S : Finset (ZMod p))
+    (m : ℕ) (χ : ZMod p) : Prop :=
+  ∃ t : ℕ, 0 < t ∧ χ ∈ Dset S m t
+
+/-- The smallest positive scale at which `χ ∈ D_t`, whenever such a scale
+exists. This is the scale used in the paper to choose a center independent of
+the later value of `t`. -/
+def firstDTime {p : ℕ} [NeZero p] (S : Finset (ZMod p))
+    (m : ℕ) (χ : ZMod p) : ℕ := by
   classical
-  by_cases h : ∃ y : ZMod p, 3 * S.card ≤ 4 * (nearSet S m t χ y).card
-  · exact Classical.choose h
+  by_cases h : HasDTime S m χ
+  · exact Nat.find h
+  · exact 1
+
+theorem firstDTime_spec {p : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (m : ℕ) (χ : ZMod p)
+    (h : HasDTime S m χ) :
+    0 < firstDTime S m χ ∧
+      χ ∈ Dset S m (firstDTime S m χ) := by
+  classical
+  simp [firstDTime, h, Nat.find_spec h]
+
+theorem firstDTime_le {p : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (m t : ℕ) (χ : ZMod p)
+    (ht : 0 < t) (hχ : χ ∈ Dset S m t) :
+    firstDTime S m χ ≤ t := by
+  classical
+  have hex : HasDTime S m χ := ⟨t, ht, hχ⟩
+  simp [firstDTime, hex]
+  exact Nat.find_min' hex ⟨ht, hχ⟩
+
+theorem nearSet_mono_t {p : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (m t₁ t₂ : ℕ)
+    (χ y : ZMod p) (htt : t₁ ≤ t₂) :
+    nearSet S m t₁ χ y ⊆ nearSet S m t₂ χ y := by
+  intro x hx
+  simp only [nearSet, Finset.mem_filter] at hx ⊢
+  refine ⟨hx.1, le_trans hx.2 ?_⟩
+  gcongr
+
+/-- The paper's center `yχ`, chosen once and for all from the smallest positive
+scale at which `χ ∈ D_t`. The formal parameter `t` is intentionally ignored,
+so the center is definitionally independent of `t`. -/
+def centerAt {p : ℕ} [NeZero p] (S : Finset (ZMod p))
+    (m : ℕ) (_t : ℕ) (χ : ZMod p) : ZMod p := by
+  classical
+  by_cases h : HasDTime S m χ
+  · have hD :
+        χ ∈ Dset S m (firstDTime S m χ) :=
+      (firstDTime_spec S m χ h).2
+    exact Classical.choose
+      ((Finset.mem_filter.1 hD).2.2)
   · exact 0
 
-theorem centerAt_spec {p : ℕ} [NeZero p] (S : Finset (ZMod p))
-    (m t : ℕ) {χ : ZMod p} (hχ : χ ∈ Dset S m t) :
-    3 * S.card ≤ 4 * (nearSet S m t χ (centerAt S m t χ)).card := by
-  classical
-  have hex : ∃ y : ZMod p, 3 * S.card ≤ 4 * (nearSet S m t χ y).card := by
-    simpa [Dset] using (Finset.mem_filter.1 hχ).2.2
-  simp [centerAt, hex, Classical.choose_spec hex]
+theorem centerAt_independent_of_t {p : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (m t₁ t₂ : ℕ) (χ : ZMod p) :
+    centerAt S m t₁ χ = centerAt S m t₂ χ := by
+  rfl
 
-/-- The enlarged set `J_{χ,t}` used in Lemmas 3.2 and 3.3. -/
+theorem centerAt_spec {p : ℕ} [NeZero p] (S : Finset (ZMod p))
+    (m t : ℕ) {χ : ZMod p} (ht : 0 < t)
+    (hχ : χ ∈ Dset S m t) :
+    3 * S.card ≤
+      4 * (nearSet S m t χ (centerAt S m t χ)).card := by
+  classical
+  have hex : HasDTime S m χ := ⟨t, ht, hχ⟩
+  have hD :
+      χ ∈ Dset S m (firstDTime S m χ) :=
+    (firstDTime_spec S m χ hex).2
+  have hcenter :
+      3 * S.card ≤
+        4 * (nearSet S m (firstDTime S m χ) χ
+          (centerAt S m t χ)).card := by
+    simpa [centerAt, hex] using
+      Classical.choose_spec ((Finset.mem_filter.1 hD).2.2)
+  have hsubset :
+      nearSet S m (firstDTime S m χ) χ (centerAt S m t χ) ⊆
+        nearSet S m t χ (centerAt S m t χ) :=
+    nearSet_mono_t S m (firstDTime S m χ) t χ
+      (centerAt S m t χ) (firstDTime_le S m t χ ht hχ)
+  exact le_trans hcenter (Nat.mul_le_mul_left 4 (Finset.card_le_card hsubset))
+
+/-- The enlarged set `J_{χ,t} ⊆ Z_p` used in Lemmas 3.2 and 3.3. -/
 def Jset {p : ℕ} [NeZero p] (S : Finset (ZMod p))
     (m t : ℕ) (χ : ZMod p) : Finset (ZMod p) :=
-  S.filter fun x =>
+  Finset.univ.filter fun x =>
     zmodNorm (χ * x - centerAt S m t χ) ≤
       16 * Real.sqrt ((t : ℝ) / m)
 
