@@ -2,8 +2,7 @@ import Lean4Examples.GrahamRearrangement.Introduction
 import Lean4Examples.GrahamRearrangement.Preliminaries
 import Lean4Examples.GrahamRearrangement.BooleanSlice
 import Lean4Examples.GrahamRearrangement.Combinatorial
-import Lean4Examples.GrahamRearrangement.Rearrangement.Definitions
-import Lean4Examples.GrahamRearrangement.Rearrangement.BadEvents
+import Lean4Examples.GrahamRearrangement.Rearrangement
 import Lean4Examples.GrahamRearrangement.Main
 
 /-!
