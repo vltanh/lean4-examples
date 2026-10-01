@@ -4,9 +4,9 @@ Target: Huy Tuan Pham and Lisa Sauermann, *On Graham's rearrangement conjecture*
 arXiv:2602.15797v1.
 
 This file maps the paper-facing Lean declarations to their location in the paper.
-Pure implementation helpers are grouped with the result they support.  Generic
-facts not proved in the paper are isolated in `External*.lean` files and are
-axiomatized by design.
+Pure implementation helpers are grouped with the result they support. The strict
+axiom boundary contains only the two hypergeometric Chernoff specializations
+explicitly cited by the paper from [8, Theorem 2.10 and Eq. (2.6)].
 
 ## Introduction
 
@@ -31,8 +31,9 @@ axiomatized by design.
 | `e_p` | `ep`, `ep_eq_stdAddChar` |
 | Fact 2.5 | `fact2_5` |
 
-The imported analytic and additive-combinatorial facts used here are axioms in
-`External.lean`: Cauchy--Schwarz, Taylor estimates, and Cauchy--Davenport.
+Section 2 has no project axioms. Cauchy--Schwarz, Taylor/Lagrange remainder,
+and Cauchy--Davenport are used through proved/library theorems, and Facts 2.1--2.5
+follow the paper's internal proofs.
 
 ## Section 3 — Boolean-slice anticoncentration
 
@@ -78,8 +79,9 @@ The imported analytic and additive-combinatorial facts used here are axioms in
 | Lemma 3.7 | `lemma3_7` |
 | Theorem 1.3 | `theorem13` |
 
-The external concentration/Fourier inputs are isolated in
-`BooleanSlice/External.lean` and the general `External.lean`.
+`BooleanSlice/External.lean` is axiom-free. The only axiomatized Section 3
+input is the hypergeometric Chernoff estimate explicitly cited as [8, Theorem
+2.10 and Eq. (2.6)], specialized in the general `External.lean` file.
 
 ### Fidelity notes
 
