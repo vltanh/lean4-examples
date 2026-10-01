@@ -479,6 +479,53 @@ theorem chain_increment_bijection {p k : ℕ} [NeZero p]
       incrementsToChain_mem hk S m hΔ, ?_⟩
     exact increments_chain_inverse hk S m hm hΔ
 
+theorem subsetSum_union_of_disjoint {p : ℕ} [NeZero p]
+    {A B : Finset (ZMod p)} (h : Disjoint A B) :
+    subsetSum (A ∪ B) = subsetSum A + subsetSum B := by
+  unfold subsetSum
+  rw [Finset.sum_union h]
+
+theorem subsetSum_biUnion_pairwise_disjoint
+    {p ι : ℕ} [NeZero p]
+    (I : Finset (Fin ι))
+    (A : Fin ι → Finset (ZMod p))
+    (hdisj : ∀ i ∈ I, ∀ j ∈ I, i ≠ j → Disjoint (A i) (A j)) :
+    subsetSum (∪ i ∈ I, A i) =
+      ∑ i ∈ I, subsetSum (A i) := by
+  classical
+  induction I using Finset.induction_on with
+  | empty => simp [subsetSum]
+  | @insert i I hi ih =>
+      have hDI :
+          Disjoint (A i) (∪ j ∈ I, A j) := by
+        rw [Finset.disjoint_biUnion_right]
+        intro j hj
+        exact hdisj i (by simp) j (by simp [hj])
+          (by intro h; subst j; exact hi hj)
+      rw [Finset.biUnion_insert, subsetSum_union_of_disjoint hDI,
+        ih (by
+          intro a ha b hb hab
+          exact hdisj a (by simp [ha]) b (by simp [hb]) hab)]
+      simp [hi]
+
+theorem subsetSum_eq_sum_chain_increments {p k : ℕ} [NeZero p]
+    (hk : 0 < k) (S : Finset (ZMod p))
+    {m : Fin k → ℕ} {R : Fin k → Finset (ZMod p)}
+    (hR : R ∈ chainFamily S m) (i : Fin k) :
+    subsetSum (R i) =
+      ∑ j ∈ Finset.Iic i.val,
+        subsetSum (chainIncrements S R ⟨j,by omega⟩) := by
+  rw [← chain_prefix_union_eq hk S hR i]
+  apply subsetSum_biUnion_pairwise_disjoint
+  intro a ha b hb hab
+  exact chain_increment_disjoint_of_lt hk S hR
+    (by
+      rcases lt_or_gt_of_ne (Fin.mk.inj_ne.mp hab) with h | h
+      · exact h
+      · exact h) |>.elim
+      (fun h => h)
+      (fun h => h.symm)
+
 def chainGapTarget {p k : ℕ} [NeZero p]
     (S : Finset (ZMod p)) (z : Fin k → ZMod p)
     (i : Fin (k + 1)) : ZMod p :=
@@ -486,38 +533,59 @@ def chainGapTarget {p k : ℕ} [NeZero p]
   else if hk : i.val = k then subsetSum S - z ⟨k-1,by omega⟩
   else z ⟨i.val,by omega⟩ - z ⟨i.val-1,by omega⟩
 
+theorem chainGapTarget_prefix_telescopes {p k : ℕ} [NeZero p]
+    (hk : 0 < k) (S : Finset (ZMod p))
+    (z : Fin k → ZMod p) (i : Fin k) :
+    ∑ j ∈ Finset.Iic i.val,
+      chainGapTarget S z ⟨j,by omega⟩ = z i := by
+  induction i.val with
+  | zero =>
+      simp [chainGapTarget,hk]
+  | succ r ih =>
+      rw [Finset.sum_Iic_succ_top]
+      have hir : r < k := by omega
+      have hir' : r + 1 < k := i.isLt
+      have htarget :
+          chainGapTarget S z ⟨r+1,by omega⟩ =
+            z ⟨r+1,hir'⟩ - z ⟨r,hir⟩ := by
+        simp [chainGapTarget]
+        omega
+      rw [htarget]
+      have ih' := ih ⟨r,hir⟩
+      simpa using add_sub_cancel_left _ _
+
 theorem chain_sum_event_iff_increment_targets {p k : ℕ} [NeZero p]
     (hk : 0 < k) (S : Finset (ZMod p))
-    (R : Fin k → Finset (ZMod p))
-    (hR : R ∈ chainFamily S (fun i => (R i).card))
+    {m : Fin k → ℕ} (R : Fin k → Finset (ZMod p))
+    (hR : R ∈ chainFamily S m)
     (z : Fin k → ZMod p) :
     (∀ i, subsetSum (R i) = z i) ↔
       ∀ i : Fin (k + 1),
         subsetSum (chainIncrements S R i) = chainGapTarget S z i := by
   constructor
   · intro hz i
-    unfold chainGapTarget chainIncrements
-    split <;> split
-    · subst i; simpa using hz ⟨0,hk⟩
-    · rename_i h0 hlast
-      have hi : i.val < k := by omega
-      have hsub := chain_nested_from_mem hR
-      rw [subsetSum_sdiff (hsub _ _ (by simp; omega))]
-      simpa using sub_eq_sub_iff_add_eq_add.mpr
-        (congrArg id (hz ⟨i.val,hi⟩))
+    by_cases h0 : i.val = 0
     · subst i
-      rw [subsetSum_sdiff (chain_last_subset_from_mem hR)]
-      simp [hz]
+      simpa [chainIncrements,chainGapTarget] using hz ⟨0,hk⟩
+    by_cases hlast : i.val = k
+    · subst i
+      have hlastSub :=
+        (chain_data_from_mem hR ⟨k-1,by omega⟩).1
+      rw [subsetSum_sdiff hlastSub]
+      simp [chainIncrements,chainGapTarget,hk,hz]
+    · have hi : i.val < k := by omega
+      have hsub :=
+        chain_nested_from_mem hR
+          ⟨i.val-1,by omega⟩ ⟨i.val,hi⟩ (by simp; omega)
+      rw [show chainIncrements S R i =
+          R ⟨i.val,hi⟩ \ R ⟨i.val-1,by omega⟩ by
+            simp [chainIncrements,h0,hlast]]
+      rw [subsetSum_sdiff hsub]
+      simp [chainGapTarget,h0,hlast,hz]
   · intro hΔ i
-    have hprefix :
-        subsetSum (R i) =
-          ∑ j : Fin (i.val + 1),
-            subsetSum (chainIncrements S R
-              ⟨j.val,by omega⟩) :=
-      subsetSum_eq_sum_chain_increments S R hR i
-    rw [hprefix]
+    rw [subsetSum_eq_sum_chain_increments hk S hR i]
     simp_rw [hΔ]
-    exact chainGapTarget_prefix_telescopes S z i
+    exact chainGapTarget_prefix_telescopes hk S z i
 
 def exposureOrder {k : ℕ} (j : Fin (k + 1)) :
     List (Fin (k + 1)) :=
