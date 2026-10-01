@@ -9,8 +9,8 @@ The source-level mathematical formalization and deep paper-fidelity audit are co
 - No `sorry` or `admit` remains.
 - Every numbered Fact, Lemma, Corollary, and Theorem in the paper has an internal theorem body.
 - Every finite sampling, conditioning, permutation-invariance, counting, and repair argument proved in the paper is internal.
-- The only axioms are the two hypergeometric Chernoff specializations used in Lemmas 3.1 and 3.3, corresponding exactly to the result explicitly cited by the paper as [8, Theorem 2.10 and Eq. (2.6)].
-- Reference [8] is S. Janson, T. Łuczak, and A. Ruciński, *Random Graphs*, John Wiley & Sons, 2011.
+- The project contains **no custom axioms**. The hypergeometric estimate cited by the paper as [8, Theorem 2.10 and Eq. (2.6)] is formalized in `External/Hypergeometric/` from a finite without-replacement sampling model and mathlib's proved Hoeffding lemma.
+- Reference [8] remains recorded as provenance: S. Janson, T. Łuczak, and A. Ruciński, *Random Graphs*, John Wiley & Sons, 2011.
 - No CI workflow is present.
 - Lean has not been compiled or typechecked, by explicit request.
 
@@ -22,6 +22,12 @@ Lean4Examples/
 └── GrahamRearrangement/
     ├── Introduction.lean
     ├── External.lean
+    ├── External/
+    │   ├── Hypergeometric.lean
+    │   └── Hypergeometric/
+    │       ├── Sampling.lean
+    │       ├── Hoeffding.lean
+    │       └── Tails.lean
     ├── Probability.lean
     ├── Preliminaries.lean
     ├── BooleanSlice.lean
@@ -68,7 +74,9 @@ Two paper-text inconsistencies are recorded explicitly.
 1. Two Section 3 transition sentences use (B_{32t}), whereas Lemmas 3.2/3.3 and the later proof use (B_{2000t}). The formalization follows the numbered lemmas and proof.
 2. Lemma 3.2 prints (265t/m) for the contribution inside (J_{\chi,t}), but the next line uses (4\cdot256=1024) and then (2000-1024=976). The radius (16\sqrt{t/m}) gives (256t/m), so the formalization follows the intended (256\to1024\to976) calculation and documents the printed (265) as an arithmetic typo.
 
-See `DEEP_AUDIT_CHECKLIST.md` for the completed strict proof-boundary audit and `SOURCE_MAP.md` for the paper-to-Lean map.
+`External/Hypergeometric/Sampling.lean` proves the finite without-replacement sampling law; `Hoeffding.lean` proves the exponential-moment bound; and `Tails.lean` derives the exact two tail estimates used in Section 3.
+
+See `DEEP_AUDIT_CHECKLIST.md` for the completed axiom-free proof-boundary audit and `SOURCE_MAP.md` for the paper-to-Lean map.
 
 ## Verification boundary
 
