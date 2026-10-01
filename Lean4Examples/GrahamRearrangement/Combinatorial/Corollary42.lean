@@ -518,13 +518,9 @@ theorem subsetSum_eq_sum_chain_increments {p k : ℕ} [NeZero p]
   rw [← chain_prefix_union_eq hk S hR i]
   apply subsetSum_biUnion_pairwise_disjoint
   intro a ha b hb hab
-  exact chain_increment_disjoint_of_lt hk S hR
-    (by
-      rcases lt_or_gt_of_ne (Fin.mk.inj_ne.mp hab) with h | h
-      · exact h
-      · exact h) |>.elim
-      (fun h => h)
-      (fun h => h.symm)
+  by_cases hlt : a.val < b.val
+  · exact chain_increment_disjoint_of_lt hk S hR hlt
+  · exact (chain_increment_disjoint_of_lt hk S hR (by omega)).symm
 
 def chainGapTarget {p k : ℕ} [NeZero p]
     (S : Finset (ZMod p)) (z : Fin k → ZMod p)
@@ -941,26 +937,190 @@ theorem increment_conditional_uniform_given_history
       A _ hA (Classical.choose_spec
         (powersetCard_nonempty U
           (unexposed_component_card_le_remaining S m hΔ₀ L hi)))
-  have huniform :=
-    uniform_statistic_of_equal_fibers ΩH choices
-      (fun Δ => Δ i) hmap heq
-  unfold orderingConditionalMass sliceMass at *
-  exact uniformMass_pushforward_event huniform
-    (fun A => subsetSum A = q)
+  have hchoices : choices.Nonempty :=
+    powersetCard_nonempty U
+      (unexposed_component_card_le_remaining S m hΔ₀ L hi)
+  have hΩH : ΩH.Nonempty := by
+    refine ⟨Δ₀, ?_⟩
+    exact Finset.mem_filter.mpr ⟨hΔ₀,hH⟩
+  have heq' :
+      ∀ A ∈ choices, ∀ B ∈ choices,
+        (ΩH.filter fun Δ => Δ i = A).card =
+          (ΩH.filter fun Δ => Δ i = B).card := by
+    intro A hA B hB
+    exact component_fiber_equipotent S m L i hi H
+      Δ₀ hΔ₀ hH A B hA hB
+  simpa [ΩH,choices,U,uniformConditionalMass,sliceMass] using
+    (uniformMass_statistic_of_pairwise_equal_fibers
+      ΩH choices (fun Δ => Δ i) hmap hchoices hΩH heq'
+      (fun A => subsetSum A = q))
 
-/-- Sequential exposure of all increments except j.  Conditional on previously
-exposed increments, the next increment is a uniform subset of the remaining
-ground set with its prescribed gap size. -/
+def historySatisfies {p k : ℕ} [NeZero p]
+    (L : Finset (Fin (k + 1)))
+    (target : Fin (k + 1) → ZMod p)
+    (H : Fin (k + 1) → Option (Finset (ZMod p))) : Prop :=
+  ∀ i ∈ L, ∃ A, H i = some A ∧ subsetSum A = target i
+
+theorem historySatisfies_key_iff {p k : ℕ} [NeZero p]
+    (L : Finset (Fin (k + 1)))
+    (target : Fin (k + 1) → ZMod p)
+    (Δ : Fin (k + 1) → Finset (ZMod p)) :
+    historySatisfies L target (historyKey L Δ) ↔
+      ∀ i ∈ L, subsetSum (Δ i) = target i := by
+  constructor
+  · intro h i hi
+    rcases h i hi with ⟨A,hA,hSum⟩
+    simp [historyKey,hi] at hA
+    simpa [hA] using hSum
+  · intro h i hi
+    exact ⟨Δ i, by simp [historyKey,hi], h i hi⟩
+
+theorem two_unexposed_gaps_sum_le_remaining
+    {p k : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (m : Fin k → ℕ)
+    {Δ : Fin (k + 1) → Finset (ZMod p)}
+    (hΔ : Δ ∈ incrementPartitionFamily S m)
+    (L : Finset (Fin (k + 1)))
+    {i j : Fin (k + 1)} (hi : i ∉ L) (hj : j ∉ L)
+    (hij : i ≠ j) :
+    chainGap S.card m i + chainGap S.card m j ≤
+      (remainingAfter S L Δ).card := by
+  have hiSub := unexposed_component_subset_remaining S m hΔ L hi
+  have hjSub := unexposed_component_subset_remaining S m hΔ L hj
+  have hdisj := (Finset.mem_filter.mp hΔ).2.2.1 i j hij
+  have hunion :
+      Δ i ∪ Δ j ⊆ remainingAfter S L Δ :=
+    Finset.union_subset hiSub hjSub
+  have hcard := Finset.card_le_card hunion
+  rw [Finset.card_union_of_disjoint hdisj,
+      ((Finset.mem_filter.mp hΔ).2.1 i).2,
+      ((Finset.mem_filter.mp hΔ).2.1 j).2] at hcard
+  exact hcard
+
+theorem remainingAfter_subset {p k : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (L : Finset (Fin (k + 1)))
+    (Δ : Fin (k + 1) → Finset (ZMod p)) :
+    remainingAfter S L Δ ⊆ S :=
+  Finset.sdiff_subset
+
+theorem increment_event_list_bound
+    {p k : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (m : Fin k → ℕ)
+    (hm : IsChainSizeTuple S.card m)
+    (j : Fin (k + 1))
+    (target : Fin (k + 1) → ZMod p)
+    (b : Fin (k + 1) → ℝ) (hb : ∀ i, 0 ≤ b i)
+    (hstep :
+      ∀ i : Fin (k + 1), i ≠ j →
+        ∀ U : Finset (ZMod p), U ⊆ S →
+          chainGap S.card m i + chainGap S.card m j ≤ U.card →
+          ∀ q : ZMod p,
+            sliceMass U (chainGap S.card m i) q ≤ b i)
+    (L : List (Fin (k + 1))) (hLnodup : L.Nodup)
+    (hjL : j ∉ L) :
+    uniformMass (incrementPartitionFamily S m)
+      (fun Δ => ∀ i ∈ L, subsetSum (Δ i) = target i) ≤
+        (L.map b).prod := by
+  classical
+  induction L using List.reverseRecOn with
+  | nil =>
+      simpa using uniformMass_le_one
+        (incrementPartitionFamily S m)
+        (fun _ => True)
+  | append_singleton L i ih =>
+      have hiL : i ∉ L := by
+        simpa using (List.nodup_append.mp hLnodup).2.1
+      have hjL' : j ∉ L := by
+        intro hj
+        exact hjL (by simp [hj])
+      have hij : i ≠ j := by
+        intro h
+        subst i
+        exact hjL (by simp)
+      let Prev : (Fin (k + 1) → Finset (ZMod p)) → Prop :=
+        fun Δ => ∀ r ∈ L, subsetSum (Δ r) = target r
+      let Cur : (Fin (k + 1) → Finset (ZMod p)) → Prop :=
+        fun Δ => subsetSum (Δ i) = target i
+      have hchain :
+          uniformMass (incrementPartitionFamily S m)
+              (fun Δ => Prev Δ ∧ Cur Δ) =
+            uniformMass (incrementPartitionFamily S m) Prev *
+              uniformConditionalMass (incrementPartitionFamily S m)
+                Prev Cur :=
+        uniformMass_chain_rule _ Prev Cur
+      have hcond :
+          uniformConditionalMass (incrementPartitionFamily S m)
+            Prev Cur ≤ b i := by
+        let LF : Finset (Fin (k + 1)) := L.toFinset
+        let key := historyKey LF
+        let P : (Fin (k + 1) → Option (Finset (ZMod p))) → Prop :=
+          historySatisfies LF target
+        have hPrev :
+            Prev = fun Δ => P (key Δ) := by
+          funext Δ
+          apply propext
+          simpa [Prev,P,key,LF,List.mem_toFinset] using
+            (historySatisfies_key_iff LF target Δ).symm
+        rw [hPrev]
+        apply uniformConditionalMass_le_of_fibers
+          (incrementPartitionFamily S m) key P Cur
+          (b i) (hb i)
+        intro H hPH
+        by_cases hfiber :
+            ((incrementPartitionFamily S m).filter
+              fun Δ => key Δ = H).Nonempty
+        · obtain ⟨Δ₀,hΔ₀fiber⟩ := hfiber
+          rcases Finset.mem_filter.mp hΔ₀fiber with ⟨hΔ₀,hkey⟩
+          have hiLF : i ∉ LF := by
+            simpa [LF,List.mem_toFinset] using hiL
+          have hjLF : j ∉ LF := by
+            simpa [LF,List.mem_toFinset] using hjL'
+          let U := remainingAfter S LF Δ₀
+          have htwo :
+              chainGap S.card m i + chainGap S.card m j ≤ U.card :=
+            two_unexposed_gaps_sum_le_remaining
+              S m hΔ₀ LF hiLF hjLF hij
+          have huniform :=
+            increment_conditional_uniform_given_history
+              S m hm LF i hiLF H Δ₀ hΔ₀ hkey (target i)
+          rw [huniform]
+          exact hstep i hij U (remainingAfter_subset S LF Δ₀)
+            htwo (target i)
+        · unfold uniformConditionalMass
+          have hempty :
+              (incrementPartitionFamily S m).filter
+                (fun Δ => key Δ = H) = ∅ :=
+            Finset.not_nonempty_iff_eq_empty.mp hfiber
+          simp [hempty]
+      rw [show (fun Δ => ∀ r ∈ L ++ [i],
+          subsetSum (Δ r) = target r) =
+          (fun Δ => Prev Δ ∧ Cur Δ) by
+            funext Δ
+            apply propext
+            simp [Prev,Cur]]
+      rw [hchain]
+      have hprev :=
+        ih (List.nodup_of_append_singleton hLnodup) hjL'
+      have hnonneg : 0 ≤ uniformConditionalMass
+          (incrementPartitionFamily S m) Prev Cur :=
+        uniformMass_nonneg _ _
+      calc
+        uniformMass (incrementPartitionFamily S m) Prev *
+            uniformConditionalMass (incrementPartitionFamily S m) Prev Cur
+          ≤ (L.map b).prod * b i :=
+            mul_le_mul hprev hcond hnonneg (by positivity)
+        _ = ((L ++ [i]).map b).prod := by simp
+
+/-- Sequential exposure of all increments except j. -/
 theorem incrementPartition_product_bound {p k : ℕ} [NeZero p]
     (S : Finset (ZMod p)) (m : Fin k → ℕ)
     (hm : IsChainSizeTuple S.card m)
     (j : Fin (k + 1))
-    (b : Fin (k + 1) → ℝ)
+    (b : Fin (k + 1) → ℝ) (hb : ∀ i, 0 ≤ b i)
     (hstep :
       ∀ i : Fin (k + 1), i ≠ j →
-        ∀ U : Finset (ZMod p),
-          (chainGap S.card m j : ℕ) ≤ U.card →
-          chainGap S.card m i ≤ U.card →
+        ∀ U : Finset (ZMod p), U ⊆ S →
+          chainGap S.card m i + chainGap S.card m j ≤ U.card →
           ∀ q : ZMod p,
             sliceMass U (chainGap S.card m i) q ≤ b i)
     (target : Fin (k + 1) → ZMod p) :
@@ -968,49 +1128,44 @@ theorem incrementPartition_product_bound {p k : ℕ} [NeZero p]
       (fun Δ => ∀ i, i ≠ j → subsetSum (Δ i) = target i) ≤
         ∏ i ∈ Finset.univ.erase j, b i := by
   classical
-  let order := exposureOrder j
-  have horder := exposureOrder_nodup j
-  induction order using List.reverseRecOn with
-  | nil =>
-      simp [incrementPartitionFamily]
-  | append_singleton order i ih =>
-      have hi : i ≠ j := (mem_exposureOrder_iff j i).mp
-        (by simp [exposureOrder, order])
-      let Prev : (Fin (k + 1) → Finset (ZMod p)) → Prop :=
-        fun Δ => ∀ r ∈ order, subsetSum (Δ r) = target r
-      rw [uniformMass_chain_rule_on_partition
-        (incrementPartitionFamily S m) Prev
-        (fun Δ => subsetSum (Δ i) = target i)]
-      apply mul_le_mul
-      · exact ih
-      · apply uniformExpectation_le_const
-        · exact incrementPartitionFamily_nonempty S m hm
-        · intro Δ hΔ
-          let U := S \ ∪ r ∈ order.toFinset, Δ r
-          have hUj :
-              chainGap S.card m j ≤ U.card :=
-            unexposed_gap_le_remaining S m hm j order hΔ horder
-          have hUi :
-              chainGap S.card m i ≤ U.card :=
-            unexposed_gap_le_remaining S m hm i order hΔ horder
-          have hcond :=
-            increment_conditional_uniform S m hm order i hΔ horder
-          rw [hcond]
-          exact hstep i hi U hUj hUi (target i)
-      · positivity
-      · positivity
+  let L := exposureOrder j
+  have hlist :=
+    increment_event_list_bound S m hm j target b hb hstep
+      L (exposureOrder_nodup j)
+      (by
+        intro hj
+        exact (mem_exposureOrder_iff j j).mp hj rfl)
+  have hevent :
+      (fun Δ => ∀ i, i ≠ j → subsetSum (Δ i) = target i) =
+        (fun Δ => ∀ i ∈ L, subsetSum (Δ i) = target i) := by
+    funext Δ
+    apply propext
+    constructor
+    · intro h i hi
+      exact h i ((mem_exposureOrder_iff j i).mp hi)
+    · intro h i hij
+      exact h i ((mem_exposureOrder_iff j i).mpr hij)
+  rw [hevent]
+  calc
+    uniformMass (incrementPartitionFamily S m)
+        (fun Δ => ∀ i ∈ L, subsetSum (Δ i) = target i)
+      ≤ (L.map b).prod := hlist
+    _ = ∏ i ∈ Finset.univ.erase j, b i := by
+      rw [List.prod_map_eq_prod_toFinset (exposureOrder_nodup j)]
+      congr 1
+      ext i
+      simp [L,mem_exposureOrder_iff]
 
 theorem chainMass_fixed_gap_product_bound {p k : ℕ} [NeZero p]
     (hk : 0 < k)
     (S : Finset (ZMod p)) (m : Fin k → ℕ)
     (hm : IsChainSizeTuple S.card m)
     (j : Fin (k + 1))
-    (b : Fin (k + 1) → ℝ)
+    (b : Fin (k + 1) → ℝ) (hb : ∀ i, 0 ≤ b i)
     (hstep :
       ∀ i : Fin (k + 1), i ≠ j →
-        ∀ U : Finset (ZMod p),
-          chainGap S.card m j ≤ U.card →
-          chainGap S.card m i ≤ U.card →
+        ∀ U : Finset (ZMod p), U ⊆ S →
+          chainGap S.card m i + chainGap S.card m j ≤ U.card →
           ∀ q : ZMod p,
             sliceMass U (chainGap S.card m i) q ≤ b i)
     (z : Fin k → ZMod p) :
@@ -1023,16 +1178,32 @@ theorem chainMass_fixed_gap_product_bound {p k : ℕ} [NeZero p]
         (fun R => ∀ i, subsetSum (R i) = z i) =
       uniformMass (incrementPartitionFamily S m)
         (fun Δ => ∀ i, subsetSum (Δ i) = chainGapTarget S z i) := by
-    exact uniformMass_bij
-      (chainIncrements S)
-      (chain_increment_bijection_equiv hk S m)
-      (fun R hR => chain_sum_event_iff_increment_targets hk S R hR z)
+    apply uniformMass_bij
+      (chainFamily S m) (incrementPartitionFamily S m)
+      (fun R => chainIncrements S R)
+    · intro R hR
+      exact chainIncrements_mem hk S m hR
+    · intro R hR R' hR' hEq
+      exact chain_eq_of_increments_eq hk S hR hR' hEq
+    · intro Δ hΔ
+      exact ⟨incrementsToChain Δ,
+        incrementsToChain_mem hk S m hΔ,
+        increments_chain_inverse hk S m hm hΔ⟩
+    · intro R hR
+      exact chain_sum_event_iff_increment_targets hk S R hR z
   rw [hmass]
-  apply le_trans
-    (uniformMass_mono_on _ _ _
-      (by intro Δ hΔ hall i hij; exact hall i))
-  exact incrementPartition_product_bound S m hm j b hstep
-    (chainGapTarget S z)
+  have hmono :
+      uniformMass (incrementPartitionFamily S m)
+          (fun Δ => ∀ i, subsetSum (Δ i) = chainGapTarget S z i) ≤
+        uniformMass (incrementPartitionFamily S m)
+          (fun Δ => ∀ i, i ≠ j →
+            subsetSum (Δ i) = chainGapTarget S z i) := by
+    apply uniformMass_mono_on
+    intro Δ hΔ hall i hij
+    exact hall i
+  exact le_trans hmono
+    (incrementPartition_product_bound S m hm j b hb hstep
+      (chainGapTarget S z))
 
 /-- Corollary 4.2. -/
 theorem corollary42 : Corollary42Statement := by
@@ -1064,20 +1235,29 @@ theorem corollary42 : Corollary42Statement := by
           chainFactor p S.card Ck (chainGap S.card m i) := by
     apply chainMass_fixed_gap_product_bound hk S m hm j
       (fun i => chainFactor p S.card Ck (chainGap S.card m i))
-    intro i hij T hremain hgapfit q
+      (fun i => chainFactor_nonneg Ck (le_of_lt hCk))
+    intro i hij T hTS hsum q
     have hgap : 0 < chainGap S.card m i :=
       chainGap_pos hk m hm i
+    have hgapjT :
+        chainGap S.card m j ≤ T.card :=
+      le_trans (Nat.le_add_left _ _) hsum
     have hTlower : ε * S.card ≤ (T.card : ℝ) := by
-      exact_mod_cast le_trans (by exact_mod_cast hgapRemain) hremain
+      exact_mod_cast le_trans (by exact_mod_cast hgapRemain) hgapjT
+    have hTle : T.card ≤ S.card := Finset.card_le_card hTS
+    have hgapjFrac :
+        ε * (T.card : ℝ) ≤ chainGap S.card m j := by
+      have hεnonneg : 0 ≤ ε := le_of_lt hε0
+      have hscaled :
+          ε * (T.card : ℝ) ≤ ε * S.card :=
+        mul_le_mul_of_nonneg_left (by exact_mod_cast hTle) hεnonneg
+      exact le_trans hscaled hgapRemain
+    have hsumR :
+        (chainGap S.card m i : ℝ) +
+          chainGap S.card m j ≤ T.card := by exact_mod_cast hsum
     have hfrac :
         (chainGap S.card m i : ℝ) ≤ (1 - ε) * T.card := by
-      have hrem :
-          ε * (T.card : ℝ) ≤ chainGap S.card m j := by
-        have hTle : T.card ≤ S.card := by
-          exact remaining_subset_card_le S T
-        nlinarith [hgapRemain]
-      exact_mod_cast hgapfit
-      nlinarith
+      nlinarith [hgapjFrac,hsumR]
     have hcorT :
         ∀ (U : Finset (ZMod p)), 2 ≤ U.card →
         ∀ (r : ℕ), 0 < r →
@@ -1090,7 +1270,7 @@ theorem corollary42 : Corollary42Statement := by
       intro U hU r hr hrf q'
       exact hCor p hp U hU r hr hrf q'
     exact chain_factor_from_cor14 hp S hS ε Cε hε0 hε1 hCε
-      hcorT T (remaining_subset S T) hTlower
+      hcorT T hTS hTlower
       (chainGap S.card m i) hgap hfrac q
   have hnonneg : ∀ r : Fin (k + 1),
       0 ≤ ∏ i ∈ Finset.univ.erase r,
