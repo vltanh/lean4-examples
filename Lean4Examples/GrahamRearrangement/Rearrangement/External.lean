@@ -33,15 +33,6 @@ theorem indexedOrderings_nonempty {p : ℕ} [NeZero p]
     · rintro ⟨i, rfl⟩
       exact (e i).2
 
-/-- Reindexing a family of left endpoints by the corresponding interval length
-only decreases a sum of nonnegative weights when we enlarge to all lengths 1,...,n-1. -/
-axiom endpoint_reindex_sum_le
-    {n : ℕ} (b : Fin n) (A : Finset (Fin n))
-    (hA : ∀ a ∈ A, a.val ≤ b.val)
-    (w : ℕ → ℝ) (hw : ∀ r, 0 ≤ w r) :
-    (∑ a ∈ A, w (b.val - a.val + 1)) ≤
-      ∑ r ∈ Finset.Icc 1 (n - 1), w r
-
 /-- The image of a fixed r-set of indices under a uniform bijection is a uniform
 r-subset of S. -/
 axiom fixedIndexSet_sumMass {p : ℕ} [NeZero p]
@@ -433,14 +424,6 @@ axiom supportedAdmissibleCollections_card_le {n D : ℕ}
     (supportedAdmissibleCollections D Q).card ≤
       (5 * D + 1) ^ Q.card
 
-/-- A generic upper bound for the number of partial matchings when each of q
-possible first endpoints has at most r possible partners. -/
-axiom partial_matching_count_le (q r : ℕ) :
-    ∀ {n : ℕ} (Q : Finset (Fin n)),
-      Q.card ≤ q →
-      ((r + 1 : ℕ) ^ q : ℕ) ≤ (r + 1) ^ q ∧
-      0 < (r + 1) ^ q
-
 /-- Reversal conjugation preserves admissibility of a collection of local
 disjoint swaps and preserves the same distance bound. -/
 axiom reverseConjugate_admissible {n D : ℕ}
@@ -488,24 +471,6 @@ axiom two_colour_extract {α : Type*} [DecidableEq α]
       ∀ i, f i ∈ Y ∧ A (f i)) ∨
     (∃ f : Fin D → α, Function.Injective f ∧
       ∀ i, f i ∈ Y ∧ B (f i))
-
-/-- Crude count of the local parameters (b,b',y,u) used on either side of
-Lemma 5.3. -/
-axiom repair_side_parameter_count {n D : ℕ} :
-    (Finset.univ :
-      Finset (Fin n × Fin n ×
-        (Fin D → Fin n) × (Fin D → Fin n))).filter
-      (fun θ =>
-        2 ≤ paperPos θ.1 ∧
-        paperPos θ.1 + 30 * D ≤ n ∧
-        paperPos θ.2.1 - paperPos θ.1 = 5 * D ∧
-        (∀ i,
-          paperPos θ.1 < paperPos θ.2.2.1 i ∧
-            paperPos (θ.2.2.1 i) ≤ paperPos θ.2.1) ∧
-        (∀ i,
-          paperPos θ.1 ≤ paperPos θ.2.2.2 i ∧
-            paperPos (θ.2.2.2 i) ≤ paperPos θ.2.1))
-      |>.card ≤ n * (5 * D) ^ (2 * D)
 
 axiom rightRepairParameters_card_le {n D : ℕ} :
     (rightRepairParameters n D).card ≤ n * (5 * D) ^ (2 * D)
