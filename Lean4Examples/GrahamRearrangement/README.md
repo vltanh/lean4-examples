@@ -1,6 +1,6 @@
 # Graham rearrangement formalization
 
-Formalization of Huy Tuan Pham and Lisa Sauermann, *On Graham's rearrangement conjecture* (arXiv:2602.15797).
+Formalization of Huy Tuan Pham and Lisa Sauermann, *On Graham's rearrangement conjecture* (arXiv:2602.15797v1).
 
 ## Layout
 
@@ -9,41 +9,83 @@ Lean4Examples/
 ├── GrahamRearrangement.lean
 └── GrahamRearrangement/
     ├── Introduction.lean
+    ├── External.lean
+    ├── Probability.lean
     ├── Preliminaries.lean
     ├── BooleanSlice.lean
+    ├── BooleanSlice/
+    │   ├── Definitions.lean
+    │   ├── External.lean
+    │   ├── Fourier.lean
+    │   ├── Lemmas.lean
+    │   └── Theorem.lean
     ├── Combinatorial.lean
+    ├── Combinatorial/
+    │   ├── Definitions.lean
+    │   ├── External.lean
+    │   ├── Lemma41.lean
+    │   ├── Corollary14.lean
+    │   ├── Corollary42.lean
+    │   └── Lemma43.lean
+    ├── Rearrangement.lean
     ├── Rearrangement/
     │   ├── Definitions.lean
+    │   ├── External.lean
+    │   ├── IntervalLemmas.lean
+    │   ├── Parameters.lean
+    │   ├── Lemma51.lean
+    │   ├── Lemma54.lean
+    │   ├── Lemma52.lean
+    │   ├── Lemma55.lean
+    │   ├── ReversalExternal.lean
+    │   ├── Lemma56.lean
+    │   ├── Lemma53.lean
+    │   ├── Repair.lean
     │   └── BadEvents.lean
     ├── Main.lean
+    ├── SOURCE_MAP.md
     ├── CHECKLIST.md
     └── README.md
 ```
 
-The dependency flow follows the paper:
+## Dependency flow
 
 ```text
 Introduction
     ↓
-Preliminaries          (Section 2)
+Preliminaries                        Section 2
     ↓
-BooleanSlice           (Section 3)
+BooleanSlice/{Definitions,Fourier,Lemmas,Theorem}
+                                     Section 3
     ↓
-Combinatorial          (Section 4)
+Combinatorial/{Lemma41,Corollary14,Corollary42,Lemma43}
+                                     Section 4
     ↓
-Rearrangement/Definitions
+Rearrangement/{Definitions,IntervalLemmas,Parameters}
     ↓
-Rearrangement/BadEvents
+Lemma51 → Lemma54 → Lemma52
     ↓
-Main                   (Theorem 1.2)
+Lemma55 → Lemma56 → Lemma53
+    ↓
+Repair → BadEvents
+    ↓
+Main                                 Theorem 1.2
 ```
 
 `Lean4Examples.GrahamRearrangement` is the umbrella module.
 
 ## Formalization policy
 
-`CHECKLIST.md` is the source of truth for completeness. A numbered paper result is only complete when its paper-faithful statement and proof are present without `sorry`, custom axioms, or unproved replacement hypotheses.
+The paper-facing formalization is source-complete under the requested no-compile policy:
 
-The reorganization itself does not claim additional proof completion. Existing declarations and proof placeholders were moved into paper-oriented modules without intentionally changing their mathematical content.
+- every numbered Fact, Lemma, Corollary, and Theorem in the paper is represented internally rather than declared as an axiom;
+- the Lean source tree contains no `sorry`;
+- external/general mathematical, probabilistic, sampling, and permutation inputs are axiomatized only in files whose names contain `External`, per request;
+- the exact constants and bad-event architecture of the paper are retained;
+- `SOURCE_MAP.md` records the paper-to-Lean mapping and fidelity notes.
 
-Per request, no CI workflow is included and this reorganization is not compiled as part of the task.
+`CHECKLIST.md` is the detailed completion checklist.
+
+## Verification status
+
+No CI workflow is included and no Lean compilation/typechecking was performed, by explicit request. Completion here means the source formalization and dependency structure are filled in; it is **not** a claim that Lean has accepted the files.
