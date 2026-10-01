@@ -393,14 +393,20 @@ theorem exposure_width_le_one
     have : 2 ≤ N := by simpa [N] using hU2
     positivity
   unfold exposureUpper exposureLower
-  change (g : ℝ) * r / ((N : ℝ) * (N - 1 : ℕ)) -
-      (-(((N - g : ℕ) : ℝ) * r /
-        ((N : ℝ) * (N - 1 : ℕ)))) ≤ 1
-  apply (div_le_iff₀ hden).2
+  let den : ℝ := (N : ℝ) * ((N - 1 : ℕ) : ℝ)
+  have hcombine :
+      (g : ℝ) * r / den -
+          (-(((N - g : ℕ) : ℝ) * r / den)) =
+        ((((N - g : ℕ) : ℝ) + (g : ℝ)) * r) / den := by
+    field_simp [den, ne_of_gt hden]
+    ring
+  rw [hcombine]
   have hpartR :
       (((N - g : ℕ) : ℝ) + (g : ℝ)) = N := by
     exact_mod_cast hpart
-  nlinarith [hnum]
+  rw [hpartR]
+  apply (div_le_iff₀ hden).2
+  simpa [den] using hnum
 
 theorem exposure_mgf_le
     {α : Type*} [DecidableEq α]
