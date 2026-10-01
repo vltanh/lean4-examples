@@ -234,6 +234,17 @@ def applyPositionPerm {n p : ℕ} (σ : Fin n → ZMod p)
     (π : Equiv.Perm (Fin n)) : Fin n → ZMod p :=
   σ ∘ π
 
+theorem indexSetSum_applyPositionPerm_image
+    {n p : ℕ} (σ : Fin n → ZMod p)
+    (π : Equiv.Perm (Fin n)) (J : Finset (Fin n)) :
+    indexSetSum (applyPositionPerm σ π) J =
+      indexSetSum σ (J.image π) := by
+  unfold indexSetSum applyPositionPerm
+  rw [Finset.sum_image]
+  · rfl
+  · intro i hi j hj hij
+    exact π.injective hij
+
 def swapPairsDisjoint {n : ℕ} (q r : Fin n × Fin n) : Prop :=
   q.1 ≠ r.1 ∧ q.1 ≠ r.2 ∧ q.2 ≠ r.1 ∧ q.2 ≠ r.2
 
