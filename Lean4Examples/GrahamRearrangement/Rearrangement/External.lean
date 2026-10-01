@@ -564,6 +564,20 @@ axiom local_nonzero_after_admissible
       J ⊆ forwardWindow b (5 * D) →
       indexSetSum (applyPositionPerm σ π) J ≠ 0
 
+/-- If three events have total uniform mass strictly below one in a nonempty
+finite space, there is an outcome avoiding all three. -/
+axiom exists_avoiding_three_events
+    {Ω : Type*} [DecidableEq Ω]
+    (space : Finset Ω) (hspace : space.Nonempty)
+    (E₁ E₂ E₃ : Ω → Prop)
+    [DecidablePred E₁] [DecidablePred E₂] [DecidablePred E₃]
+    (a₁ a₂ a₃ : ℝ)
+    (h₁ : uniformMass space E₁ ≤ a₁)
+    (h₂ : uniformMass space E₂ ≤ a₂)
+    (h₃ : uniformMass space E₃ ≤ a₃)
+    (hsum : a₁ + a₂ + a₃ < 1) :
+    ∃ ω ∈ space, ¬ E₁ ω ∧ ¬ E₂ ω ∧ ¬ E₃ ω
+
 /-- Generic finite choice principle used in the greedy repair: a finite candidate
 set of cardinality 5D with three forbidden subsets of sizes at most 2D,D,D
 has a remaining element when D>0. -/
