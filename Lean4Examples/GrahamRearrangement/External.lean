@@ -11,12 +11,10 @@ namespace GrahamRearrangement.External
 /-!
 # External inputs
 
-Only results not proved in Pham--Sauermann are axiomatized here.  The paper's own
-Facts, Lemmas, Corollaries, and Theorems are proved in the section modules.
-
-The axioms below are deliberately generic: analytic inequalities, Cauchy--Davenport,
-finite Fourier orthogonality/factorization, elementary finite sampling symmetries,
-Markov/union bounds, and the hypergeometric Chernoff estimates cited by the paper.
+This module now contains proved general-purpose lemmas used across the
+formalization.  The bibliographic hypergeometric input cited by
+Pham--Sauermann is formalized in `External/Hypergeometric/`; no project axiom
+is used anywhere in this hierarchy.
 -/
 
 noncomputable section
