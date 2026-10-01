@@ -95,6 +95,20 @@ theorem uniformMass_eq_singleton {Ω : Type*} [DecidableEq Ω]
   rw [hcard]
   norm_num
 
+/-- Monotonicity of uniform expectation. -/
+theorem uniformExpectation_mono {Ω : Type*} [DecidableEq Ω]
+    (space : Finset Ω) (f g : Ω → ℝ)
+    (hfg : ∀ ω ∈ space, f ω ≤ g ω) :
+    uniformExpectation space f ≤ uniformExpectation space g := by
+  unfold uniformExpectation
+  by_cases h : space.card = 0
+  · simp [h]
+  · have hden : (0 : ℝ) < space.card := by
+      exact_mod_cast Nat.pos_of_ne_zero h
+    apply (div_le_div_iff_of_pos_right hden).2
+    exact Finset.sum_le_sum fun i hi =>
+      Finset.sum_le_sum fun _ _ => hfg i hi
+
 /-- Average of a constant over a nonempty finite space. -/
 theorem uniformExpectation_const {Ω : Type*} [DecidableEq Ω]
     (space : Finset Ω) (h : space.Nonempty) (c : ℝ) :
