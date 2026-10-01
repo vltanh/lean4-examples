@@ -78,17 +78,6 @@ axiom block_dense_tail {p m : ℕ} [NeZero p]
         S.card / (4 * m)) ≤
       Real.exp (-(S.card : ℝ) / (48 * m))
 
-/-- Standard finite Fourier estimate for the average of one additive character
-over a nonempty block. -/
-axiom block_character_decay {p : ℕ} (hp : p.Prime)
-    (T : Finset (ZMod p)) (hT : T.Nonempty) (χ : ZMod p) :
-    letI : NeZero p := ⟨hp.ne_zero⟩
-    ‖((∑ x ∈ T, ZMod.stdAddChar (χ * x)) / (T.card : ℂ))‖ ≤
-      Real.exp (-
-        (1 / (T.card : ℝ) ^ 2) *
-          ∑ x ∈ T, ∑ x' ∈ T,
-            zmodNorm (χ * x - χ * x') ^ 2)
-
 /-- Fubini for counting a finite family of partition events. -/
 axiom partitionExpectation_card_eq_sum_mass {p m : ℕ} [NeZero p]
     (S : Finset (ZMod p)) (E : ZMod p → (Fin m → Finset (ZMod p)) → Prop)
