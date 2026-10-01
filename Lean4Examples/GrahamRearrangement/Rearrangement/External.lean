@@ -285,9 +285,27 @@ theorem exposed_image_card {p : ℕ} [NeZero p]
   unfold indexImageSet
   exact Finset.card_image_iff.mpr hτ.1
 
-/-- A uniform bound on an event in every fiber obtained by exposing F is also
-an unconditional bound. -/
-axiom event_le_of_agreesOn_fibers {p : ℕ} [NeZero p]
+def agreementKey {n p : ℕ}
+    (F : Finset (Fin n)) (σ : Fin n → ZMod p) :
+    Fin n → Option (ZMod p) :=
+  fun i => if i ∈ F then some (σ i) else none
+
+theorem agreementKey_eq_iff {n p : ℕ}
+    (F : Finset (Fin n)) (σ τ : Fin n → ZMod p) :
+    agreementKey F σ = agreementKey F τ ↔
+      AgreesOn F σ τ := by
+  constructor
+  · intro h i hi
+    have hval := congrFun h i
+    simpa [agreementKey,hi] using hval
+  · intro h
+    funext i
+    by_cases hi : i ∈ F
+    · simp [agreementKey,hi,h i hi]
+    · simp [agreementKey,hi]
+
+/-- A uniform bound on every exposed-value fiber is also an unconditional bound. -/
+theorem event_le_of_agreesOn_fibers {p : ℕ} [NeZero p]
     (S : Finset (ZMod p)) (F : Finset (Fin S.card))
     (E : (Fin S.card → ZMod p) → Prop) [DecidablePred E]
     (q : ℝ)
@@ -295,7 +313,42 @@ axiom event_le_of_agreesOn_fibers {p : ℕ} [NeZero p]
       ∀ τ, IsIndexedOrdering S τ →
         orderingConditionalMass S
           (fun σ => AgreesOn F σ τ) E ≤ q) :
-    orderingEventMass S E ≤ q
+    orderingEventMass S E ≤ q := by
+  let key := agreementKey F
+  have hq0 : 0 ≤ q := by
+    obtain ⟨τ,hτmem⟩ := indexedOrderings_nonempty S
+    have hτ : IsIndexedOrdering S τ := by
+      simpa [indexedOrderings] using
+        (Finset.mem_filter.mp hτmem).2
+    exact le_trans (uniformMass_nonneg _ _) (hfiber τ hτ)
+  have h :=
+    uniformConditionalMass_le_of_fibers
+      (indexedOrderings S) key (fun _ => True) E q hq0
+      (by
+        intro κ hκ
+        by_cases hnon :
+            ((indexedOrderings S).filter fun σ => key σ = κ).Nonempty
+        · obtain ⟨τ,hτfib⟩ := hnon
+          rcases Finset.mem_filter.mp hτfib with ⟨hτmem,hτkey⟩
+          have hτ : IsIndexedOrdering S τ := by
+            simpa [indexedOrderings] using
+              (Finset.mem_filter.mp hτmem).2
+          have heq :
+              (fun σ => key σ = κ) =
+                (fun σ => AgreesOn F σ τ) := by
+            funext σ
+            apply propext
+            rw [← agreementKey_eq_iff]
+            exact ⟨fun h => h.trans hτkey.symm,
+              fun h => h.trans hτkey⟩
+          rw [heq]
+          simpa [orderingConditionalMass] using hfiber τ hτ
+        · have hemp :
+              (indexedOrderings S).filter (fun σ => key σ = κ) = ∅ :=
+            Finset.not_nonempty_iff_eq_empty.mp hnon
+          unfold uniformConditionalMass
+          simp [hemp])
+  simpa [orderingEventMass,uniformConditionalMass,key] using h
 
 /-- Fiber multiplication specialized to exposing a set of positions in a
 uniform random ordering. -/
