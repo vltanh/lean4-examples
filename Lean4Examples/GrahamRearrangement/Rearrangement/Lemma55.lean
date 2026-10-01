@@ -738,9 +738,9 @@ theorem lemma55_fixed_x_pi_mass_le
     intro z
     exact chainConstant_spec P.D hD p hp T hT2
       (tailSizes b' x) htuple z
-  simpa [T, hTcard] using
-    Section5External.fixed_tail_tuple_conditional_chainBound
-      S τ hτ F b b' u x πi hu hfix
+  simpa [T,F,hTcard] using
+    lemma55_fixed_tail_conditional_bound
+      S τ hτ b b' u x hu hx πi hfix
       (chainConstant P.D) htuple hchain
 
 /-- Lemma 5.5. -/
