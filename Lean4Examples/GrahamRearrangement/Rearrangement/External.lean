@@ -106,6 +106,26 @@ axiom exposed_image_card {p : ℕ} [NeZero p]
     (F : Finset (Fin S.card)) :
     (indexImageSet τ F).card = F.card
 
+/-- A uniform bound on an event in every fiber obtained by exposing F is also
+an unconditional bound. -/
+axiom event_le_of_agreesOn_fibers {p : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (F : Finset (Fin S.card))
+    (E : (Fin S.card → ZMod p) → Prop) [DecidablePred E]
+    (q : ℝ)
+    (hfiber :
+      ∀ τ, IsIndexedOrdering S τ →
+        orderingConditionalMass S
+          (fun σ => AgreesOn F σ τ) E ≤ q) :
+    orderingEventMass S E ≤ q
+
+/-- Crude count of a base point and D ordered choices from a 20D-window. -/
+axiom base_and_window_tuple_count {n D : ℕ} :
+    (Finset.univ : Finset (Fin n × (Fin D → Fin n))).filter
+      (fun θ =>
+        ∀ i, paperPos θ.1 < paperPos (θ.2 i) ∧
+          paperPos (θ.2 i) ≤ paperPos θ.1 + 20 * D)
+      |>.card ≤ n * (20 * D) ^ D
+
 /-- Generic multiplication of an event probability by a uniform upper bound for a
 second event on every fiber of a finite statistic. -/
 axiom joint_event_le_of_fiber_bound
