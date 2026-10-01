@@ -86,6 +86,8 @@ theorem finite_uniform_hoeffding_mgf
   letI : Nonempty Ωs := ⟨⟨hspace.choose,hspace.choose_spec⟩⟩
   letI : MeasurableSpace Ωs := ⊤
   let μ := (PMF.uniformOfFintype Ωs).toMeasure
+  letI : IsProbabilityMeasure μ :=
+    PMF.toMeasure.isProbabilityMeasure _
   let Xs : Ωs → ℝ := fun ω => X ω.1
   have hsum (f : Ω → ℝ) :
       (∑ ω : Ωs, f ω.1) = ∑ ω ∈ space, f ω := by
@@ -100,7 +102,7 @@ theorem finite_uniform_hoeffding_mgf
     have hcard : Fintype.card Ωs = space.card := by
       simp [Ωs]
     rw [hcard]
-    simp only [ENNReal.toReal_inv, ENNReal.toReal_nat]
+    simp only [ENNReal.toReal_inv, ENNReal.toReal_natCast]
     rw [← Finset.mul_sum, hsum]
     unfold uniformExpectation
     have hcardpos : (0 : ℝ) < space.card := by
