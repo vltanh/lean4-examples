@@ -1,7 +1,5 @@
-> **Superseded for proof-completeness claims.** The deep audit found additional
-paper-internal arguments hidden behind External axioms. Use
-`DEEP_AUDIT_CHECKLIST.md` as the authoritative checklist. The checked boxes
-below record the earlier source-coverage pass only.
+> **Completed.** `DEEP_AUDIT_CHECKLIST.md` records the stricter proof-boundary
+audit. The checklist below records the paper-by-paper source coverage.
 
 # Graham rearrangement: complete paper-faithful formalization checklist
 
@@ -22,7 +20,7 @@ Primary fidelity source: the v1 PDF/TeX, not the experimental HTML rendering.
 
 ## Completion rule
 
-A checkbox is checked only when the corresponding paper definition/claim has been represented faithfully in Lean and its paper-internal proof has a theorem body with no `sorry`. Per the explicit project rule, results and generic infrastructure treated as external to the paper formalization may remain axioms, but they must live only in files whose names contain `External`. Merely stating a paper result is not completion.
+A checkbox is checked only when the corresponding paper definition/claim has been represented faithfully in Lean and its paper-internal proof has a theorem body with no `sorry`. Under the strict final boundary, an axiom is permitted only for a result that the paper itself imports from another source. The only such axioms are the two hypergeometric Chernoff specializations cited as [8, Theorem 2.10 and Eq. (2.6)]. Merely stating a paper result is not completion.
 
 For each numbered result, preserve:
 - the exact quantifier order and domains;
@@ -534,6 +532,6 @@ If an equivalent Lean reformulation is used, prove an explicit equivalence to th
 
 ## Completion status
 
-Earlier source-coverage pass completed under the requested no-compile policy; this is not a current claim of mathematical audit completeness. Every paper-numbered Fact, Lemma, Corollary, and Theorem is represented by a Lean theorem/definition rather than an axiom, and the current Lean source tree contains no `sorry`. External/general mathematical and finite-probability/permutation inputs are isolated in `External*.lean` files as requested.
+Source-level formalization and strict proof-boundary audit complete under the requested no-compile policy. Every paper-numbered Fact, Lemma, Corollary, and Theorem has an internal theorem body, the source tree contains no `sorry` or `admit`, and the only axioms are the two hypergeometric Chernoff specializations explicitly cited by the paper from [8].
 
 See `SOURCE_MAP.md` for the paper-to-Lean declaration map and fidelity notes.
