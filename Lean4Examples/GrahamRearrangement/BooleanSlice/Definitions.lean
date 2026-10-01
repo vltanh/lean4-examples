@@ -19,6 +19,16 @@ def sliceMass {p : ℕ} [NeZero p] (S : Finset (ZMod p))
     (m : ℕ) (z : ZMod p) : ℝ :=
   uniformMass (S.powersetCard m) (fun R => subsetSum R = z)
 
+theorem sliceMass_nonneg {p m : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (z : ZMod p) :
+    0 ≤ sliceMass S m z :=
+  uniformMass_nonneg _ _
+
+theorem sliceMass_le_one {p m : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (z : ZMod p) :
+    sliceMass S m z ≤ 1 :=
+  uniformMass_le_one _ _
+
 /-- The balanced size of block `i` when `n` points are split into `m` blocks.
 The first `n % m` blocks have size `n / m + 1`; the rest have size `n / m`. -/
 def balancedBlockSize (n m : ℕ) (i : Fin m) : ℕ :=
