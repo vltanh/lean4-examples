@@ -17,6 +17,15 @@ axiom indexedOrderings_nonempty {p : ℕ} [NeZero p]
     (S : Finset (ZMod p)) :
     (indexedOrderings S).Nonempty
 
+/-- Reindexing a family of left endpoints by the corresponding interval length
+only decreases a sum of nonnegative weights when we enlarge to all lengths 1,...,n-1. -/
+axiom endpoint_reindex_sum_le
+    {n : ℕ} (b : Fin n) (A : Finset (Fin n))
+    (hA : ∀ a ∈ A, a.val ≤ b.val)
+    (w : ℕ → ℝ) (hw : ∀ r, 0 ≤ w r) :
+    (∑ a ∈ A, w (b.val - a.val + 1)) ≤
+      ∑ r ∈ Finset.Icc 1 (n - 1), w r
+
 /-- The image of a fixed r-set of indices under a uniform bijection is a uniform
 r-subset of S. -/
 axiom fixedIndexSet_sumMass {p : ℕ} [NeZero p]
