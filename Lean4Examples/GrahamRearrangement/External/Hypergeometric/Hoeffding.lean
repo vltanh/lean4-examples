@@ -347,6 +347,26 @@ theorem exposureDrift_mem_Icc
       positivity
     · rfl
 
+theorem exposureLower_le_upper
+    {α : Type*} [DecidableEq α]
+    (U G : Finset α) (k : ℕ) (hU2 : 2 ≤ U.card) :
+    exposureLower U G k ≤ exposureUpper U G k := by
+  unfold exposureLower exposureUpper
+  have hden : (0 : ℝ) <
+      (U.card : ℝ) * ((U.card - 1 : ℕ) : ℝ) := by
+    positivity
+  have hleft :
+      0 ≤ (((U.card - (U ∩ G).card : ℕ) : ℝ) *
+        ((U.card - (k + 1) : ℕ) : ℝ) /
+        ((U.card : ℝ) * (U.card - 1 : ℕ))) := by
+    positivity
+  have hright :
+      0 ≤ ((U ∩ G).card : ℝ) *
+        ((U.card - (k + 1) : ℕ) : ℝ) /
+        ((U.card : ℝ) * (U.card - 1 : ℕ)) := by
+    positivity
+  linarith
+
 theorem exposure_width_le_one
     {α : Type*} [DecidableEq α]
     (U G : Finset α) (k : ℕ)
@@ -362,21 +382,25 @@ theorem exposure_width_le_one
   have hr : r ≤ N - 1 := by
     dsimp [r,N]
     omega
-  have hN2 : 2 ≤ N := by simpa [N] using hU2
-  have hden : (0 : ℝ) < (N : ℝ) * ((N - 1 : ℕ) : ℝ) := by
-    positivity
+  have hnumNat : N * r ≤ N * (N - 1) :=
+    Nat.mul_le_mul_left N hr
   have hnum :
-      (((g : ℝ) + (N - g : ℕ)) * (r : ℝ)) ≤
+      (N : ℝ) * (r : ℝ) ≤
         (N : ℝ) * ((N - 1 : ℕ) : ℝ) := by
-    norm_num at hpart ⊢
-    exact_mod_cast Nat.mul_le_mul_left N hr
+    exact_mod_cast hnumNat
+  have hden : (0 : ℝ) <
+      (N : ℝ) * ((N - 1 : ℕ) : ℝ) := by
+    have : 2 ≤ N := by simpa [N] using hU2
+    positivity
   unfold exposureUpper exposureLower
   change (g : ℝ) * r / ((N : ℝ) * (N - 1 : ℕ)) -
       (-(((N - g : ℕ) : ℝ) * r /
         ((N : ℝ) * (N - 1 : ℕ)))) ≤ 1
   apply (div_le_iff₀ hden).2
-  nlinarith [hnum, show ((N - g : ℕ) : ℝ) + (g : ℝ) = N by
-    exact_mod_cast hpart]
+  have hpartR :
+      (((N - g : ℕ) : ℝ) + (g : ℝ)) = N := by
+    exact_mod_cast hpart
+  nlinarith [hnum]
 
 theorem exposure_mgf_le
     {α : Type*} [DecidableEq α]
@@ -391,19 +415,15 @@ theorem exposure_mgf_le
     finite_uniform_hoeffding_mgf
       U hU (exposureDrift U G k)
       (exposureLower U G k) (exposureUpper U G k) t
-      (by
-        have hwidth := exposure_width_le_one U G k hU2 hk
-        linarith)
+      (exposureLower_le_upper U G k hU2)
       (exposureDrift_mem_Icc U G k hU2 hk)
       (exposureDrift_mean_zero U G k hU2 hk) ht
   have hwidth := exposure_width_le_one U G k hU2 hk
   have hsquare :
       (exposureUpper U G k - exposureLower U G k) ^ 2 ≤ 1 := by
     have hnonneg :
-        0 ≤ exposureUpper U G k - exposureLower U G k := by
-      have hmem := exposureDrift_mem_Icc U G k hU2 hk
-      obtain ⟨x,hx⟩ := hU
-      exact sub_nonneg.mpr (hmem x hx).1.trans (hmem x hx).2
+        0 ≤ exposureUpper U G k - exposureLower U G k :=
+      sub_nonneg.mpr (exposureLower_le_upper U G k hU2)
     nlinarith
   exact le_trans hmgf (Real.exp_le_exp.mpr (by nlinarith [sq_nonneg t]))
 
