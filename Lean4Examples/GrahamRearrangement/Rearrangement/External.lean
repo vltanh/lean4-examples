@@ -504,45 +504,18 @@ axiom admissible_local_image_subset
     (hJ : J ⊆ forwardWindow b (5 * D)) :
     J.image π ⊆ forwardWindow b (10 * D)
 
-/-- Generic blocked-witness dichotomy. If every nonempty local interval image has
-nonzero sum and at least 2D local choices are blocked, then D witnesses extend
-to the right with distinct right endpoints, or D witnesses extend to the left
-with distinct left endpoints. -/
-axiom blocked_family_split
-    {n p D : ℕ} (hD : 0 < D)
-    (σ : Fin n → ZMod p) (b : Fin n)
-    (π : Equiv.Perm (Fin n))
-    (hlocal :
-      ∀ J : Finset (Fin n),
-        J.Nonempty →
-        J ⊆ forwardWindow b (5 * D) →
-        indexSetSum (applyPositionPerm σ π) J ≠ 0)
-    (hblocked :
-      2 * D ≤ (blockedCandidates D σ b π).card) :
-    (∃ y s t : Fin D → Fin n,
-      Function.Injective y ∧ Function.Injective t ∧
-      (∀ i,
-        paperPos b < paperPos (y i) ∧
-        paperPos (y i) ≤ paperPos b + 5 * D ∧
-        paperPos b < paperPos (s i) ∧
-        paperPos (s i) ≤ paperPos (y i) ∧
-        paperPos b + 5 * D < paperPos (t i) ∧
-        indexedIntervalSum
-          (applyPositionPerm
-            (applyPositionPerm σ π) (Equiv.swap b (y i)))
-          (s i) (t i) = 0)) ∨
-    (∃ y s t : Fin D → Fin n,
-      Function.Injective y ∧ Function.Injective s ∧
-      (∀ i,
-        paperPos b < paperPos (y i) ∧
-        paperPos (y i) ≤ paperPos b + 5 * D ∧
-        paperPos (s i) < paperPos b ∧
-        paperPos b ≤ paperPos (t i) ∧
-        paperPos (t i) < paperPos (y i) ∧
-        indexedIntervalSum
-          (applyPositionPerm
-            (applyPositionPerm σ π) (Equiv.swap b (y i)))
-          (s i) (t i) = 0))
+/-- Generic two-colour pigeonhole extraction: from at least 2D distinct
+objects, each of which has colour A or B, one can select D distinct objects of
+one colour. -/
+axiom two_colour_extract {α : Type*} [DecidableEq α]
+    (D : ℕ) (Y : Finset α)
+    (A B : α → Prop) [DecidablePred A] [DecidablePred B]
+    (hcard : 2 * D ≤ Y.card)
+    (hcover : ∀ y ∈ Y, A y ∨ B y) :
+    (∃ f : Fin D → α, Function.Injective f ∧
+      ∀ i, f i ∈ Y ∧ A (f i)) ∨
+    (∃ f : Fin D → α, Function.Injective f ∧
+      ∀ i, f i ∈ Y ∧ B (f i))
 
 /-- Crude count of the local parameters (b,b',y,u) used on either side of
 Lemma 5.3. -/
@@ -567,23 +540,6 @@ axiom rightRepairParameters_card_le {n D : ℕ} :
 
 axiom leftRepairParameters_card_le {n D : ℕ} :
     (leftRepairParameters n D).card ≤ n * (5 * D) ^ (2 * D)
-
-/-- Local nonzero subset sums are inherited from failure of B0 after an
-admissible permutation fixing the prefix. This is generic support bookkeeping:
-the permutation moves the 5D-window only inside the 10D-window. -/
-axiom local_nonzero_after_admissible
-    {n p D : ℕ}
-    (σ : Fin n → ZMod p) (b : Fin n)
-    (hb : b ∈ badRightEndpoints σ)
-    (hbfar : paperPos b + 30 * D ≤ n)
-    (h0 : ¬ BadEvent0 D σ)
-    (π : Equiv.Perm (Fin n))
-    (hadm : IsAdmissiblePermutation D π)
-    (hfix : FixedBelow b π) :
-    ∀ J : Finset (Fin n),
-      J.Nonempty →
-      J ⊆ forwardWindow b (5 * D) →
-      indexSetSum (applyPositionPerm σ π) J ≠ 0
 
 /-- If three events have total uniform mass strictly below one in a nonempty
 finite space, there is an outcome avoiding all three. -/
