@@ -458,12 +458,6 @@ axiom two_colour_extract {α : Type*} [DecidableEq α]
     (∃ f : Fin D → α, Function.Injective f ∧
       ∀ i, f i ∈ Y ∧ B (f i))
 
-axiom rightRepairParameters_card_le {n D : ℕ} :
-    (rightRepairParameters n D).card ≤ n * (5 * D) ^ (2 * D)
-
-axiom leftRepairParameters_card_le {n D : ℕ} :
-    (leftRepairParameters n D).card ≤ n * (5 * D) ^ (2 * D)
-
 /-- Generic finite choice principle used in the greedy repair: a finite candidate
 set of cardinality 5D with three forbidden subsets of sizes at most 2D,D,D
 has a remaining element when D>0. -/
