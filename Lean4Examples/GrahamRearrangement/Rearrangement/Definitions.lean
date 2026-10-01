@@ -99,6 +99,17 @@ def forwardWindow {n : ℕ} (b : Fin n) (r : ℕ) : Finset (Fin n) :=
   Finset.univ.filter fun i =>
     b.val ≤ i.val ∧ i.val ≤ b.val + r
 
+theorem card_forwardWindow_eq {n : ℕ} (b : Fin n) (r : ℕ)
+    (hfit : b.val + r < n) :
+    (forwardWindow b r).card = r + 1 := by
+  classical
+  rw [show forwardWindow b r =
+      (Finset.Icc b.val (b.val + r)).attachFin n
+        (fun i hi => lt_of_le_of_lt hi.2 hfit) by
+      ext i
+      simp [forwardWindow]]
+  simp [Nat.card_Icc]
+
 theorem card_forwardWindow_le {n : ℕ} (b : Fin n) (r : ℕ) :
     (forwardWindow b r).card ≤ r + 1 := by
   classical
