@@ -586,6 +586,7 @@ theorem lemma5_5
     · exact section5_card_ge_two hα0 hαh hreg
     · exact hhalf
     · omega
+    · exact le_of_lt (chainConstant_pos P.D)
     · exact section5_card_over_p hα0 hαh hp hreg
     · exact section5_chainConstant_bound hreg P.D (Or.inr rfl)
   have hpow :=
