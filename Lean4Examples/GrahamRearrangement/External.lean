@@ -322,6 +322,11 @@ axiom nat_le_two_pow_40 (D : ℕ) :
 axiom D_plus_one_le_fiveD_pow (D : ℕ) (hD : 7 ≤ D) :
     (D + 1 : ℝ) ≤ (5 * D : ℝ) ^ (2 * D)
 
+/-- Monotonicity of real powers in the exponent for a base at least one. -/
+axiom rpow_exponent_mono_of_one_le {x a b : ℝ}
+    (hx : 1 ≤ x) (hab : a ≤ b) :
+    x ^ a ≤ x ^ b
+
 /-- Linear eventually dominates log-squared. -/
 axiom exists_log_sq_threshold (A : ℝ) :
     ∃ N : ℕ, 2 ≤ N ∧
