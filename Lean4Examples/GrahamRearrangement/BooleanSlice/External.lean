@@ -648,31 +648,195 @@ theorem point_block_remainder_lower_real {p m : ℕ} [NeZero p]
     linarith
   nlinarith
 
-/-- If a subset has density at least 1/4, the block containing a fixed point
-misses the expected number of its points only with the hypergeometric tail used
-in Lemma 3.1. -/
-axiom block_sparse_tail {p m : ℕ} [NeZero p]
+/-- Lemma 3.1's hypergeometric application.  The only external input is the
+generic hypergeometric lower-tail estimate in `External.hypergeom_quarter_lower_tail`. -/
+theorem block_sparse_tail {p m : ℕ} [NeZero p]
     (S G : Finset (ZMod p)) (x : ZMod p)
-    (hx : x ∈ S) (hGS : G ⊆ S)
+    (hx : x ∈ S) (hxG : x ∉ G) (hGS : G ⊆ S)
     (hdensity : S.card ≤ 4 * G.card)
     (hm : 0 < m) (hm4 : m ≤ S.card / 4) :
     partitionMass S (fun P =>
-      ((pointBlock S P x \\ {x}) ∩ G).card <
+      ((pointBlock S P x \ {x}) ∩ G).card <
         S.card / (16 * m)) ≤
-      Real.exp (-(S.card : ℝ) / (64 * m))
+      Real.exp (-(S.card : ℝ) / (64 * m)) := by
+  have hmS : m ≤ S.card := le_trans hm4 (Nat.div_le_self _ _)
+  let key : (Fin m → Finset (ZMod p)) → Fin m :=
+    fun P => blockIndex S P x
+  have hall :=
+    uniformConditionalMass_le_of_fibers
+      (balancedPartitions S) key (fun _ => True)
+      (fun P =>
+        ((pointBlock S P x \ {x}) ∩ G).card <
+          S.card / (16 * m))
+      (Real.exp (-(S.card : ℝ) / (64 * m)))
+      (by positivity)
+      (by
+        intro i hi
+        change uniformMass (blockIndexFiber S x i)
+          (fun P =>
+            ((pointBlock S P x \ {x}) ∩ G).card <
+              S.card / (16 * m)) ≤ _
+        by_cases hfiber : (blockIndexFiber S x i).Nonempty
+        · let U := S \ {x}
+          let k := balancedBlockSize S.card m i - 1
+          have huniform :=
+            blockRemainder_conditional_uniform
+              S x hm hmS hx i hfiber
+              (fun T => (T ∩ G).card < S.card / (16 * m))
+          rw [huniform]
+          have hGU : G ⊆ U := by
+            intro y hy
+            exact Finset.mem_sdiff.mpr
+              ⟨hGS hy, by simpa using fun h => hxG (h ▸ hy)⟩
+          have hdU : U.card ≤ 4 * G.card := by
+            exact le_trans (Finset.card_sdiff_le _ _) hdensity
+          obtain ⟨P,hPF⟩ := hfiber
+          rcases Finset.mem_filter.mp hPF with ⟨hPmem,hidx⟩
+          have hP : IsBalancedPartition S P := by
+            simpa [balancedPartitions] using hPmem
+          have hrem :=
+            pointBlock_remainder_mem_powerset
+              S x hm hmS hP hx i hidx
+          have hkU : k ≤ U.card := by
+            exact (Finset.mem_powersetCard.mp hrem).2 ▸
+              Finset.card_le_card (Finset.mem_powersetCard.mp hrem).1
+          have hkReal :
+              (S.card : ℝ) / (2 * m) ≤ (k : ℝ) := by
+            have hlow :=
+              point_block_remainder_lower_real
+                S x hm hm4 hP hx
+            have hcard :=
+              (Finset.mem_powersetCard.mp hrem).2
+            simpa [k,hcard] using hlow
+          have hthreshold :
+              S.card / (16 * m) ≤ k / 8 := by
+            apply (Nat.le_div_iff_mul_le (by omega)).2
+            have hfloor :
+                ((S.card / (16 * m) : ℕ) : ℝ) ≤
+                  (S.card : ℝ) / (16 * m) := by
+              exact_mod_cast Nat.div_le_iff_le_mul (by omega) |>.2
+                (Nat.le_mul_of_div_le_left (Nat.le_refl _))
+            have : (8 : ℝ) * (S.card / (16 * m) : ℕ) ≤ k := by
+              nlinarith [hkReal,hfloor]
+            exact_mod_cast this
+          have htail :=
+            External.hypergeom_quarter_lower_tail
+              U G k hGU hdU hkU
+          have hmono :
+              uniformMass (U.powersetCard k)
+                  (fun T => (T ∩ G).card < S.card / (16 * m)) ≤
+                uniformMass (U.powersetCard k)
+                  (fun T => (T ∩ G).card < k / 8) := by
+            apply uniformMass_mono
+            intro T h
+            omega
+          have hexp :
+              Real.exp (-(k : ℝ) / 32) ≤
+                Real.exp (-(S.card : ℝ) / (64 * m)) := by
+            apply External.exp_antitone
+            nlinarith [hkReal]
+          exact le_trans hmono (le_trans htail hexp)
+        · have hemp :
+              blockIndexFiber S x i = ∅ :=
+            Finset.not_nonempty_iff_eq_empty.mp hfiber
+          simp [hemp])
+  simpa [partitionMass,uniformConditionalMass,key] using hall
 
-/-- If a subset has density at least 3/4, the block containing a fixed point
-has fewer than a quarter-block worth of its points only with the tail used in
-Lemma 3.3. -/
-axiom block_dense_tail {p m : ℕ} [NeZero p]
+/-- Lemma 3.3's hypergeometric application.  Again the Chernoff estimate itself
+is the only external ingredient. -/
+theorem block_dense_tail {p m : ℕ} [NeZero p]
     (S G : Finset (ZMod p)) (x : ZMod p)
-    (hx : x ∈ S) (hGS : G ⊆ S)
+    (hx : x ∈ S) (hxG : x ∉ G) (hGS : G ⊆ S)
     (hdensity : 3 * S.card ≤ 4 * G.card)
     (hm : 0 < m) (hm4 : m ≤ S.card / 4) :
     partitionMass S (fun P =>
-      ((pointBlock S P x \\ {x}) ∩ G).card <
+      ((pointBlock S P x \ {x}) ∩ G).card <
         S.card / (4 * m)) ≤
-      Real.exp (-(S.card : ℝ) / (48 * m))
+      Real.exp (-(S.card : ℝ) / (48 * m)) := by
+  have hmS : m ≤ S.card := le_trans hm4 (Nat.div_le_self _ _)
+  let key : (Fin m → Finset (ZMod p)) → Fin m :=
+    fun P => blockIndex S P x
+  have hall :=
+    uniformConditionalMass_le_of_fibers
+      (balancedPartitions S) key (fun _ => True)
+      (fun P =>
+        ((pointBlock S P x \ {x}) ∩ G).card <
+          S.card / (4 * m))
+      (Real.exp (-(S.card : ℝ) / (48 * m)))
+      (by positivity)
+      (by
+        intro i hi
+        change uniformMass (blockIndexFiber S x i)
+          (fun P =>
+            ((pointBlock S P x \ {x}) ∩ G).card <
+              S.card / (4 * m)) ≤ _
+        by_cases hfiber : (blockIndexFiber S x i).Nonempty
+        · let U := S \ {x}
+          let k := balancedBlockSize S.card m i - 1
+          have huniform :=
+            blockRemainder_conditional_uniform
+              S x hm hmS hx i hfiber
+              (fun T => (T ∩ G).card < S.card / (4 * m))
+          rw [huniform]
+          have hGU : G ⊆ U := by
+            intro y hy
+            exact Finset.mem_sdiff.mpr
+              ⟨hGS hy, by simpa using fun h => hxG (h ▸ hy)⟩
+          have hdU : 3 * U.card ≤ 4 * G.card := by
+            have hUle : U.card ≤ S.card :=
+              Finset.card_sdiff_le _ _
+            omega
+          obtain ⟨P,hPF⟩ := hfiber
+          rcases Finset.mem_filter.mp hPF with ⟨hPmem,hidx⟩
+          have hP : IsBalancedPartition S P := by
+            simpa [balancedPartitions] using hPmem
+          have hrem :=
+            pointBlock_remainder_mem_powerset
+              S x hm hmS hP hx i hidx
+          have hkU : k ≤ U.card := by
+            exact (Finset.mem_powersetCard.mp hrem).2 ▸
+              Finset.card_le_card (Finset.mem_powersetCard.mp hrem).1
+          have hkReal :
+              (S.card : ℝ) / (2 * m) ≤ (k : ℝ) := by
+            have hlow :=
+              point_block_remainder_lower_real
+                S x hm hm4 hP hx
+            have hcard :=
+              (Finset.mem_powersetCard.mp hrem).2
+            simpa [k,hcard] using hlow
+          have hthreshold :
+              S.card / (4 * m) ≤ k / 2 := by
+            apply (Nat.le_div_iff_mul_le (by omega)).2
+            have hfloor :
+                ((S.card / (4 * m) : ℕ) : ℝ) ≤
+                  (S.card : ℝ) / (4 * m) := by
+              exact_mod_cast Nat.div_le_iff_le_mul (by omega) |>.2
+                (Nat.le_mul_of_div_le_left (Nat.le_refl _))
+            have : (2 : ℝ) * (S.card / (4 * m) : ℕ) ≤ k := by
+              nlinarith [hkReal,hfloor]
+            exact_mod_cast this
+          have htail :=
+            External.hypergeom_three_quarters_lower_tail
+              U G k hGU hdU hkU
+          have hmono :
+              uniformMass (U.powersetCard k)
+                  (fun T => (T ∩ G).card < S.card / (4 * m)) ≤
+                uniformMass (U.powersetCard k)
+                  (fun T => (T ∩ G).card < k / 2) := by
+            apply uniformMass_mono
+            intro T h
+            omega
+          have hexp :
+              Real.exp (-(k : ℝ) / 24) ≤
+                Real.exp (-(S.card : ℝ) / (48 * m)) := by
+            apply External.exp_antitone
+            nlinarith [hkReal]
+          exact le_trans hmono (le_trans htail hexp)
+        · have hemp :
+              blockIndexFiber S x i = ∅ :=
+            Finset.not_nonempty_iff_eq_empty.mp hfiber
+          simp [hemp])
+  simpa [partitionMass,uniformConditionalMass,key] using hall
 
 /-- Fubini for counting a finite family of partition events. -/
 theorem partitionExpectation_card_eq_sum_mass {p m : ℕ} [NeZero p]
