@@ -616,7 +616,7 @@ theorem rightRepairEvent_mass
         orderingEventMass S (rightRepairAtom θ) ≤
           1 / (S.card : ℝ) ^ 2 := by
     intro θ hθ
-    have hpθ := (Finset.mem_filter.1 hθ).2
+    have hpθ := (mem_rightRepairParameters.mp hθ)
     have hb'le : paperPos θ.b' ≤ S.card - 2 := by
       have hD := section5Parameters_D_pos hα0 hαh P
       omega
@@ -640,8 +640,7 @@ theorem rightRepairEvent_mass
       (1 / (S.card : ℝ) ^ 2)
       hcover (by simpa [orderingEventMass] using hpoint)
   have hcount :=
-    Section5External.rightRepairParameters_card_le
-      (n := S.card) (D := P.D)
+    rightRepairParameters_card_le S.card P.D
   calc
     orderingEventMass S (RightRepairEvent P.D)
       ≤ ((rightRepairParameters S.card P.D).card : ℝ) *
@@ -694,7 +693,7 @@ theorem leftRepairEvent_mass
         orderingEventMass S (leftRepairAtom θ) ≤
           1 / (S.card : ℝ) ^ 2 := by
     intro θ hθ
-    have hpθ := (Finset.mem_filter.1 hθ).2
+    have hpθ := (mem_leftRepairParameters.mp hθ)
     have hb'le : paperPos θ.b' ≤ S.card - 2 := by
       have hD := section5Parameters_D_pos hα0 hαh P
       omega
@@ -721,8 +720,7 @@ theorem leftRepairEvent_mass
       (1 / (S.card : ℝ) ^ 2)
       hcover (by simpa [orderingEventMass] using hpoint)
   have hcount :=
-    Section5External.leftRepairParameters_card_le
-      (n := S.card) (D := P.D)
+    leftRepairParameters_card_le S.card P.D
   calc
     orderingEventMass S (LeftRepairEvent P.D)
       ≤ ((leftRepairParameters S.card P.D).card : ℝ) *
