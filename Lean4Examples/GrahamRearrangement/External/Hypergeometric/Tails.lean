@@ -39,9 +39,8 @@ theorem hypergeomMean_eq_of_subset
     {k : ℕ} (hU : U.Nonempty) :
     hypergeomMean U G k =
       (k : ℝ) * (G.card : ℝ) / (U.card : ℝ) := by
-  rw [hypergeomMean_of_nonempty hU]
-  congr 2
-  exact Finset.inter_eq_right.mpr hGU
+  rw [hypergeomMean_of_nonempty hU,
+    Finset.inter_eq_right.mpr hGU]
 
 /-- Hoeffding lower tail for a uniformly random k-subset. -/
 theorem uniformSubset_hoeffding_lower_tail
@@ -66,7 +65,9 @@ theorem quarter_mean_lower
   have hU : U.Nonempty := Finset.card_pos.mp (lt_of_lt_of_le hkpos hk)
   rw [hypergeomMean_eq_of_subset hGU hU]
   have hUpos : (0 : ℝ) < U.card := by exact_mod_cast hU.card_pos
-  have hdensityR : (U.card : ℝ) ≤ 4 * G.card := by exact_mod_cast hdensity
+  have hdensityR : (U.card : ℝ) ≤ 4 * (G.card : ℝ) := by
+    exact_mod_cast hdensity
+  have hkR : 0 < (k : ℝ) := by exact_mod_cast hkpos
   apply (le_div_iff₀ hUpos).2
   nlinarith
 
@@ -79,8 +80,9 @@ theorem three_quarters_mean_lower
   have hU : U.Nonempty := Finset.card_pos.mp (lt_of_lt_of_le hkpos hk)
   rw [hypergeomMean_eq_of_subset hGU hU]
   have hUpos : (0 : ℝ) < U.card := by exact_mod_cast hU.card_pos
-  have hdensityR : 3 * (U.card : ℝ) ≤ 4 * G.card := by
+  have hdensityR : 3 * (U.card : ℝ) ≤ 4 * (G.card : ℝ) := by
     exact_mod_cast hdensity
+  have hkR : 0 < (k : ℝ) := by exact_mod_cast hkpos
   apply (le_div_iff₀ hUpos).2
   nlinarith
 
@@ -90,9 +92,11 @@ theorem nat_lt_div_implies_real_lt_div
     (r : ℝ) < (k : ℝ) / q := by
   have hle : r + 1 ≤ k / q := Nat.succ_le_iff.mpr h
   have hmul : q * (r + 1) ≤ k := by
-    exact le_trans
-      (Nat.mul_le_mul_left q hle)
-      (Nat.mul_div_le k q)
+    have h1 : q * (r + 1) ≤ q * (k / q) :=
+      Nat.mul_le_mul_left q hle
+    have h2 : q * (k / q) ≤ k := by
+      simpa [Nat.mul_comm] using Nat.div_mul_le_self k q
+    exact le_trans h1 h2
   have hqR : (0 : ℝ) < q := by exact_mod_cast hq
   apply (lt_div_iff₀ hqR).2
   exact_mod_cast (lt_of_lt_of_le
@@ -187,7 +191,7 @@ theorem hypergeom_three_quarters_lower_tail_proved
       Real.exp (-(k : ℝ) / 8) ≤
         Real.exp (-(k : ℝ) / 24) := by
     apply Real.exp_le_exp.mpr
-    positivity
+    have hkR : 0 < (k : ℝ) := by exact_mod_cast hkpos
     linarith
   exact le_trans hmono (le_trans
     (by simpa [hstrong] using htail) hweak)
