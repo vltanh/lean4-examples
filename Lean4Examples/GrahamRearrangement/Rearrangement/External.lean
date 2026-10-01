@@ -242,6 +242,12 @@ axiom finite_descending_greedy_repair
       IsAdmissiblePermutation D π ∧
       HasNoZeroPaperSegments (applyPositionPerm σ π)
 
+/-- Crude count for the parameter triples (b,J,J') in Lemma 5.4. -/
+axiom bad0_parameter_count {n D : ℕ} :
+    (Finset.univ :
+      Finset (Fin n × Finset (Fin n) × Finset (Fin n))).card ≤
+        n * 2 ^ (40 * D + 2)
+
 /-- A generic upper bound for the number of partial matchings when each of q
 possible first endpoints has at most r possible partners. -/
 axiom partial_matching_count_le (q r : ℕ) :
