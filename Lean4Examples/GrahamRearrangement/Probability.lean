@@ -590,6 +590,37 @@ theorem card_biUnion_of_pairwise_disjoint
           exact hdisj a (by simp [ha]) b (by simp [hb]) hab)]
       simp [hi]
 
+theorem finset_image_injective_of_injective
+    {α β : Type*} [DecidableEq α] [DecidableEq β]
+    {f : α → β} (hf : Function.Injective f) :
+    Function.Injective (fun A : Finset α => A.image f) := by
+  intro A B hAB
+  ext x
+  constructor
+  · intro hx
+    have hfx : f x ∈ A.image f :=
+      Finset.mem_image.mpr ⟨x,hx,rfl⟩
+    rw [hAB] at hfx
+    rcases Finset.mem_image.mp hfx with ⟨y,hy,heq⟩
+    exact hf heq.symm ▸ hy
+  · intro hx
+    have hfx : f x ∈ B.image f :=
+      Finset.mem_image.mpr ⟨x,hx,rfl⟩
+    rw [← hAB] at hfx
+    rcases Finset.mem_image.mp hfx with ⟨y,hy,heq⟩
+    exact hf heq.symm ▸ hy
+
+theorem list_prod_eq_finset_prod_of_nodup
+    {α M : Type*} [DecidableEq α] [CommMonoid M]
+    (L : List α) (hL : L.Nodup) (f : α → M) :
+    (L.map f).prod = ∏ x ∈ L.toFinset, f x := by
+  induction L with
+  | nil => simp
+  | cons a L ih =>
+      have ha : a ∉ L := by simpa using hL
+      have hLn : L.Nodup := hL.tail
+      simp [ha,ih hLn]
+
 /-- Finite union bound for two events. -/
 theorem uniformMass_or_le_add {Ω : Type*} [DecidableEq Ω]
     (space : Finset Ω) (E F : Ω → Prop)
