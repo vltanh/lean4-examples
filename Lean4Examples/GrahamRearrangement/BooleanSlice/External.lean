@@ -409,6 +409,201 @@ theorem point_block_remainder_lower {p m : ℕ} [NeZero p]
       (Nat.le_of_eq (by omega : 2 * m = m * 2))
   omega
 
+theorem permuteBalancedPartition_blockIndex
+    {p m : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (x : ZMod p)
+    (hm : 0 < m) (hxS : x ∈ S)
+    (π : Equiv.Perm (ZMod p))
+    (hπS : S.image π = S) (hπx : π x = x)
+    {P : Fin m → Finset (ZMod p)}
+    (hP : IsBalancedPartition S P) :
+    blockIndex S (permuteBalancedPartition π P) x =
+      blockIndex S P x := by
+  let i := blockIndex S P x
+  have hxi : x ∈ P i :=
+    mem_blockIndex S P x hm hP hxS
+  have hP' := permuteBalancedPartition_spec S π hπS hP
+  apply blockIndex_eq_of_mem S hm hP' hxS
+  exact Finset.mem_image.mpr ⟨x,hxi,hπx⟩
+
+theorem permute_pointBlock_remainder
+    {p m : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (x : ZMod p)
+    (hm : 0 < m) (hxS : x ∈ S)
+    (π : Equiv.Perm (ZMod p))
+    (hπS : S.image π = S) (hπx : π x = x)
+    {P : Fin m → Finset (ZMod p)}
+    (hP : IsBalancedPartition S P) :
+    pointBlock S (permuteBalancedPartition π P) x \ {x} =
+      (pointBlock S P x \ {x}).image π := by
+  have hidx :=
+    permuteBalancedPartition_blockIndex S x hm hxS π hπS hπx hP
+  unfold pointBlock permuteBalancedPartition
+  rw [hidx]
+  ext y
+  constructor
+  · intro hy
+    rcases Finset.mem_sdiff.mp hy with ⟨hyim,hyx⟩
+    rcases Finset.mem_image.mp hyim with ⟨z,hz,rfl⟩
+    apply Finset.mem_image.mpr
+    refine ⟨z,?_,rfl⟩
+    apply Finset.mem_sdiff.mpr
+    refine ⟨hz,?_⟩
+    intro hzx
+    simp at hzx
+    subst z
+    exact hyx (by simp [hπx])
+  · intro hy
+    rcases Finset.mem_image.mp hy with ⟨z,hz,rfl⟩
+    rcases Finset.mem_sdiff.mp hz with ⟨hzP,hzx⟩
+    apply Finset.mem_sdiff.mpr
+    constructor
+    · exact Finset.mem_image.mpr ⟨z,hzP,rfl⟩
+    · intro h
+      simp at h
+      have : z = x := π.injective (h.trans hπx.symm)
+      exact hzx (by simp [this])
+
+def blockIndexFiber {p m : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (x : ZMod p) (i : Fin m) :
+    Finset (Fin m → Finset (ZMod p)) :=
+  (balancedPartitions S).filter fun P => blockIndex S P x = i
+
+theorem blockRemainder_fiber_equipotent
+    {p m : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (x : ZMod p)
+    (hm : 0 < m) (hmS : m ≤ S.card) (hxS : x ∈ S)
+    (i : Fin m)
+    {A B : Finset (ZMod p)}
+    (hA : A ∈ (S \ {x}).powersetCard
+      (balancedBlockSize S.card m i - 1))
+    (hB : B ∈ (S \ {x}).powersetCard
+      (balancedBlockSize S.card m i - 1)) :
+    ((blockIndexFiber S x i).filter fun P =>
+      pointBlock S P x \ {x} = A).card =
+    ((blockIndexFiber S x i).filter fun P =>
+      pointBlock S P x \ {x} = B).card := by
+  classical
+  let U := S \ {x}
+  obtain ⟨π,hπA,hπU,hπfix⟩ :=
+    exists_perm_maps_finset U A B
+      (Finset.mem_powersetCard.mp hA).1
+      (Finset.mem_powersetCard.mp hB).1
+      (by rw [(Finset.mem_powersetCard.mp hA).2,
+              (Finset.mem_powersetCard.mp hB).2])
+  have hxU : x ∉ U := by simp [U]
+  have hπx : π x = x := hπfix x hxU
+  have hπS : S.image π = S := by
+    ext y
+    by_cases hyx : y = x
+    · subst y
+      simp [hπx,hxS]
+    · have hyU : y ∈ U ↔ y ∈ S := by simp [U,hyx]
+      rw [← hπU]
+      constructor
+      · intro hy
+        rcases Finset.mem_image.mp hy with ⟨z,hz,rfl⟩
+        exact Finset.mem_image.mpr ⟨z,(hyU.mp hz),rfl⟩
+      · intro hy
+        rcases Finset.mem_image.mp hy with ⟨z,hz,rfl⟩
+        have hzx : z ≠ x := by
+          intro h
+          subst z
+          have : π x = x := hπx
+          subst y
+          exact hyx rfl
+        exact Finset.mem_image.mpr
+          ⟨z,(by simpa [U,hzx] using hz),rfl⟩
+  apply Finset.card_bij
+    (fun P _ => permuteBalancedPartition π P)
+  · intro P hP
+    rcases Finset.mem_filter.mp hP with ⟨hPF,hrem⟩
+    rcases Finset.mem_filter.mp hPF with ⟨hPmem,hidx⟩
+    have hPbal : IsBalancedPartition S P := by
+      simpa [balancedPartitions] using hPmem
+    apply Finset.mem_filter.mpr
+    constructor
+    · apply Finset.mem_filter.mpr
+      constructor
+      · simpa [balancedPartitions] using
+          permuteBalancedPartition_spec S π hπS hPbal
+      · rw [permuteBalancedPartition_blockIndex
+          S x hm hxS π hπS hπx hPbal,hidx]
+    · rw [permute_pointBlock_remainder
+        S x hm hxS π hπS hπx hPbal,hrem,hπA]
+  · intro P hP Q hQ hEq
+    funext r
+    have hr := congrFun hEq r
+    apply Finset.image_injective π.injective
+    exact hr
+  · intro Q hQ
+    rcases Finset.mem_filter.mp hQ with ⟨hQF,hrem⟩
+    rcases Finset.mem_filter.mp hQF with ⟨hQmem,hidx⟩
+    have hQbal : IsBalancedPartition S Q := by
+      simpa [balancedPartitions] using hQmem
+    let P := permuteBalancedPartition π.symm Q
+    refine ⟨P,?_,?_⟩
+    · have hπsymS : S.image π.symm = S := by
+        apply Finset.image_injective π.injective
+        simpa using congrArg (Finset.image π) hπS
+      have hπsymx : π.symm x = x :=
+        symm_fixes_of_fixes π hπx
+      apply Finset.mem_filter.mpr
+      constructor
+      · apply Finset.mem_filter.mpr
+        constructor
+        · simpa [balancedPartitions,P] using
+            permuteBalancedPartition_spec S π.symm hπsymS hQbal
+        · simpa [P,permuteBalancedPartition_blockIndex
+            S x hm hxS π.symm hπsymS hπsymx hQbal] using hidx
+      · have hrem' :=
+          permute_pointBlock_remainder
+            S x hm hxS π.symm hπsymS hπsymx hQbal
+        rw [hrem',hrem]
+        apply Finset.image_injective π.injective
+        simpa using congrArg (Finset.image π.symm) hπA
+    · funext r
+      simp [P,permuteBalancedPartition]
+
+theorem blockRemainder_conditional_uniform
+    {p m : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (x : ZMod p)
+    (hm : 0 < m) (hmS : m ≤ S.card) (hxS : x ∈ S)
+    (i : Fin m)
+    (hfiber : (blockIndexFiber S x i).Nonempty)
+    (E : Finset (ZMod p) → Prop) [DecidablePred E] :
+    uniformMass (blockIndexFiber S x i)
+      (fun P => E (pointBlock S P x \ {x})) =
+    uniformMass
+      ((S \ {x}).powersetCard
+        (balancedBlockSize S.card m i - 1)) E := by
+  classical
+  let values := (S \ {x}).powersetCard
+    (balancedBlockSize S.card m i - 1)
+  have hvalues : values.Nonempty := by
+    obtain ⟨P,hPF⟩ := hfiber
+    rcases Finset.mem_filter.mp hPF with ⟨hPmem,hidx⟩
+    have hP : IsBalancedPartition S P := by
+      simpa [balancedPartitions] using hPmem
+    exact ⟨pointBlock S P x \ {x},
+      pointBlock_remainder_mem_powerset S x hm hmS hP hxS i hidx⟩
+  have hmap :
+      ∀ P ∈ blockIndexFiber S x i,
+        pointBlock S P x \ {x} ∈ values := by
+    intro P hPF
+    rcases Finset.mem_filter.mp hPF with ⟨hPmem,hidx⟩
+    have hP : IsBalancedPartition S P := by
+      simpa [balancedPartitions] using hPmem
+    exact pointBlock_remainder_mem_powerset S x hm hmS hP hxS i hidx
+  apply uniformMass_statistic_of_pairwise_equal_fibers
+    (blockIndexFiber S x i) values
+    (fun P => pointBlock S P x \ {x})
+    hmap hvalues hfiber
+  · intro A hA B hB
+    exact blockRemainder_fiber_equipotent
+      S x hm hmS hxS i hA hB
+  · exact E
+
 /-- If a subset has density at least 1/4, the block containing a fixed point
 misses the expected number of its points only with the hypergeometric tail used
 in Lemma 3.1. -/
