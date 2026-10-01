@@ -191,6 +191,15 @@ theorem valid_iff_noZeroPaperSegments {p : ℕ}
         simp [paperPos, a]
       exact hseg a b ha2 hproper hzeroInterval
 
+theorem indexedIntervalSum_after_perm
+    {n p : ℕ} (σ : Fin n → ZMod p)
+    (π : Equiv.Perm (Fin n)) (a b : Fin n)
+    (hab : a.val ≤ b.val) :
+    indexedIntervalSum (applyPositionPerm σ π) a b =
+      indexSetSum σ ((indexInterval a b).image π) := by
+  rw [← indexSetSum_indexInterval]
+  exact indexSetSum_applyPositionPerm_image σ π (indexInterval a b)
+
 theorem swap_interval_split_right {n p : ℕ}
     (τ : Fin n → ZMod p) (b b' y s t : Fin n)
     (hby : paperPos b < paperPos y)
