@@ -33,30 +33,206 @@ theorem indexedOrderings_nonempty {p : ℕ} [NeZero p]
     · rintro ⟨i, rfl⟩
       exact (e i).2
 
-/-- The image of a fixed r-set of indices under a uniform bijection is a uniform
-r-subset of S. -/
-axiom fixedIndexSet_sumMass {p : ℕ} [NeZero p]
+def applyValuePerm {n p : ℕ}
+    (π : Equiv.Perm (ZMod p))
+    (σ : Fin n → ZMod p) : Fin n → ZMod p :=
+  π ∘ σ
+
+theorem applyValuePerm_isIndexedOrdering
+    {p : ℕ} [NeZero p] (S : Finset (ZMod p))
+    (π : Equiv.Perm (ZMod p)) (hπS : S.image π = S)
+    {σ : Fin S.card → ZMod p}
+    (hσ : IsIndexedOrdering S σ) :
+    IsIndexedOrdering S (applyValuePerm π σ) := by
+  constructor
+  · exact π.injective.comp hσ.1
+  · intro x
+    constructor
+    · intro hx
+      rw [← hπS] at hx
+      rcases Finset.mem_image.mp hx with ⟨y,hy,rfl⟩
+      rcases (hσ.2 y).1 hy with ⟨i,hi⟩
+      exact ⟨i,by simpa [applyValuePerm,hi]⟩
+    · rintro ⟨i,rfl⟩
+      rw [← hπS]
+      exact Finset.mem_image.mpr
+        ⟨σ i,(hσ.2 _).2 ⟨i,rfl⟩,rfl⟩
+
+theorem indexImageSet_applyValuePerm
+    {n p : ℕ} (π : Equiv.Perm (ZMod p))
+    (σ : Fin n → ZMod p) (I : Finset (Fin n)) :
+    indexImageSet (applyValuePerm π σ) I =
+      (indexImageSet σ I).image π := by
+  ext x
+  simp [indexImageSet,applyValuePerm]
+
+theorem fixedIndexSet_image_uniform {p : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (I : Finset (Fin S.card))
+    (E : Finset (ZMod p) → Prop) [DecidablePred E] :
+    orderingEventMass S (fun σ => E (indexImageSet σ I)) =
+      uniformMass (S.powersetCard I.card) E := by
+  classical
+  let Ω := indexedOrderings S
+  let V := S.powersetCard I.card
+  have hΩ : Ω.Nonempty := indexedOrderings_nonempty S
+  have hV : V.Nonempty := powersetCard_nonempty S
+    (by
+      calc I.card ≤ Fintype.card (Fin S.card) := Finset.card_le_univ _
+           _ = S.card := by simp)
+  have hmap : ∀ σ ∈ Ω, indexImageSet σ I ∈ V := by
+    intro σ hσmem
+    have hσ : IsIndexedOrdering S σ := by
+      simpa [Ω,indexedOrderings] using
+        (Finset.mem_filter.mp hσmem).2
+    apply Finset.mem_powersetCard.mpr
+    constructor
+    · intro x hx
+      rcases Finset.mem_image.mp hx with ⟨i,hi,rfl⟩
+      exact (hσ.2 _).2 ⟨i,rfl⟩
+    · unfold indexImageSet
+      exact Finset.card_image_iff.mpr hσ.1
+  have heq :
+      ∀ R ∈ V, ∀ R' ∈ V,
+        (Ω.filter fun σ => indexImageSet σ I = R).card =
+          (Ω.filter fun σ => indexImageSet σ I = R').card := by
+    intro R hR R' hR'
+    obtain ⟨π,hπR,hπS,hπout⟩ :=
+      exists_perm_maps_finset S R R'
+        (Finset.mem_powersetCard.mp hR).1
+        (Finset.mem_powersetCard.mp hR').1
+        (by rw [(Finset.mem_powersetCard.mp hR).2,
+                (Finset.mem_powersetCard.mp hR').2])
+    apply Finset.card_bij
+      (fun σ _ => applyValuePerm π σ)
+    · intro σ hσ
+      rcases Finset.mem_filter.mp hσ with ⟨hσmem,himg⟩
+      have hσord : IsIndexedOrdering S σ := by
+        simpa [Ω,indexedOrderings] using
+          (Finset.mem_filter.mp hσmem).2
+      apply Finset.mem_filter.mpr
+      constructor
+      · simpa [Ω,indexedOrderings] using
+          applyValuePerm_isIndexedOrdering S π hπS hσord
+      · rw [indexImageSet_applyValuePerm,himg,hπR]
+    · intro σ hσ τ hτ he
+      funext i
+      apply π.injective
+      exact congrFun he i
+    · intro τ hτ
+      rcases Finset.mem_filter.mp hτ with ⟨hτmem,himg⟩
+      have hτord : IsIndexedOrdering S τ := by
+        simpa [Ω,indexedOrderings] using
+          (Finset.mem_filter.mp hτmem).2
+      let σ := applyValuePerm π.symm τ
+      refine ⟨σ,?_,?_⟩
+      · have hπsymS : S.image π.symm = S := by
+          apply Finset.image_injective π.injective
+          simpa using congrArg (Finset.image π) hπS
+        apply Finset.mem_filter.mpr
+        constructor
+        · simpa [Ω,indexedOrderings,σ] using
+            applyValuePerm_isIndexedOrdering S π.symm hπsymS hτord
+        · rw [indexImageSet_applyValuePerm,himg]
+          apply Finset.image_injective π.injective
+          simpa using congrArg (Finset.image π.symm) hπR
+      · funext i
+        simp [σ,applyValuePerm]
+  unfold orderingEventMass
+  exact uniformMass_statistic_of_pairwise_equal_fibers
+    Ω V (fun σ => indexImageSet σ I) hmap hV hΩ heq E
+
+/-- The image of a fixed r-set of indices under a uniform bijection is a
+uniform r-subset of S. -/
+theorem fixedIndexSet_sumMass {p : ℕ} [NeZero p]
     (S : Finset (ZMod p)) (I : Finset (Fin S.card))
     (z : ZMod p) :
     orderingEventMass S (fun σ => indexSetSum σ I = z) =
-      sliceMass S I.card z
+      sliceMass S I.card z := by
+  rw [← fixedIndexSet_image_uniform S I
+      (fun R => subsetSum R = z)]
+  apply uniformMass_congr
+  intro σ hσmem
+  have hσ : IsIndexedOrdering S σ := by
+    simpa [indexedOrderings] using
+      (Finset.mem_filter.mp hσmem).2
+  rw [indexSetSum_eq_subsetSum_image hσ.1 I]
 
 /-- Composition by a fixed permutation of positions preserves the uniform law. -/
-axiom ordering_perm_invariant {p : ℕ} [NeZero p]
+theorem ordering_perm_invariant {p : ℕ} [NeZero p]
     (S : Finset (ZMod p)) (π : Equiv.Perm (Fin S.card))
     (E : (Fin S.card → ZMod p) → Prop) [DecidablePred E] :
     orderingEventMass S E =
-      orderingEventMass S (fun σ => E (applyPositionPerm σ π))
+      orderingEventMass S (fun σ => E (applyPositionPerm σ π)) := by
+  unfold orderingEventMass
+  apply uniformMass_bij
+    (indexedOrderings S) (indexedOrderings S)
+    (fun σ => applyPositionPerm σ π)
+  · intro σ hσ
+    have hs : IsIndexedOrdering S σ := by
+      simpa [indexedOrderings] using
+        (Finset.mem_filter.mp hσ).2
+    simpa [indexedOrderings] using
+      applyPositionPerm_isIndexedOrdering hs π
+  · intro σ hσ τ hτ he
+    funext i
+    apply hsigma_injective_of_indexed hσ
+    exact congrFun he (π.symm i)
+  · intro τ hτ
+    refine ⟨applyPositionPerm τ π.symm,?_,?_⟩
+    · have ht : IsIndexedOrdering S τ := by
+        simpa [indexedOrderings] using
+          (Finset.mem_filter.mp hτ).2
+      simpa [indexedOrderings] using
+        applyPositionPerm_isIndexedOrdering ht π.symm
+    · funext i
+      simp [applyPositionPerm,Function.comp_def]
+  · intro σ hσ
+    rfl
 
 /-- Conditional version of the preceding invariance. -/
-axiom ordering_conditional_perm_invariant {p : ℕ} [NeZero p]
+theorem ordering_conditional_perm_invariant {p : ℕ} [NeZero p]
     (S : Finset (ZMod p)) (π : Equiv.Perm (Fin S.card))
     (given event : (Fin S.card → ZMod p) → Prop)
     [DecidablePred given] [DecidablePred event] :
     orderingConditionalMass S given event =
       orderingConditionalMass S
         (fun σ => given (applyPositionPerm σ π))
-        (fun σ => event (applyPositionPerm σ π))
+        (fun σ => event (applyPositionPerm σ π)) := by
+  unfold orderingConditionalMass uniformConditionalMass
+  apply uniformMass_bij
+    ((indexedOrderings S).filter given)
+    ((indexedOrderings S).filter
+      fun σ => given (applyPositionPerm σ π))
+    (fun σ => applyPositionPerm σ π.symm)
+  · intro σ hσ
+    rcases Finset.mem_filter.mp hσ with ⟨hσord,hgiven⟩
+    apply Finset.mem_filter.mpr
+    constructor
+    · have hs : IsIndexedOrdering S σ := by
+        simpa [indexedOrderings] using
+          (Finset.mem_filter.mp hσord).2
+      simpa [indexedOrderings] using
+        applyPositionPerm_isIndexedOrdering hs π.symm
+    · simpa [applyPositionPerm,Function.comp_def] using hgiven
+  · intro σ hσ τ hτ he
+    funext i
+    have := congrFun he (π i)
+    simpa [applyPositionPerm,Function.comp_def] using this
+  · intro τ hτ
+    refine ⟨applyPositionPerm τ π,?_,?_⟩
+    · rcases Finset.mem_filter.mp hτ with ⟨hτord,hgiven⟩
+      apply Finset.mem_filter.mpr
+      constructor
+      · have ht : IsIndexedOrdering S τ := by
+          simpa [indexedOrderings] using
+            (Finset.mem_filter.mp hτord).2
+        simpa [indexedOrderings] using
+          applyPositionPerm_isIndexedOrdering ht π
+      · exact hgiven
+    · funext i
+      simp [applyPositionPerm,Function.comp_def]
+  · intro σ hσ
+    simp [applyPositionPerm,Function.comp_def]
 
 /-- Distinct index subsets in a window have equal image sums with probability at
 most the reciprocal number of choices left for one exposed coordinate. -/
