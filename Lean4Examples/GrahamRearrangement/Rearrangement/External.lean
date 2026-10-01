@@ -13,9 +13,25 @@ finite fibers, and matchings.  None is a numbered result of Pham--Sauermann.
 
 noncomputable section
 
-axiom indexedOrderings_nonempty {p : ℕ} [NeZero p]
+theorem indexedOrderings_nonempty {p : ℕ} [NeZero p]
     (S : Finset (ZMod p)) :
-    (indexedOrderings S).Nonempty
+    (indexedOrderings S).Nonempty := by
+  classical
+  let e : Fin S.card ≃ {x // x ∈ S} :=
+    Fintype.equivOfCardEq (by simp)
+  let σ : Fin S.card → ZMod p := fun i => (e i).1
+  refine ⟨σ, ?_⟩
+  simp only [indexedOrderings, Finset.mem_filter, Finset.mem_univ, true_and]
+  constructor
+  · intro i j hij
+    exact e.injective (Subtype.ext hij)
+  · intro x
+    constructor
+    · intro hx
+      obtain ⟨i, hi⟩ := e.surjective ⟨x, hx⟩
+      exact ⟨i, congrArg Subtype.val hi⟩
+    · rintro ⟨i, rfl⟩
+      exact (e i).2
 
 /-- Reindexing a family of left endpoints by the corresponding interval length
 only decreases a sum of nonnegative weights when we enlarge to all lengths 1,...,n-1. -/
@@ -94,11 +110,13 @@ axiom conditional_nested_images_chainMass {p k : ℕ} [NeZero p]
       chainMass (S \ indexImageSet τ F) m z
 
 /-- Conditioning on a window gives the obvious complement cardinality. -/
-axiom exposed_image_card {p : ℕ} [NeZero p]
+theorem exposed_image_card {p : ℕ} [NeZero p]
     (S : Finset (ZMod p))
     {τ : Fin S.card → ZMod p} (hτ : IsIndexedOrdering S τ)
     (F : Finset (Fin S.card)) :
-    (indexImageSet τ F).card = F.card
+    (indexImageSet τ F).card = F.card := by
+  unfold indexImageSet
+  exact Finset.card_image_iff.mpr hτ.1
 
 /-- A uniform bound on an event in every fiber obtained by exposing F is also
 an unconditional bound. -/
@@ -120,18 +138,6 @@ axiom base_and_window_tuple_count {n D : ℕ} :
           paperPos (θ.2 i) ≤ paperPos θ.1 + 20 * D)
       |>.card ≤ n * (20 * D) ^ D
 
-/-- Generic multiplication of an event probability by a uniform upper bound for a
-second event on every fiber of a finite statistic. -/
-axiom joint_event_le_of_fiber_bound
-    {Ω K : Type*} [DecidableEq Ω] [DecidableEq K]
-    (space : Finset Ω) (key : Ω → K)
-    (A B : Ω → Prop) [DecidablePred A] [DecidablePred B]
-    (a b : ℝ)
-    (hA : uniformMass space A ≤ a)
-    (hB : ∀ κ : K,
-      uniformConditionalMass space (fun ω => key ω = κ) B ≤ b) :
-    uniformMass space (fun ω => A ω ∧ B ω) ≤ a * b
-
 /-- Fiber multiplication specialized to exposing a set of positions in a
 uniform random ordering. -/
 axiom joint_event_le_of_agreesOn_fibers {p : ℕ} [NeZero p]
@@ -149,16 +155,17 @@ axiom joint_event_le_of_agreesOn_fibers {p : ℕ} [NeZero p]
     orderingEventMass S (fun σ => A σ ∧ B σ) ≤ a * b
 
 /-- Union bound over a finite set of possible parameter records. -/
-axiom finite_parameter_union_bound
+theorem finite_parameter_union_bound
     {Ω Θ : Type*} [DecidableEq Ω] [DecidableEq Θ]
     (space : Finset Ω) (params : Finset Θ)
     (E : Θ → Ω → Prop) [∀ θ, DecidablePred (E θ)] :
     uniformMass space (fun ω => ∃ θ ∈ params, E θ ω) ≤
-      ∑ θ ∈ params, uniformMass space (E θ)
+      ∑ θ ∈ params, uniformMass space (E θ) :=
+  uniformMass_exists_le_sum space params E
 
 /-- Union bound in witness form: if every occurrence of E supplies a parameter
 θ and the θ-event has mass at most q, then E has mass at most |params| q. -/
-axiom witness_union_bound
+theorem witness_union_bound
     {Ω Θ : Type*} [DecidableEq Ω] [DecidableEq Θ]
     (space : Finset Ω) (params : Finset Θ)
     (E : Ω → Prop) (A : Θ → Ω → Prop)
@@ -166,7 +173,26 @@ axiom witness_union_bound
     (q : ℝ)
     (hcover : ∀ ω ∈ space, E ω → ∃ θ ∈ params, A θ ω)
     (hbound : ∀ θ ∈ params, uniformMass space (A θ) ≤ q) :
-    uniformMass space E ≤ (params.card : ℝ) * q
+    uniformMass space E ≤ (params.card : ℝ) * q := by
+  have hmono :
+      uniformMass space E ≤
+        uniformMass space (fun ω => ∃ θ ∈ params, A θ ω) := by
+    apply uniformMass_mono
+    intro ω hE
+    by_cases hω : ω ∈ space
+    · exact hcover ω hω hE
+    · exact False.elim (hω (by
+        classical
+        exact Finset.mem_univ _))
+  calc
+    uniformMass space E
+      ≤ uniformMass space (fun ω => ∃ θ ∈ params, A θ ω) := hmono
+    _ ≤ ∑ θ ∈ params, uniformMass space (A θ) :=
+      finite_parameter_union_bound space params A
+    _ ≤ ∑ _θ ∈ params, q := by
+      gcongr with θ hθ
+      exact hbound θ hθ
+    _ = (params.card : ℝ) * q := by simp [mul_comm]
 
 window yield a least point b₀ and D further distinct points in the following 20D
 window. -/
