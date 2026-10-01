@@ -99,15 +99,6 @@ axiom zmod_character_average_norm_sq {p : ℕ} [NeZero p]
         ∑ x ∈ T, ∑ x' ∈ T,
           (ZMod.stdAddChar (χ * x - χ * x')).re
 
-/-- Parseval/orthogonality identity used in Lemma 3.6 for a negation-symmetric set
-of characters. -/
-axiom symmetric_character_square_sum {p : ℕ} (hp : p.Prime)
-    (B : Finset (ZMod p)) (hzero : 0 ∈ B)
-    (hsymm : ∀ χ ∈ B, -χ ∈ B) :
-    ∑ x : ZMod p,
-      ((∑ χ ∈ B, ZMod.stdAddChar (χ * x)).re) ^ 2 =
-        (p : ℝ) * B.card
-
 -- ---------------------------------------------------------------------------
 -- Finite probability and sampling symmetry
 -- ---------------------------------------------------------------------------
