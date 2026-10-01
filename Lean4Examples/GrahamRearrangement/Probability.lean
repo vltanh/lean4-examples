@@ -621,6 +621,22 @@ theorem list_prod_eq_finset_prod_of_nodup
       have hLn : L.Nodup := hL.tail
       simp [ha,ih hLn]
 
+theorem card_biUnion_le_sum
+    {α β : Type*} [DecidableEq α] [DecidableEq β]
+    (I : Finset α) (A : α → Finset β) :
+    (I.biUnion A).card ≤ ∑ i ∈ I, (A i).card := by
+  classical
+  induction I using Finset.induction_on with
+  | empty => simp
+  | @insert i I hi ih =>
+      rw [Finset.biUnion_insert]
+      calc
+        (A i ∪ I.biUnion A).card
+          ≤ (A i).card + (I.biUnion A).card :=
+            Finset.card_union_le _ _
+        _ ≤ (A i).card + ∑ j ∈ I, (A j).card := by omega
+        _ = ∑ j ∈ insert i I, (A j).card := by simp [hi]
+
 /-- Finite union bound for two events. -/
 theorem uniformMass_or_le_add {Ω : Type*} [DecidableEq Ω]
     (space : Finset Ω) (E F : Ω → Prop)
