@@ -57,4 +57,23 @@ def HasValidOrdering (S : Finset G) : Prop :=
 
 end Orderings
 
+/-- The finite-subset sum notation Σ(S) used throughout the paper. -/
+def subsetSum {G : Type*} [AddCommMonoid G] (S : Finset G) : G :=
+  ∑ x ∈ S, x
+
+/-- Conjecture 1.1. -/
+def Conjecture11Statement : Prop :=
+  ∀ (p : ℕ), p.Prime →
+    ∀ S : Finset (ZMod p), 0 ∉ S → HasValidOrdering S
+
+/-- The theorem-range predicate used in Theorem 1.2. -/
+def InGrahamRange (α C : ℝ) (p : ℕ) (S : Finset (ZMod p)) : Prop :=
+  0 ∉ S ∧ C ≤ (S.card : ℝ) ∧
+    (S.card : ℝ) ≤ (p : ℝ) ^ (1 - α)
+
+/-!
+All occurrences of `Real.log` below therefore match the paper's convention that
+unqualified logarithms are natural logarithms.
+-/
+
 end GrahamRearrangement
