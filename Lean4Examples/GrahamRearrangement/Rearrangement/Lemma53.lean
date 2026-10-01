@@ -29,6 +29,463 @@ theorem swap_fixedOutside
     rcases hi with h | h <;> omega
   exact Equiv.swap_apply_of_ne_of_ne hib hiy
 
+theorem indexSetSum_applyPositionPerm_image
+    {n p : ℕ} (σ : Fin n → ZMod p)
+    (π : Equiv.Perm (Fin n)) (J : Finset (Fin n)) :
+    indexSetSum (applyPositionPerm σ π) J =
+      indexSetSum σ (J.image π) := by
+  unfold indexSetSum applyPositionPerm
+  rw [Finset.sum_image]
+  · rfl
+  · intro i hi j hj hij
+    exact π.injective hij
+
+theorem indexedIntervalSum_after_perm
+    {n p : ℕ} (σ : Fin n → ZMod p)
+    (π : Equiv.Perm (Fin n)) (a b : Fin n)
+    (hab : a.val ≤ b.val) :
+    indexedIntervalSum (applyPositionPerm σ π) a b =
+      indexSetSum σ ((indexInterval a b).image π) := by
+  rw [← indexSetSum_indexInterval]
+  exact indexSetSum_applyPositionPerm_image σ π (indexInterval a b)
+
+/-- Failure of B₀ says that the subset-sum map is injective on the local
+5D-window even after applying any admissible permutation fixing the prefix.
+This is the precise local-injectivity statement used in the proof of Lemma 5.3. -/
+theorem local_subset_sum_injective_after_admissible
+    {n p D : ℕ}
+    (σ : Fin n → ZMod p) (b : Fin n)
+    (hb : b ∈ badRightEndpoints σ)
+    (hbfar : paperPos b + 30 * D ≤ n)
+    (h0 : ¬ BadEvent0 D σ)
+    (π : Equiv.Perm (Fin n))
+    (hadm : IsAdmissiblePermutation D π)
+    (hfix : FixedBelow b π)
+    {J J' : Finset (Fin n)}
+    (hJ : J ⊆ forwardWindow b (5 * D))
+    (hJ' : J' ⊆ forwardWindow b (5 * D))
+    (hne : J ≠ J') :
+    indexSetSum (applyPositionPerm σ π) J ≠
+      indexSetSum (applyPositionPerm σ π) J' := by
+  intro heq
+  have hπJ :
+      J.image π ⊆ forwardWindow b (10 * D) :=
+    Section5External.admissible_local_image_subset
+      b π hadm hfix J hJ
+  have hπJ' :
+      J'.image π ⊆ forwardWindow b (10 * D) :=
+    Section5External.admissible_local_image_subset
+      b π hadm hfix J' hJ'
+  have h10_20 :
+      forwardWindow b (10 * D) ⊆ forwardWindow b (20 * D) := by
+    intro x hx
+    simp only [forwardWindow, Finset.mem_filter, Finset.mem_univ,
+      true_and] at hx ⊢
+    omega
+  have himageNe : J.image π ≠ J'.image π := by
+    intro h
+    apply hne
+    apply Finset.ext
+    intro x
+    have hinj := π.injective
+    simpa using congrArg (fun K => x ∈ K.image π) h
+  have hsum :
+      indexSetSum σ (J.image π) =
+        indexSetSum σ (J'.image π) := by
+    simpa [indexSetSum_applyPositionPerm_image] using heq
+  exact h0 ⟨b, hb, hbfar,
+    J.image π, J'.image π,
+    fun x hx => h10_20 (hπJ hx),
+    fun x hx => h10_20 (hπJ' hx),
+    himageNe, hsum⟩
+
+theorem local_nonzero_after_admissible
+    {n p D : ℕ}
+    (σ : Fin n → ZMod p) (b : Fin n)
+    (hb : b ∈ badRightEndpoints σ)
+    (hbfar : paperPos b + 30 * D ≤ n)
+    (h0 : ¬ BadEvent0 D σ)
+    (π : Equiv.Perm (Fin n))
+    (hadm : IsAdmissiblePermutation D π)
+    (hfix : FixedBelow b π)
+    {J : Finset (Fin n)}
+    (hJne : J.Nonempty)
+    (hJ : J ⊆ forwardWindow b (5 * D)) :
+    indexSetSum (applyPositionPerm σ π) J ≠ 0 := by
+  have hne : J ≠ ∅ := Finset.nonempty_iff_ne_empty.mp hJne
+  have hinj :=
+    local_subset_sum_injective_after_admissible
+      σ b hb hbfar h0 π hadm hfix
+      hJ (by simp) hne
+  simpa using hinj
+
+def RightBlockedWitness {n p D : ℕ}
+    (σ : Fin n → ZMod p) (b : Fin n)
+    (π : Equiv.Perm (Fin n)) (y : Fin n) : Prop :=
+  ∃ s t : Fin n,
+    paperPos b < paperPos s ∧ paperPos s ≤ paperPos y ∧
+    paperPos b + 5 * D < paperPos t ∧
+    indexedIntervalSum
+      (applyPositionPerm (applyPositionPerm σ π) (Equiv.swap b y))
+      s t = 0
+
+def LeftBlockedWitness {n p D : ℕ}
+    (σ : Fin n → ZMod p) (b : Fin n)
+    (π : Equiv.Perm (Fin n)) (y : Fin n) : Prop :=
+  ∃ s t : Fin n,
+    paperPos s < paperPos b ∧
+    paperPos b ≤ paperPos t ∧ paperPos t < paperPos y ∧
+    indexedIntervalSum
+      (applyPositionPerm (applyPositionPerm σ π) (Equiv.swap b y))
+      s t = 0
+
+/-- This is the dichotomy in the first paragraph of the proof of Lemma 5.3:
+a blocked interval cannot be wholly contained in the 5D-window, so it must
+extend to the right or to the left. -/
+theorem blocked_witness_has_side
+    {n p D : ℕ}
+    (σ : Fin n → ZMod p) (b : Fin n)
+    (hb : b ∈ badRightEndpoints σ)
+    (hbfar : paperPos b + 30 * D ≤ n)
+    (h0 : ¬ BadEvent0 D σ)
+    (π : Equiv.Perm (Fin n))
+    (hadm : IsAdmissiblePermutation D π)
+    (hfix : FixedBelow b π)
+    {y : Fin n} (hy : y ∈ blockedCandidates D σ b π) :
+    RightBlockedWitness σ b π y ∨
+      LeftBlockedWitness σ b π y := by
+  have hblocked := (Finset.mem_filter.1 hy).2
+  rcases hblocked with ⟨hby, hy5, s, t, hs2, hst, hzero, hcross⟩
+  by_cases hright : paperPos b + 5 * D < paperPos t
+  · left
+    have hbs : paperPos b < paperPos s := by
+      rcases hcross with hcross | hcross
+      · exact hcross.1
+      · by_contra h
+        have hsb : paperPos s ≤ paperPos b := le_of_not_gt h
+        have htb : paperPos t < paperPos y := hcross.2
+        omega
+    have hsy : paperPos s ≤ paperPos y := by
+      rcases hcross with hcross | hcross
+      · exact hcross.2
+      · omega
+    exact ⟨s, t, hbs, hsy, hright, hzero⟩
+  · have ht5 : paperPos t ≤ paperPos b + 5 * D := le_of_not_gt hright
+    by_cases hleft : paperPos s < paperPos b
+    · right
+      have hbt : paperPos b ≤ paperPos t := by
+        rcases hcross with hcross | hcross
+        · omega
+        · exact hcross.1
+      have hty : paperPos t < paperPos y := by
+        rcases hcross with hcross | hcross
+        · omega
+        · exact hcross.2
+      exact ⟨s, t, hleft, hbt, hty, hzero⟩
+    · have hbs : paperPos b ≤ paperPos s := le_of_not_gt hleft
+      have hty : paperPos t ≤ paperPos b + 5 * D := ht5
+      let J := (indexInterval s t).image (Equiv.swap b y)
+      have hJne : J.Nonempty := by
+        refine ⟨Equiv.swap b y s, ?_⟩
+        simp only [J, Finset.mem_image]
+        exact ⟨s, by
+          simp [indexInterval]
+          exact ⟨le_rfl, by simpa [paperPos] using le_of_lt hst⟩, rfl⟩
+      have hJsub : J ⊆ forwardWindow b (5 * D) := by
+        intro x hx
+        rcases Finset.mem_image.1 hx with ⟨u, hu, rfl⟩
+        simp only [indexInterval, Finset.mem_filter,
+          Finset.mem_univ, true_and] at hu
+        simp only [forwardWindow, Finset.mem_filter,
+          Finset.mem_univ, true_and]
+        by_cases hub : u = b
+        · subst u
+          simp [hby, hy5, paperPos]
+        · by_cases huy : u = y
+          · subst u
+            simp [paperPos]
+            omega
+          · rw [Equiv.swap_apply_of_ne_of_ne hub huy]
+            simp [paperPos] at hbs ht5 ⊢
+            omega
+      have hJzero :
+          indexSetSum (applyPositionPerm σ π) J = 0 := by
+        have hab : s.val ≤ t.val := by
+          simpa [paperPos] using le_of_lt hst
+        rw [← indexedIntervalSum_after_perm
+          (applyPositionPerm σ π) (Equiv.swap b y) s t hab]
+        exact hzero
+      exact (local_nonzero_after_admissible
+        σ b hb hbfar h0 π hadm hfix hJne hJsub) hJzero
+
+/-- At the pigeonhole stage only the blocked choices y_i are known to be
+distinct. Distinctness of the far endpoints is proved separately below, just
+as in the paper. -/
+theorem blocked_family_side_split
+    {n p D : ℕ} (hD : 0 < D)
+    (σ : Fin n → ZMod p) (b : Fin n)
+    (hb : b ∈ badRightEndpoints σ)
+    (hbfar : paperPos b + 30 * D ≤ n)
+    (h0 : ¬ BadEvent0 D σ)
+    (π : Equiv.Perm (Fin n))
+    (hadm : IsAdmissiblePermutation D π)
+    (hfix : FixedBelow b π)
+    (hblocked :
+      2 * D ≤ (blockedCandidates D σ b π).card) :
+    (∃ y : Fin D → Fin n,
+      Function.Injective y ∧
+      ∀ i, y i ∈ blockedCandidates D σ b π ∧
+        RightBlockedWitness σ b π (y i)) ∨
+    (∃ y : Fin D → Fin n,
+      Function.Injective y ∧
+      ∀ i, y i ∈ blockedCandidates D σ b π ∧
+        LeftBlockedWitness σ b π (y i)) := by
+  apply Section5External.two_colour_extract
+    D (blockedCandidates D σ b π)
+    (RightBlockedWitness σ b π)
+    (LeftBlockedWitness σ b π)
+    hblocked
+  intro y hy
+  exact blocked_witness_has_side
+    σ b hb hbfar h0 π hadm hfix hy
+
+/-- The distinctness argument for the right endpoints t_i in E₁, exactly as
+on pp. 25--26 of the paper. -/
+theorem right_witness_endpoints_injective
+    {n p D : ℕ}
+    (σ : Fin n → ZMod p) (b b' : Fin n)
+    (hgap : paperPos b' - paperPos b = 5 * D)
+    (hb : b ∈ badRightEndpoints σ)
+    (hbfar : paperPos b + 30 * D ≤ n)
+    (h0 : ¬ BadEvent0 D σ)
+    (π : Equiv.Perm (Fin n))
+    (hadm : IsAdmissiblePermutation D π)
+    (hfix : FixedBelow b π)
+    (y s t : Fin D → Fin n)
+    (hyinj : Function.Injective y)
+    (hw : ∀ i,
+      paperPos b < paperPos (y i) ∧
+      paperPos (y i) ≤ paperPos b' ∧
+      paperPos b < paperPos (s i) ∧
+      paperPos (s i) ≤ paperPos (y i) ∧
+      paperPos b' < paperPos (t i) ∧
+      indexedIntervalSum
+        (applyPositionPerm
+          (applyPositionPerm σ π) (Equiv.swap b (y i)))
+        (s i) (t i) = 0) :
+    Function.Injective t := by
+  intro i j ht
+  by_contra hij
+  have hyne : y i ≠ y j := hyinj hij
+  wlog hylt : paperPos (y i) < paperPos (y j)
+      generalizing i j
+  · have hygt : paperPos (y j) < paperPos (y i) := by
+      have := lt_or_gt_of_ne
+        (show paperPos (y i) ≠ paperPos (y j) by
+          simpa [paperPos] using congrArg Fin.val hyne)
+      exact this.resolve_left hylt
+    exact (this j i ht.symm hij.symm hygt).symm
+  let Ji := (indexInterval (s i) b').image (Equiv.swap b (y i))
+  let Jj := (indexInterval (s j) b').image (Equiv.swap b (y j))
+  have hJi : Ji ⊆ forwardWindow b (5 * D) := by
+    intro x hx
+    rcases Finset.mem_image.1 hx with ⟨u, hu, rfl⟩
+    simp only [indexInterval, Finset.mem_filter,
+      Finset.mem_univ, true_and] at hu
+    simp only [forwardWindow, Finset.mem_filter,
+      Finset.mem_univ, true_and]
+    have hi := hw i
+    by_cases hub : u = b
+    · subst u
+      simp [hi.1, hi.2.1, hgap, paperPos]
+    · by_cases huy : u = y i
+      · subst u
+        simp [paperPos]
+        omega
+      · rw [Equiv.swap_apply_of_ne_of_ne hub huy]
+        simp [paperPos] at hi hgap ⊢
+        omega
+  have hJj : Jj ⊆ forwardWindow b (5 * D) := by
+    intro x hx
+    rcases Finset.mem_image.1 hx with ⟨u, hu, rfl⟩
+    simp only [indexInterval, Finset.mem_filter,
+      Finset.mem_univ, true_and] at hu
+    simp only [forwardWindow, Finset.mem_filter,
+      Finset.mem_univ, true_and]
+    have hj := hw j
+    by_cases hub : u = b
+    · subst u
+      simp [hj.1, hj.2.1, hgap, paperPos]
+    · by_cases huy : u = y j
+      · subst u
+        simp [paperPos]
+        omega
+      · rw [Equiv.swap_apply_of_ne_of_ne hub huy]
+        simp [paperPos] at hj hgap ⊢
+        omega
+  have hJne : Ji ≠ Jj := by
+    intro heq
+    have hyjJi : y j ∈ Ji := by
+      refine Finset.mem_image.2 ⟨y j, ?_, ?_⟩
+      · simp [indexInterval]
+        have hi := hw i
+        have hj := hw j
+        simp [paperPos] at hi hj hylt ⊢
+        omega
+      · have hneqb : y j ≠ b := by
+          intro h
+          subst h
+          exact (not_lt_of_ge (paperPos_pos b)) (hw j).1
+        have hneqyi : y j ≠ y i := Ne.symm hyne
+        exact (Equiv.swap_apply_of_ne_of_ne hneqb hneqyi).symm
+    have hyjJj : y j ∉ Jj := by
+      intro hmem
+      rcases Finset.mem_image.1 hmem with ⟨u, hu, hswap⟩
+      have : u = b := by
+        exact Equiv.swap_eq_iff.mp hswap |>.resolve_right (by
+          intro h; subst h; simpa using (Equiv.swap_apply_right b (y j)))
+      subst u
+      have hj := hw j
+      simp [indexInterval, paperPos] at hu hj
+      omega
+    exact hyjJj (by simpa [heq] using hyjJi)
+  have hsumEq :
+      indexSetSum (applyPositionPerm σ π) Ji =
+        indexSetSum (applyPositionPerm σ π) Jj := by
+    -- Split each zero interval at b'. The tails are identical because t_i=t_j,
+    -- so the local contributions must agree.
+    have hi := hw i
+    have hj := hw j
+    have hsplit_i :=
+      Section5External.swap_interval_split_right
+        (applyPositionPerm σ π) b b' (y i) (s i) (t i)
+        hi.1 hi.2.1 hi.2.2.1 hi.2.2.2.1 hi.2.2.2.2.1
+    have hsplit_j :=
+      Section5External.swap_interval_split_right
+        (applyPositionPerm σ π) b b' (y j) (s j) (t j)
+        hj.1 hj.2.1 hj.2.2.1 hj.2.2.2.1 hj.2.2.2.2.1
+    rw [hi.2.2.2.2.2] at hsplit_i
+    rw [hj.2.2.2.2.2, ht] at hsplit_j
+    linarith
+  exact (local_subset_sum_injective_after_admissible
+    σ b hb hbfar h0 π hadm hfix hJi hJj hJne) hsumEq
+
+/-- The analogous distinctness argument for the left endpoints s_i in E₂. -/
+theorem left_witness_endpoints_injective
+    {n p D : ℕ}
+    (σ : Fin n → ZMod p) (b b' : Fin n)
+    (hgap : paperPos b' - paperPos b = 5 * D)
+    (hb : b ∈ badRightEndpoints σ)
+    (hbfar : paperPos b + 30 * D ≤ n)
+    (h0 : ¬ BadEvent0 D σ)
+    (π : Equiv.Perm (Fin n))
+    (hadm : IsAdmissiblePermutation D π)
+    (hfix : FixedBelow b π)
+    (y s t : Fin D → Fin n)
+    (hyinj : Function.Injective y)
+    (hw : ∀ i,
+      paperPos b < paperPos (y i) ∧
+      paperPos (y i) ≤ paperPos b' ∧
+      paperPos (s i) < paperPos b ∧
+      paperPos b ≤ paperPos (t i) ∧
+      paperPos (t i) < paperPos (y i) ∧
+      indexedIntervalSum
+        (applyPositionPerm
+          (applyPositionPerm σ π) (Equiv.swap b (y i)))
+        (s i) (t i) = 0) :
+    Function.Injective s := by
+  intro i j hs
+  by_contra hij
+  have hyne : y i ≠ y j := hyinj hij
+  wlog hylt : paperPos (y i) < paperPos (y j)
+      generalizing i j
+  · have hygt : paperPos (y j) < paperPos (y i) := by
+      have := lt_or_gt_of_ne
+        (show paperPos (y i) ≠ paperPos (y j) by
+          simpa [paperPos] using congrArg Fin.val hyne)
+      exact this.resolve_left hylt
+    exact (this j i hs.symm hij.symm hygt).symm
+  let Ji := (indexInterval b (t i)).image (Equiv.swap b (y i))
+  let Jj := (indexInterval b (t j)).image (Equiv.swap b (y j))
+  have hJi : Ji ⊆ forwardWindow b (5 * D) := by
+    intro x hx
+    rcases Finset.mem_image.1 hx with ⟨u, hu, rfl⟩
+    have hi := hw i
+    simp only [indexInterval, Finset.mem_filter,
+      Finset.mem_univ, true_and] at hu
+    simp only [forwardWindow, Finset.mem_filter,
+      Finset.mem_univ, true_and]
+    by_cases hub : u = b
+    · subst u
+      simp [hi.1, hi.2.1, paperPos]
+    · by_cases huy : u = y i
+      · subst u
+        simp [paperPos]
+        omega
+      · rw [Equiv.swap_apply_of_ne_of_ne hub huy]
+        simp [paperPos] at hi ⊢
+        omega
+  have hJj : Jj ⊆ forwardWindow b (5 * D) := by
+    intro x hx
+    rcases Finset.mem_image.1 hx with ⟨u, hu, rfl⟩
+    have hj := hw j
+    simp only [indexInterval, Finset.mem_filter,
+      Finset.mem_univ, true_and] at hu
+    simp only [forwardWindow, Finset.mem_filter,
+      Finset.mem_univ, true_and]
+    by_cases hub : u = b
+    · subst u
+      simp [hj.1, hj.2.1, paperPos]
+    · by_cases huy : u = y j
+      · subst u
+        simp [paperPos]
+        omega
+      · rw [Equiv.swap_apply_of_ne_of_ne hub huy]
+        simp [paperPos] at hj ⊢
+        omega
+  have hJne : Ji ≠ Jj := by
+    intro heq
+    have hyjJi : y j ∈ Ji := by
+      refine Finset.mem_image.2 ⟨y j, ?_, ?_⟩
+      · simp [indexInterval]
+        have hi := hw i
+        have hj := hw j
+        simp [paperPos] at hi hj hylt ⊢
+        omega
+      · have hneqb : y j ≠ b := by
+          intro h
+          subst h
+          exact (not_lt_of_ge (paperPos_pos b)) (hw j).1
+        have hneqyi : y j ≠ y i := Ne.symm hyne
+        exact (Equiv.swap_apply_of_ne_of_ne hneqb hneqyi).symm
+    have hyjJj : y j ∉ Jj := by
+      intro hmem
+      rcases Finset.mem_image.1 hmem with ⟨u, hu, hswap⟩
+      have : u = b := by
+        exact Equiv.swap_eq_iff.mp hswap |>.resolve_right (by
+          intro h; subst h; simpa using (Equiv.swap_apply_right b (y j)))
+      subst u
+      simp [indexInterval] at hu
+    exact hyjJj (by simpa [heq] using hyjJi)
+  have hsumEq :
+      indexSetSum (applyPositionPerm σ π) Ji =
+        indexSetSum (applyPositionPerm σ π) Jj := by
+    have hi := hw i
+    have hj := hw j
+    have hsplit_i :=
+      Section5External.swap_interval_split_left
+        (applyPositionPerm σ π) b (y i) (s i) (t i)
+        hi.1 hi.2.1 hi.2.2.1 hi.2.2.2.1 hi.2.2.2.2.1
+    have hsplit_j :=
+      Section5External.swap_interval_split_left
+        (applyPositionPerm σ π) b (y j) (s j) (t j)
+        hj.1 hj.2.1 hj.2.2.1 hj.2.2.2.1 hj.2.2.2.2.1
+    rw [hi.2.2.2.2.2] at hsplit_i
+    rw [hj.2.2.2.2.2, hs] at hsplit_j
+    linarith
+  exact (local_subset_sum_injective_after_admissible
+    σ b hb hbfar h0 π hadm hfix hJi hJj hJne) hsumEq
+
 theorem badEvent3_core_side_reduction
     {n p D : ℕ} (hD : 0 < D)
     (σ : Fin n → ZMod p)
@@ -41,107 +498,106 @@ theorem badEvent3_core_side_reduction
   have hbfar : paperPos b + 30 * D ≤ n := by
     by_contra h
     exact h1 ⟨b, hb, by omega⟩
-  have hb2 : 2 ≤ paperPos b := by
-    exact le_trans (by norm_num) (badRightEndpoint_ge_three hb)
-  have hlocal :=
-    Section5External.local_nonzero_after_admissible
-      σ b hb hbfar h0 π hπadm hπfix
-  rcases Section5External.blocked_family_split
-      hD σ b π hlocal hblocked with
+  have hb2 : 2 ≤ paperPos b :=
+    le_trans (by norm_num) (badRightEndpoint_ge_three hb)
+  rcases blocked_family_side_split hD σ b hb hbfar h0 π hπadm hπfix hblocked with
     hright | hleft
-  · rcases hright with ⟨y, s, t, hyinj, htinj, hw⟩
+  · rcases hright with ⟨y, hyinj, hyw⟩
+    choose s t hs using fun i => (hyw i).2
+    have hw : ∀ i,
+        paperPos b < paperPos (y i) ∧
+        paperPos (y i) ≤ paperPos b + 5 * D ∧
+        paperPos b < paperPos (s i) ∧
+        paperPos (s i) ≤ paperPos (y i) ∧
+        paperPos b + 5 * D < paperPos (t i) ∧
+        indexedIntervalSum
+          (applyPositionPerm
+            (applyPositionPerm σ π) (Equiv.swap b (y i)))
+          (s i) (t i) = 0 := by
+      intro i
+      have hyblock := (Finset.mem_filter.1 (hyw i).1).2
+      rcases hs i with ⟨hbs, hsy, ht, hz⟩
+      exact ⟨hyblock.1, hyblock.2, hbs, hsy, ht, hz⟩
+    have hb'lt : b.val + 5 * D < n := by
+      simp [paperPos] at hbfar
+      omega
+    let b' : Fin n := ⟨b.val + 5 * D, hb'lt⟩
+    have hgap : paperPos b' - paperPos b = 5 * D := by
+      simp [paperPos, b']
+    have htinj :=
+      right_witness_endpoints_injective
+        σ b b' hgap hb hbfar h0 π hπadm hπfix
+        y s t hyinj (by
+          intro i
+          simpa [b', paperPos] using hw i)
     obtain ⟨ρ, htmono⟩ :=
       Section5External.exists_sorting_perm t htinj
-    let y' : Fin D → Fin n := y ∘ ρ
-    let s' : Fin D → Fin n := s ∘ ρ
-    let t' : Fin D → Fin n := t ∘ ρ
-    have hb'lt : b.val + 5 * D < n := by
-      simp [paperPos] at hbfar
-      omega
-    let b' : Fin n := ⟨b.val + 5 * D, hb'lt⟩
-    have hgap : paperPos b' - paperPos b = 5 * D := by
-      simp [paperPos, b']
-    have hywin :
-        ∀ i,
-          paperPos b < paperPos (y' i) ∧
-            paperPos (y' i) ≤ paperPos b' := by
-      intro i
+    let y' := y ∘ ρ
+    let s' := s ∘ ρ
+    let t' := t ∘ ρ
+    refine Or.inl ⟨b, b', hb2, hbfar, hgap, y', s', ?_, ?_, ?_⟩
+    · intro i
       have h := hw (ρ i)
       simpa [y', b', paperPos] using ⟨h.1, h.2.1⟩
-    have hswin :
-        ∀ i,
-          paperPos b < paperPos (s' i) ∧
-            paperPos (s' i) ≤ paperPos b' := by
-      intro i
+    · intro i
       have h := hw (ρ i)
       simpa [s', b', paperPos] using ⟨h.2.2.1, h.2.2.2.1⟩
-    have htTail : t' ∈ tailTuples b' D := by
-      simp only [tailTuples, Finset.mem_filter, Finset.mem_univ, true_and]
-      constructor
-      · exact htmono
-      · intro i
+    · refine ⟨t', ?_, π, hπadm, ?_⟩
+      · simp [tailTuples, t', htmono]
+        intro i
         have h := hw (ρ i)
-        simpa [t', b', paperPos] using h.2.2.2.2.1
-    have hzero :
-        ∀ i,
-          indexedIntervalSum
-            (applyPositionPerm
-              (applyPositionPerm σ π)
-              (Equiv.swap b (y' i)))
-            (s' i) (t' i) = 0 := by
+        simpa [b', paperPos] using h.2.2.2.2.1
+      · intro i
+        simpa [y', s', t'] using (hw (ρ i)).2.2.2.2.2
+  · rcases hleft with ⟨y, hyinj, hyw⟩
+    choose s t hs using fun i => (hyw i).2
+    have hw : ∀ i,
+        paperPos b < paperPos (y i) ∧
+        paperPos (y i) ≤ paperPos b + 5 * D ∧
+        paperPos (s i) < paperPos b ∧
+        paperPos b ≤ paperPos (t i) ∧
+        paperPos (t i) < paperPos (y i) ∧
+        indexedIntervalSum
+          (applyPositionPerm
+            (applyPositionPerm σ π) (Equiv.swap b (y i)))
+          (s i) (t i) = 0 := by
       intro i
-      simpa [y', s', t'] using (hw (ρ i)).2.2.2.2.2
-    refine Or.inl ⟨b, b', hb2, hbfar, hgap, y', s',
-      hywin, hswin, ?_⟩
-    exact ⟨t', htTail, π, hπadm, hzero⟩
-  · rcases hleft with ⟨y, s, t, hyinj, hsinj, hw⟩
-    obtain ⟨ρ, hsmono⟩ :=
-      Section5External.exists_sorting_perm s hsinj
-    let y' : Fin D → Fin n := y ∘ ρ
-    let s' : Fin D → Fin n := s ∘ ρ
-    let t' : Fin D → Fin n := t ∘ ρ
+      have hyblock := (Finset.mem_filter.1 (hyw i).1).2
+      rcases hs i with ⟨hsb, hbt, hty, hz⟩
+      exact ⟨hyblock.1, hyblock.2, hsb, hbt, hty, hz⟩
     have hb'lt : b.val + 5 * D < n := by
       simp [paperPos] at hbfar
       omega
     let b' : Fin n := ⟨b.val + 5 * D, hb'lt⟩
     have hgap : paperPos b' - paperPos b = 5 * D := by
       simp [paperPos, b']
-    have hywin :
-        ∀ i,
-          paperPos b < paperPos (y' i) ∧
-            paperPos (y' i) ≤ paperPos b' := by
-      intro i
+    have hsinj :=
+      left_witness_endpoints_injective
+        σ b b' hgap hb hbfar h0 π hπadm hπfix
+        y s t hyinj (by
+          intro i
+          have h := hw i
+          simpa [b', paperPos] using h)
+    obtain ⟨ρ, hsmono⟩ :=
+      Section5External.exists_sorting_perm s hsinj
+    let y' := y ∘ ρ
+    let s' := s ∘ ρ
+    let t' := t ∘ ρ
+    refine Or.inr ⟨b, b', hb2, hbfar, hgap, y', t', ?_, ?_, ?_⟩
+    · intro i
       have h := hw (ρ i)
       simpa [y', b', paperPos] using ⟨h.1, h.2.1⟩
-    have htwin :
-        ∀ i,
-          paperPos b ≤ paperPos (t' i) ∧
-            paperPos (t' i) < paperPos b' := by
-      intro i
+    · intro i
       have h := hw (ρ i)
-      have hlt : paperPos (t (ρ i)) < paperPos b' := by
-        have hty := h.2.2.2.2.1
-        have hyb := h.2.1
-        simpa [b', paperPos] using lt_of_lt_of_le hty hyb
-      exact ⟨h.2.2.2.1, by simpa [t'] using hlt⟩
-    have hsHead : s' ∈ headTuples b D := by
-      simp only [headTuples, Finset.mem_filter, Finset.mem_univ, true_and]
-      constructor
-      · exact hsmono
-      · intro i
+      have htlt : paperPos (t (ρ i)) < paperPos b' := by
+        exact lt_of_lt_of_le h.2.2.2.2.1 h.2.1
+      exact ⟨h.2.2.2.1, by simpa [t'] using htlt⟩
+    · refine ⟨s', ?_, π, hπadm, ?_⟩
+      · simp [headTuples, s', hsmono]
+        intro i
         simpa [s'] using (hw (ρ i)).2.2.1
-    have hzero :
-        ∀ i,
-          indexedIntervalSum
-            (applyPositionPerm
-              (applyPositionPerm σ π)
-              (Equiv.swap b (y' i)))
-            (s' i) (t' i) = 0 := by
-      intro i
-      simpa [y', s', t'] using (hw (ρ i)).2.2.2.2.2
-    refine Or.inr ⟨b, b', hb2, hbfar, hgap, y', t',
-      hywin, htwin, ?_⟩
-    exact ⟨s', hsHead, π, hπadm, hzero⟩
+      · intro i
+        simpa [y', s', t'] using (hw (ρ i)).2.2.2.2.2
 
 def rightRepairAtom {n p D : ℕ}
     (θ : RepairParams n D) (σ : Fin n → ZMod p) : Prop :=
