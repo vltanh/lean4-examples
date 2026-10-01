@@ -649,6 +649,12 @@ theorem list_prod_eq_finset_prod_of_nodup
       rw [List.map_cons, List.prod_cons, ih hLn]
       simp [ha]
 
+theorem perm_symm_fixes_of_fixes {α : Type*}
+    (π : Equiv.Perm α) {x : α} (h : π x = x) :
+    π.symm x = x := by
+  apply π.injective
+  simp [h]
+
 /-- Finite union bound for two events. -/
 theorem uniformMass_or_le_add {Ω : Type*} [DecidableEq Ω]
     (space : Finset Ω) (E F : Ω → Prop)
