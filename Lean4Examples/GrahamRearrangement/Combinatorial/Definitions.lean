@@ -275,6 +275,45 @@ theorem omitted_product_split {n k : ℕ} (w : ℕ → ℝ)
       exact ⟨⟨k - i.val, by omega⟩, by simp [i.isLt], by simp [i.isLt]⟩
   · simp [Finset.prod_sum_type]
 
+theorem extendedSize_at_succ {n k : ℕ}
+    {m : Fin k → ℕ} (hm : IsChainSizeTuple n m)
+    (i : Fin k) :
+    extendedSize n m (i.val + 1) = m i := by
+  unfold extendedSize
+  simp [i.isLt]
+
+theorem chainGap_prefix_sum {n k : ℕ}
+    (m : Fin k → ℕ) (hm : IsChainSizeTuple n m)
+    (i : Fin k) :
+    ∑ j ∈ Finset.Iic i.val,
+      chainGap n m ⟨j,by omega⟩ = m i := by
+  have htel :
+      ∑ j in Finset.range (i.val + 1),
+          (extendedSize n m (j + 1) -
+            extendedSize n m j) =
+        extendedSize n m (i.val + 1) -
+          extendedSize n m 0 := by
+    induction i.val with
+    | zero => simp [extendedSize]
+    | succ r ih =>
+      rw [Finset.sum_range_succ, ih]
+      have hstep := extendedSize_step_le hm
+        (show r + 1 ≤ k by omega)
+      omega
+  simpa [chainGap, Finset.Iic_eq_filter, extendedSize,
+    extendedSize_at_succ hm i] using htel
+
+def finSegment (n a b : ℕ) (hb : b ≤ n) : Finset (Fin n) :=
+  (Finset.Ico a b).attachFin n (fun x hx => lt_of_lt_of_le hx.2 hb)
+
+theorem card_finSegment (n a b : ℕ) (hb : b ≤ n) :
+    (finSegment n a b hb).card = b - a := by
+  simp [finSegment, Nat.card_Ico]
+
+theorem mem_finSegment {n a b : ℕ} {hb : b ≤ n} {i : Fin n} :
+    i ∈ finSegment n a b hb ↔ a ≤ i.val ∧ i.val < b := by
+  simp [finSegment]
+
 /-- The kernel appearing in Lemma 4.3. -/
 def lemma43Kernel (p n : ℕ) (C : ℝ) (d : ℕ) : ℝ :=
   chainFactor p n C d
