@@ -234,7 +234,7 @@ theorem lemma3_1 {p m t : ℕ} (hp : p.Prime)
             simpa [balancedPartitions] using hψ.1
           exact hsubset P hP hψ.2
     _ ≤ ∑ x' ∈ S, partitionMass S (BadRow x') := by
-          exact External.finite_union_bound
+          exact uniformMass_exists_le_sum
             (balancedPartitions S) S (fun x' P => BadRow x' P)
     _ ≤ ∑ _x' ∈ S, Real.exp (-(S.card : ℝ) / (64 * m)) := by
           gcongr with x' hx'
@@ -429,7 +429,7 @@ theorem lemma3_3 {p m t : ℕ} (hp : p.Prime)
             simpa [balancedPartitions] using hψ.1
           exact hsubset P hP hψ.2
     _ ≤ ∑ x ∈ S \\ Jset S m t χ, partitionMass S (BadRow x) := by
-          exact External.finite_union_bound
+          exact uniformMass_exists_le_sum
             (balancedPartitions S) (S \\ Jset S m t χ)
               (fun x P => BadRow x P)
     _ ≤ ∑ _x ∈ S \\ Jset S m t χ,
