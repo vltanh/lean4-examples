@@ -1,3 +1,8 @@
+> **Superseded for proof-completeness claims.** The deep audit found additional
+paper-internal arguments hidden behind External axioms. Use
+`DEEP_AUDIT_CHECKLIST.md` as the authoritative checklist. The checked boxes
+below record the earlier source-coverage pass only.
+
 # Graham rearrangement: complete paper-faithful formalization checklist
 
 Paper: Huy Tuan Pham and Lisa Sauermann, *On Graham's rearrangement conjecture*, arXiv:2602.15797v1.
@@ -529,6 +534,6 @@ If an equivalent Lean reformulation is used, prove an explicit equivalence to th
 
 ## Completion status
 
-Source-level formalization complete under the requested no-compile policy. Every paper-numbered Fact, Lemma, Corollary, and Theorem is represented by a Lean theorem/definition rather than an axiom, and the current Lean source tree contains no `sorry`. External/general mathematical and finite-probability/permutation inputs are isolated in `External*.lean` files as requested.
+Earlier source-coverage pass completed under the requested no-compile policy; this is not a current claim of mathematical audit completeness. Every paper-numbered Fact, Lemma, Corollary, and Theorem is represented by a Lean theorem/definition rather than an axiom, and the current Lean source tree contains no `sorry`. External/general mathematical and finite-probability/permutation inputs are isolated in `External*.lean` files as requested.
 
 See `SOURCE_MAP.md` for the paper-to-Lean declaration map and fidelity notes.
