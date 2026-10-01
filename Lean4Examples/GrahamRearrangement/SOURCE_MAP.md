@@ -4,9 +4,10 @@ Target: Huy Tuan Pham and Lisa Sauermann, *On Graham's rearrangement conjecture*
 arXiv:2602.15797v1.
 
 This file maps the paper-facing Lean declarations to their location in the paper.
-Pure implementation helpers are grouped with the result they support. The strict
-axiom boundary contains only the two hypergeometric Chernoff specializations
-explicitly cited by the paper from [8, Theorem 2.10 and Eq. (2.6)].
+Pure implementation helpers are grouped with the result they support. The final
+proof boundary is axiom-free: the hypergeometric Chernoff input cited by the
+paper from [8, Theorem 2.10 and Eq. (2.6)] is formalized under
+`External/Hypergeometric/`.
 
 ## Introduction
 
@@ -79,9 +80,10 @@ follow the paper's internal proofs.
 | Lemma 3.7 | `lemma3_7` |
 | Theorem 1.3 | `theorem13` |
 
-`BooleanSlice/External.lean` is axiom-free. The only axiomatized Section 3
-input is the hypergeometric Chernoff estimate explicitly cited as [8, Theorem
-2.10 and Eq. (2.6)], specialized in the general `External.lean` file.
+`BooleanSlice/External.lean` is axiom-free. The hypergeometric Chernoff estimate
+explicitly cited as [8, Theorem 2.10 and Eq. (2.6)] is formalized in
+`External/Hypergeometric/{Sampling,Hoeffding,Tails}.lean` and re-exported by
+`External.lean`.
 
 ### Fidelity notes
 
@@ -178,16 +180,21 @@ infrastructure used in these arguments is proved internally.
 | reduction to α<1/2 | `theorem12_of_section5_bounds` with β=min(α,1/4) |
 | Theorem 1.2 | `theorem12` |
 
-## External axiom boundary
+## External proof hierarchy
 
-The strict boundary has exactly two axioms, both in `External.lean`:
+The project contains no custom axioms.
 
-- `hypergeom_quarter_lower_tail`, used in Lemma 3.1;
-- `hypergeom_three_quarters_lower_tail`, used in Lemma 3.3.
+The one external result explicitly needed from the paper's bibliography is the
+hypergeometric concentration estimate used in Lemmas 3.1 and 3.3. It is
+formalized as follows:
 
-Both are direct specializations of the hypergeometric Chernoff bound that the
-paper explicitly cites as [8, Theorem 2.10 and Eq. (2.6)]. Reference [8] is
-S. Janson, T. Łuczak, and A. Ruciński, *Random Graphs*, John Wiley & Sons, 2011.
+- `External/Hypergeometric/Sampling.lean` — finite sequential sampling without
+  replacement and the equivalence with uniform `powersetCard` sampling;
+- `External/Hypergeometric/Hoeffding.lean` — exponential-moment bound for
+  without-replacement sampling, using mathlib's proved Hoeffding lemma;
+- `External/Hypergeometric/Tails.lean` — the exact `exp(-k/32)` and
+  `exp(-k/24)` specializations used by the paper;
+- `External/Hypergeometric.lean` — umbrella module.
 
-No paper-internal argument is axiomatized. All other External modules are
-axiom-free.
+Reference [8] remains provenance: S. Janson, T. Łuczak, and A. Ruciński,
+*Random Graphs*, John Wiley & Sons, 2011.
