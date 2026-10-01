@@ -310,7 +310,7 @@ theorem theorem13_explicit :
   have hdy :=
     External.weighted_dyadic_split m p
       ((10 ^ 4 : ℝ) / ((S.card : ℝ) * Real.sqrt m)) E
-      (by exact_mod_cast hp.pos) hsmall htriv
+      (by exact_mod_cast hp.pos) (by positivity) hsmall htriv
   have htail :
       22 * Real.exp (-(m : ℝ) / 2 ^ 22) ≤
         22 / (S.card : ℝ) ^ 4 := by
