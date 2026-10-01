@@ -959,9 +959,6 @@ theorem exists_fiber_mass_ge_pair_mass {α : Type*} [DecidableEq α]
   rw [uniformExpectation_const S hS] at hlt
   exact lt_irrefl _ hlt
 
-/-- The elementary dyadic numerical tail summation used at the end of Theorem 1.3. -/
-axiom dyadic_exp_sum_le_two :
-    ∑' l : ℕ, Real.exp ((l : ℝ) / 2 - (2 : ℝ) ^ l) ≤ 2
 
 end
 
