@@ -1639,31 +1639,59 @@ theorem exists_sorting_perm
     exact congrArg Subtype.val this
   simpa [Function.comp_def,hi,hj] using hord
 
-/-- Generic bookkeeping for summing all increasing prefix-chain constraints after
-conditioning on an exposed set. The substantive chain estimate is supplied by
-hchain; this axiom only identifies/sums the finite fibers. -/
-axiom conditional_prefix_chain_union_bound
+/-- Generic finite union over conditional nested-chain witnesses.  This is only
+bookkeeping: each individual witness is identified with a chain by
+`conditional_nested_images_chainMass`, then the size-vector sum is embedded
+in Lemma 4.3. -/
+theorem conditional_chain_witness_union_bound
     {p k : ℕ} [NeZero p]
     (S : Finset (ZMod p))
     (τ : Fin S.card → ZMod p) (hτ : IsIndexedOrdering S τ)
-    (F : Finset (Fin S.card)) (cut : Fin S.card)
-    (target : Fin k → ZMod p)
+    (F : Finset (Fin S.card))
+    {Θ : Type*} [DecidableEq Θ]
+    (A : Finset Θ)
+    (I : Θ → Fin k → Finset (Fin S.card))
+    (m : Θ → Fin k → ℕ)
+    (z : Θ → Fin k → ZMod p)
     (C : ℝ)
+    (hdisj : ∀ θ ∈ A, ∀ i, Disjoint F (I θ i))
+    (hnested : ∀ θ ∈ A, ∀ i j, i ≤ j → I θ i ⊆ I θ j)
+    (hcard : ∀ θ ∈ A, ∀ i, (I θ i).card = m θ i)
+    (hvalid : ∀ θ ∈ A,
+      IsChainSizeTuple (S \ indexImageSet τ F).card (m θ))
+    (hinj : Set.InjOn m A)
     (hchain :
-      ∀ (m : Fin k → ℕ), IsChainSizeTuple
-          (S \ indexImageSet τ F).card m →
-        ∀ z : Fin k → ZMod p,
-          chainMass (S \ indexImageSet τ F) m z ≤
-            chainUpperBound p (S \ indexImageSet τ F).card C m) :
+      ∀ θ ∈ A,
+        chainMass (S \ indexImageSet τ F) (m θ) (z θ) ≤
+          chainUpperBound p (S \ indexImageSet τ F).card C (m θ)) :
     orderingConditionalMass S
       (fun σ => AgreesOn F σ τ)
-      (fun σ =>
-        ∃ a : Fin k → Fin S.card,
-          StrictMono a ∧
-          (∀ i, paperPos (a i) < paperPos cut) ∧
-          (∀ i,
-            indexSetSum σ (indexHalfOpen (a i) cut) = target i)) ≤
-      lemma43LHS p (S \ indexImageSet τ F).card k C
+      (fun σ => ∃ θ ∈ A, ∀ i, indexSetSum σ (I θ i) = z θ i) ≤
+      lemma43LHS p (S \ indexImageSet τ F).card k C := by
+  unfold orderingConditionalMass uniformConditionalMass
+  calc
+    uniformMass ((indexedOrderings S).filter
+        (fun σ => AgreesOn F σ τ))
+        (fun σ => ∃ θ ∈ A, ∀ i, indexSetSum σ (I θ i) = z θ i)
+      ≤ ∑ θ ∈ A,
+          uniformMass ((indexedOrderings S).filter
+            (fun σ => AgreesOn F σ τ))
+            (fun σ => ∀ i, indexSetSum σ (I θ i) = z θ i) :=
+        uniformMass_exists_le_sum _ A _
+    _ = ∑ θ ∈ A,
+          chainMass (S \ indexImageSet τ F) (m θ) (z θ) := by
+        apply Finset.sum_congr rfl
+        intro θ hθ
+        simpa [orderingConditionalMass,uniformConditionalMass] using
+          conditional_nested_images_chainMass
+            S τ hτ F (I θ) (hdisj θ hθ) (hnested θ hθ)
+            (m θ) (hcard θ hθ) (z θ)
+    _ ≤ ∑ θ ∈ A,
+          chainUpperBound p (S \ indexImageSet τ F).card C (m θ) := by
+        gcongr with θ hθ
+        exact hchain θ hθ
+    _ ≤ lemma43LHS p (S \ indexImageSet τ F).card k C :=
+        chainUpperBound_sum_le_lemma43 C A m hvalid hinj
 
 /-- If a remaining ground set has size between n/2 and n, the Lemma 4.3 base
 is bounded by twice the ambient n^{-α} bound used in Section 5. -/
