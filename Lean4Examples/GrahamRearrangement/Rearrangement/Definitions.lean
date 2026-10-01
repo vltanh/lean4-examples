@@ -139,6 +139,25 @@ def blockedCandidates {n p : ℕ} (D : ℕ)
     (π : Equiv.Perm (Fin n)) : Finset (Fin n) :=
   Finset.univ.filter fun y => IsBlockedAt D σ b π y
 
+/-- Image of an index set under an ordering. -/
+def indexImageSet {n p : ℕ} (σ : Fin n → ZMod p)
+    (I : Finset (Fin n)) : Finset (ZMod p) :=
+  I.image σ
+
+theorem indexSetSum_eq_subsetSum_image {n p : ℕ}
+    {σ : Fin n → ZMod p} (hσ : Function.Injective σ)
+    (I : Finset (Fin n)) :
+    indexSetSum σ I = subsetSum (indexImageSet σ I) := by
+  unfold indexSetSum subsetSum indexImageSet
+  rw [Finset.sum_image]
+  intro i hi j hj hij
+  exact hσ hij
+
+/-- Agreement of two indexed orderings on an exposed set of positions. -/
+def AgreesOn {n p : ℕ} (F : Finset (Fin n))
+    (σ τ : Fin n → ZMod p) : Prop :=
+  ∀ i ∈ F, σ i = τ i
+
 /-- Bad event B₁, exactly as in Lemma 5.1. -/
 def BadEvent1 {n p : ℕ} (D : ℕ) (σ : Fin n → ZMod p) : Prop :=
   ∃ b ∈ badRightEndpoints σ,
@@ -178,6 +197,12 @@ def indexedOrderings {p : ℕ} [NeZero p] (S : Finset (ZMod p)) :
 def orderingEventMass {p : ℕ} [NeZero p] (S : Finset (ZMod p))
     (E : (Fin S.card → ZMod p) → Prop) [DecidablePred E] : ℝ :=
   uniformMass (indexedOrderings S) E
+
+def orderingConditionalMass {p : ℕ} [NeZero p]
+    (S : Finset (ZMod p))
+    (given event : (Fin S.card → ZMod p) → Prop)
+    [DecidablePred given] [DecidablePred event] : ℝ :=
+  uniformConditionalMass (indexedOrderings S) given event
 
 /-- List interval sum, retained only for translating back to the introduction. -/
 def listIntervalSum {G : Type*} [AddCommMonoid G]
