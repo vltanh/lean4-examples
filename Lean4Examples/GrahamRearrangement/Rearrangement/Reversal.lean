@@ -147,6 +147,9 @@ theorem lemma56_reversal_subset {p D : ℕ} [NeZero p]
     (b b' : Fin S.card)
     (hgap : paperPos b' - paperPos b = 5 * D)
     (u : Fin D → Fin S.card)
+    (hu : ∀ i,
+      paperPos b ≤ paperPos (u i) ∧
+        paperPos (u i) ≤ paperPos b')
     (πi : Fin D → Equiv.Perm (Fin S.card))
     (σ : Fin S.card → ZMod p) :
     Lemma56Event
@@ -168,12 +171,9 @@ theorem lemma56_reversal_subset {p D : ℕ} [NeZero p]
   have hxu :
       (x j).val ≤ (u j).val := by
     have hxhead := (Finset.mem_filter.1 hx).2.2 j
-    -- A zero interval with endpoints in the paper statement has x_j ≤ u_j.
-    -- The event is only used with u_j in [b,b'] and x_j<b.
-    simp [paperPos] at hxhead
-    by_contra hnot
-    have hz := hzero j
-    simp [indexedIntervalSum, Nat.not_le.mp hnot] at hz
+    have huj := (hu j).1
+    simp [paperPos] at hxhead huj ⊢
+    omega
   have hz := hzero j
   have hr :=
     reverse_constraint_zero σ π (πi j)
@@ -186,6 +186,9 @@ theorem lemma56_mass_le_reversed {p D : ℕ} [NeZero p]
     (b b' : Fin S.card)
     (hgap : paperPos b' - paperPos b = 5 * D)
     (u : Fin D → Fin S.card)
+    (hu : ∀ i,
+      paperPos b ≤ paperPos (u i) ∧
+        paperPos (u i) ≤ paperPos b')
     (πi : Fin D → Equiv.Perm (Fin S.card)) :
     orderingEventMass S
         (fun σ => Lemma56Event σ b b' u πi) ≤
@@ -201,7 +204,7 @@ theorem lemma56_mass_le_reversed {p D : ℕ} [NeZero p]
     (fun σ => Lemma56Event σ b b' u πi)]
   apply uniformMass_mono
   intro σ h
-  exact lemma56_reversal_subset S b b' hgap u πi σ h
+  exact lemma56_reversal_subset S b b' hgap u hu πi σ h
 
 theorem lemma56_event_empty_at_two {n p D : ℕ}
     (hD2 : 2 ≤ D) (b b' : Fin n)
