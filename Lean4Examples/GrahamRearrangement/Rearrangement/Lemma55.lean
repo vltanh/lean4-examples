@@ -269,6 +269,43 @@ theorem interesting_left_support
     exact Finset.mem_union_right _ (Finset.mem_biUnion.2
       ⟨i, Finset.mem_univ i, htail⟩)
 
+def chosenInterestingCollection {n k : ℕ} (D : ℕ)
+    (I : Fin k → Finset (Fin n))
+    (π : Equiv.Perm (Fin n)) :
+    Finset (Fin n × Fin n) := by
+  classical
+  by_cases h : IsInterestingPermutation D I π
+  · exact Classical.choose h
+  · exact ∅
+
+theorem chosenInterestingCollection_spec {n k : ℕ}
+    (D : ℕ) (I : Fin k → Finset (Fin n))
+    {π : Equiv.Perm (Fin n)}
+    (hπ : π ∈ interestingPermutations D I) :
+    IsAdmissibleCollection D
+        (chosenInterestingCollection D I π) ∧
+      collectionPerm (chosenInterestingCollection D I π) = π ∧
+      ∀ q ∈ chosenInterestingCollection D I π,
+        ∃ i, SwapCrosses q (I i) := by
+  classical
+  have h : IsInterestingPermutation D I π :=
+    (Finset.mem_filter.1 hπ).2
+  simp [chosenInterestingCollection, h]
+  exact Classical.choose_spec h
+
+theorem chosenInterestingCollection_injective {n k : ℕ}
+    (D : ℕ) (I : Fin k → Finset (Fin n)) :
+    Set.InjOn (chosenInterestingCollection D I)
+      (interestingPermutations D I : Set (Equiv.Perm (Fin n))) := by
+  intro π hπ ρ hρ hEq
+  have hπspec :=
+    (chosenInterestingCollection_spec D I
+      (show π ∈ interestingPermutations D I from hπ)).2.1
+  have hρspec :=
+    (chosenInterestingCollection_spec D I
+      (show ρ ∈ interestingPermutations D I from hρ)).2.1
+  rw [← hπspec, ← hρspec, hEq]
+
 theorem interestingPermutations_card_le
     {n D : ℕ}
     (hD7 : 7 ≤ D)
@@ -283,13 +320,64 @@ theorem interestingPermutations_card_le
     (interestingPermutations D
       (fun i => constraintSet u x πi i)).card ≤
         D ^ (14 * D ^ 2) := by
-  apply Section5External.interestingPermutations_card_le_of_left_support
-    hD7 (fun i => constraintSet u x πi i)
-      (interestingLeftSupport b x)
-  · exact card_interestingLeftSupport_le hD7 b x
-  · intro π hπ
-    exact interesting_left_support
-      (by omega) b b' hgap u x hu πi hfix hπ
+  classical
+  let I : Fin D → Finset (Fin n) :=
+    fun i => constraintSet u x πi i
+  let Q := interestingLeftSupport b x
+  let f := chosenInterestingCollection D I
+  have hfinj :
+      Set.InjOn f
+        (interestingPermutations D I : Set (Equiv.Perm (Fin n))) :=
+    chosenInterestingCollection_injective D I
+  have hsupport :
+      ∀ π ∈ interestingPermutations D I,
+        f π ∈ supportedAdmissibleCollections D Q := by
+    intro π hπ
+    have hspec := chosenInterestingCollection_spec D I hπ
+    obtain ⟨P', hP'adm, hP'π, hP'supp⟩ :=
+      interesting_left_support
+        (by omega) b b' hgap u x hu πi hfix hπ
+    have hEq : f π = P' := by
+      apply admissibleCollection_reconstruct
+        hspec.1 hP'adm
+      rw [hspec.2.1, hP'π]
+    apply Finset.mem_filter.2
+    refine ⟨Finset.mem_univ _, hspec.1, ?_⟩
+    intro q hq
+    rw [hEq] at hq
+    exact hP'supp q hq
+  have hcardImage :
+      (interestingPermutations D I).card =
+        ((interestingPermutations D I).image f).card := by
+    symm
+    exact Finset.card_image_of_injOn hfinj
+  have hsub :
+      (interestingPermutations D I).image f ⊆
+        supportedAdmissibleCollections D Q := by
+    intro P hP
+    rcases Finset.mem_image.1 hP with ⟨π, hπ, rfl⟩
+    exact hsupport π hπ
+  have hQ : Q.card ≤ 7 * D ^ 2 :=
+    card_interestingLeftSupport_le hD7 b x
+  have hcount :=
+    Section5External.supportedAdmissibleCollections_card_le
+      (D := D) Q
+  have hbase : 5 * D + 1 ≤ D ^ 2 := by
+    nlinarith
+  calc
+    (interestingPermutations D I).card
+      = ((interestingPermutations D I).image f).card := hcardImage
+    _ ≤ (supportedAdmissibleCollections D Q).card :=
+      Finset.card_le_card hsub
+    _ ≤ (5 * D + 1) ^ Q.card := hcount
+    _ ≤ (D ^ 2) ^ Q.card := by
+      gcongr
+    _ ≤ (D ^ 2) ^ (7 * D ^ 2) := by
+      gcongr
+    _ = D ^ (14 * D ^ 2) := by
+      rw [← pow_mul]
+      congr 1
+      ring
 
 theorem lemma55_fixed_x_pi_mass_le
     {α : ℝ} (hα0 : 0 < α) (hαh : α < 1 / 2)
