@@ -110,6 +110,23 @@ theorem indexed_interval_zero_iff_prefix_eq {n p : ℕ}
   rw [indexedIntervalSum_eq_prefix_sub σ a b hab]
   exact sub_eq_zero
 
+theorem interval_sum_eq_halfOpen_add_endpoint {n p : ℕ}
+    (σ : Fin n → ZMod p) (a b : Fin n)
+    (hab : a.val ≤ b.val) :
+    indexedIntervalSum σ a b =
+      indexSetSum σ (indexHalfOpen a b) + σ b := by
+  unfold indexedIntervalSum indexSetSum indexHalfOpen
+  have hsplit :
+      Finset.Icc a.val b.val =
+        Finset.Ico a.val b.val ∪ {b.val} := by
+    ext i
+    simp
+    omega
+  rw [hsplit, Finset.sum_union]
+  · simp [b.isLt]
+  · rw [Finset.disjoint_singleton_right]
+    simp
+
 theorem indexed_singleton_sum {n p : ℕ}
     (σ : Fin n → ZMod p) (a : Fin n) :
     indexedIntervalSum σ a a = σ a := by
