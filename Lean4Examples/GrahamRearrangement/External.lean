@@ -25,6 +25,12 @@ noncomputable section
 axiom cauchySchwarz_sq (xs : List ℝ) :
     xs.sum ^ 2 ≤ (xs.length : ℝ) * (xs.map fun x => x ^ 2).sum
 
+/-- Normed-group list estimate combining the triangle inequality and finite
+Cauchy--Schwarz. -/
+axiom norm_list_sum_sq {E : Type*} [SeminormedAddCommGroup E] (xs : List E) :
+    ‖xs.sum‖ ^ 2 ≤
+      (xs.length : ℝ) * (xs.map fun x => ‖x‖ ^ 2).sum
+
 /-- Triangle inequality for distance to the nearest integer. -/
 axiom distToInt_triangle (ys : List ℝ) :
     min (Int.fract ys.sum) (1 - Int.fract ys.sum) ≤
