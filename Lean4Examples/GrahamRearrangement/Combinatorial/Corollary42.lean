@@ -168,7 +168,25 @@ theorem chain_prefix_union_eq {p k : ℕ} [NeZero p]
           chainIncrements S R ⟨r+1,by omega⟩ =
             R i \ R ip := by
         simp [chainIncrements,ip]
-      rw [Finset.biUnion_Iic_succ, ih ip, hinc]
+      have hunion :
+          (∪ j ∈ Finset.Iic (r + 1),
+              chainIncrements S R ⟨j,by omega⟩) =
+            (∪ j ∈ Finset.Iic r,
+              chainIncrements S R ⟨j,by omega⟩) ∪
+              chainIncrements S R ⟨r+1,by omega⟩ := by
+        ext x
+        simp
+        constructor
+        · rintro ⟨j,hj,hx⟩
+          by_cases hjr : j ≤ r
+          · exact Or.inl ⟨j,hjr,hx⟩
+          · have : j = r + 1 := by omega
+            subst j
+            exact Or.inr hx
+        · rintro (⟨j,hj,hx⟩ | hx)
+          · exact ⟨j,by omega,hx⟩
+          · exact ⟨r+1,le_rfl,hx⟩
+      rw [hunion, ih ip, hinc]
       exact Finset.union_sdiff_of_subset hprev
 
 theorem chain_all_increments_union_eq {p k : ℕ} [NeZero p]
@@ -444,7 +462,7 @@ theorem incrementsToChain_mem {p k : ℕ} [NeZero p]
       rcases hx with ⟨j,hji,hx⟩
       exact (hdata ⟨j,by omega⟩).1 hx
     · have hcardUnion :=
-        Finset.card_biUnion_of_pairwise_disjoint
+        card_biUnion_of_pairwise_disjoint
           (Finset.Iic i.val)
           (fun j => Δ ⟨j,by omega⟩)
           (by
