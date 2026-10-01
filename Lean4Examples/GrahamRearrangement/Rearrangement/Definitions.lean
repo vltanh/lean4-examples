@@ -458,31 +458,236 @@ structure RepairParams (n D : ℕ) where
   u : Fin D → Fin n
 deriving DecidableEq, Fintype
 
+def strictForwardWindow {n : ℕ} (b : Fin n) (r : ℕ) :
+    Finset (Fin n) :=
+  (forwardWindow b r).erase b
+
+theorem mem_strictForwardWindow {n r : ℕ} {b x : Fin n} :
+    x ∈ strictForwardWindow b r ↔
+      paperPos b < paperPos x ∧
+        paperPos x ≤ paperPos b + r := by
+  simp [strictForwardWindow,forwardWindow,paperPos]
+  omega
+
+theorem card_strictForwardWindow_le {n : ℕ}
+    (b : Fin n) (r : ℕ) :
+    (strictForwardWindow b r).card ≤ r := by
+  have hb : b ∈ forwardWindow b r := by
+    simp [forwardWindow]
+  unfold strictForwardWindow
+  rw [Finset.card_erase_of_mem hb]
+  have hw := card_forwardWindow_le b r
+  omega
+
+def canonicalLocalEnd {n : ℕ} (b : Fin n) (D : ℕ)
+    (hfit : paperPos b + 5 * D ≤ n) : Fin n :=
+  ⟨b.val + 5 * D, by
+    simp [paperPos] at hfit
+    omega⟩
+
+theorem canonicalLocalEnd_gap {n D : ℕ} (b : Fin n)
+    (hfit : paperPos b + 5 * D ≤ n) :
+    paperPos (canonicalLocalEnd b D hfit) - paperPos b = 5 * D := by
+  simp [canonicalLocalEnd,paperPos]
+
 def rightRepairParameters (n D : ℕ) :
-    Finset (RepairParams n D) :=
-  Finset.univ.filter fun θ =>
-    2 ≤ paperPos θ.b ∧
-    paperPos θ.b + 30 * D ≤ n ∧
-    paperPos θ.b' - paperPos θ.b = 5 * D ∧
-    (∀ i,
-      paperPos θ.b < paperPos (θ.y i) ∧
-        paperPos (θ.y i) ≤ paperPos θ.b') ∧
-    (∀ i,
-      paperPos θ.b < paperPos (θ.u i) ∧
-        paperPos (θ.u i) ≤ paperPos θ.b')
+    Finset (RepairParams n D) := by
+  classical
+  exact Finset.univ.biUnion fun b =>
+    if hfit : paperPos b + 30 * D ≤ n then
+      let b' := canonicalLocalEnd b D (by omega)
+      let Y := Finset.univ.pi fun _ : Fin D =>
+        strictForwardWindow b (5 * D)
+      Y.biUnion fun y =>
+        Y.image fun u => ⟨b,b',y,u⟩
+    else ∅
 
 def leftRepairParameters (n D : ℕ) :
-    Finset (RepairParams n D) :=
-  Finset.univ.filter fun θ =>
-    2 ≤ paperPos θ.b ∧
-    paperPos θ.b + 30 * D ≤ n ∧
-    paperPos θ.b' - paperPos θ.b = 5 * D ∧
-    (∀ i,
-      paperPos θ.b < paperPos (θ.y i) ∧
-        paperPos (θ.y i) ≤ paperPos θ.b') ∧
-    (∀ i,
-      paperPos θ.b ≤ paperPos (θ.u i) ∧
-        paperPos (θ.u i) < paperPos θ.b')
+    Finset (RepairParams n D) := by
+  classical
+  exact Finset.univ.biUnion fun b =>
+    if hfit : paperPos b + 30 * D ≤ n then
+      let b' := canonicalLocalEnd b D (by omega)
+      let Y := Finset.univ.pi fun _ : Fin D =>
+        strictForwardWindow b (5 * D)
+      let U := Finset.univ.pi fun _ : Fin D =>
+        indexHalfOpen b b'
+      Y.biUnion fun y =>
+        U.image fun u => ⟨b,b',y,u⟩
+    else ∅
+
+theorem mem_rightRepairParameters {n D : ℕ}
+    {θ : RepairParams n D} :
+    θ ∈ rightRepairParameters n D ↔
+      2 ≤ paperPos θ.b ∧
+      paperPos θ.b + 30 * D ≤ n ∧
+      paperPos θ.b' - paperPos θ.b = 5 * D ∧
+      (∀ i,
+        paperPos θ.b < paperPos (θ.y i) ∧
+          paperPos (θ.y i) ≤ paperPos θ.b') ∧
+      (∀ i,
+        paperPos θ.b < paperPos (θ.u i) ∧
+          paperPos (θ.u i) ≤ paperPos θ.b') := by
+  classical
+  constructor
+  · intro h
+    simp [rightRepairParameters] at h
+    rcases h with ⟨b,hfit,y,hy,u,hu,rfl⟩
+    have hb2 : 2 ≤ paperPos b := by
+      by_contra hsmall
+      omega
+    refine ⟨hb2,hfit,canonicalLocalEnd_gap b (by omega),?_,?_⟩
+    · intro i
+      exact (mem_strictForwardWindow.mp
+        (Finset.mem_pi.mp hy i (Finset.mem_univ i))).trans_le
+          (by simp [canonicalLocalEnd,paperPos])
+    · intro i
+      exact (mem_strictForwardWindow.mp
+        (Finset.mem_pi.mp hu i (Finset.mem_univ i))).trans_le
+          (by simp [canonicalLocalEnd,paperPos])
+  · rintro ⟨hb2,hfit,hgap,hy,hu⟩
+    simp [rightRepairParameters]
+    refine ⟨θ.b,hfit,θ.y,?_,θ.u,?_,?_⟩
+    · apply Finset.mem_pi.mpr
+      intro i hi
+      exact mem_strictForwardWindow.mpr
+        ⟨(hy i).1, by
+          have hgap' := hgap
+          simp [paperPos] at hgap'
+          omega⟩
+    · apply Finset.mem_pi.mpr
+      intro i hi
+      exact mem_strictForwardWindow.mpr
+        ⟨(hu i).1, by
+          have hgap' := hgap
+          simp [paperPos] at hgap'
+          omega⟩
+    · cases θ
+      simp [canonicalLocalEnd,paperPos] at hgap ⊢
+      omega
+
+theorem mem_leftRepairParameters {n D : ℕ}
+    {θ : RepairParams n D} :
+    θ ∈ leftRepairParameters n D ↔
+      2 ≤ paperPos θ.b ∧
+      paperPos θ.b + 30 * D ≤ n ∧
+      paperPos θ.b' - paperPos θ.b = 5 * D ∧
+      (∀ i,
+        paperPos θ.b < paperPos (θ.y i) ∧
+          paperPos (θ.y i) ≤ paperPos θ.b') ∧
+      (∀ i,
+        paperPos θ.b ≤ paperPos (θ.u i) ∧
+          paperPos (θ.u i) < paperPos θ.b') := by
+  classical
+  constructor
+  · intro h
+    simp [leftRepairParameters] at h
+    rcases h with ⟨b,hfit,y,hy,u,hu,rfl⟩
+    have hb2 : 2 ≤ paperPos b := by
+      by_contra hsmall
+      omega
+    let b' := canonicalLocalEnd b D (by omega)
+    refine ⟨hb2,hfit,canonicalLocalEnd_gap b (by omega),?_,?_⟩
+    · intro i
+      have h := mem_strictForwardWindow.mp
+        (Finset.mem_pi.mp hy i (Finset.mem_univ i))
+      simpa [b',canonicalLocalEnd,paperPos] using h
+    · intro i
+      have h := Finset.mem_pi.mp hu i (Finset.mem_univ i)
+      simpa [indexHalfOpen,paperPos,b',canonicalLocalEnd] using h
+  · rintro ⟨hb2,hfit,hgap,hy,hu⟩
+    simp [leftRepairParameters]
+    refine ⟨θ.b,hfit,θ.y,?_,θ.u,?_,?_⟩
+    · apply Finset.mem_pi.mpr
+      intro i hi
+      exact mem_strictForwardWindow.mpr
+        ⟨(hy i).1, by
+          have hgap' := hgap
+          simp [paperPos] at hgap'
+          omega⟩
+    · apply Finset.mem_pi.mpr
+      intro i hi
+      simp [indexHalfOpen,paperPos]
+      exact hu i
+    · cases θ
+      simp [canonicalLocalEnd,paperPos] at hgap ⊢
+      omega
+
+theorem rightRepairParameters_card_le (n D : ℕ) :
+    (rightRepairParameters n D).card ≤
+      n * (5 * D) ^ (2 * D) := by
+  classical
+  unfold rightRepairParameters
+  calc
+    _ ≤ ∑ b : Fin n,
+        (if hfit : paperPos b + 30 * D ≤ n then
+          let Y := Finset.univ.pi fun _ : Fin D =>
+            strictForwardWindow b (5 * D)
+          Y.card * Y.card
+        else 0) := by
+          apply card_biUnion_le_sum
+    _ ≤ ∑ _b : Fin n, (5 * D) ^ (2 * D) := by
+          gcongr with b
+          split
+          · let Y := Finset.univ.pi fun _ : Fin D =>
+              strictForwardWindow b (5 * D)
+            have hY : Y.card ≤ (5 * D) ^ D :=
+              card_pi_le_pow
+                (fun _ : Fin D => strictForwardWindow b (5 * D))
+                (5 * D) (fun _ => card_strictForwardWindow_le b (5 * D))
+            calc
+              Y.card * Y.card ≤ (5 * D) ^ D * (5 * D) ^ D :=
+                Nat.mul_le_mul hY hY
+              _ = (5 * D) ^ (2 * D) := by
+                rw [← pow_add]
+                congr
+                omega
+          · simp
+    _ = n * (5 * D) ^ (2 * D) := by simp
+
+theorem leftRepairParameters_card_le (n D : ℕ) :
+    (leftRepairParameters n D).card ≤
+      n * (5 * D) ^ (2 * D) := by
+  classical
+  unfold leftRepairParameters
+  calc
+    _ ≤ ∑ b : Fin n,
+        (if hfit : paperPos b + 30 * D ≤ n then
+          let b' := canonicalLocalEnd b D (by omega)
+          let Y := Finset.univ.pi fun _ : Fin D =>
+            strictForwardWindow b (5 * D)
+          let U := Finset.univ.pi fun _ : Fin D =>
+            indexHalfOpen b b'
+          Y.card * U.card
+        else 0) := by
+          apply card_biUnion_le_sum
+    _ ≤ ∑ _b : Fin n, (5 * D) ^ (2 * D) := by
+          gcongr with b
+          split
+          · let b' := canonicalLocalEnd b D (by omega)
+            let Y := Finset.univ.pi fun _ : Fin D =>
+              strictForwardWindow b (5 * D)
+            let U := Finset.univ.pi fun _ : Fin D =>
+              indexHalfOpen b b'
+            have hY : Y.card ≤ (5 * D) ^ D :=
+              card_pi_le_pow
+                (fun _ : Fin D => strictForwardWindow b (5 * D))
+                (5 * D) (fun _ => card_strictForwardWindow_le b (5 * D))
+            have hU : U.card ≤ (5 * D) ^ D := by
+              apply card_pi_le_pow
+              intro i
+              rw [card_indexHalfOpen b b' (by
+                simp [b',canonicalLocalEnd,paperPos]; omega)]
+              simp [b',canonicalLocalEnd,paperPos]
+            calc
+              Y.card * U.card ≤ (5 * D) ^ D * (5 * D) ^ D :=
+                Nat.mul_le_mul hY hU
+              _ = (5 * D) ^ (2 * D) := by
+                rw [← pow_add]
+                congr
+                omega
+          · simp
+    _ = n * (5 * D) ^ (2 * D) := by simp
 
 /-- Right-extending witness event used in the proof of Lemma 5.3. -/
 def RightRepairEvent {n p : ℕ} (D : ℕ)
