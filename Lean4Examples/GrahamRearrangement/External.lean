@@ -318,6 +318,10 @@ axiom two_sided_interval_kernel_sum_le
 axiom nat_le_two_pow_40 (D : ℕ) :
     (D : ℝ) ≤ (2 : ℝ) ^ (40 * D)
 
+/-- Elementary growth used in the Section 5 counting estimates. -/
+axiom D_plus_one_le_fiveD_pow (D : ℕ) (hD : 7 ≤ D) :
+    (D + 1 : ℝ) ≤ (5 * D : ℝ) ^ (2 * D)
+
 /-- Linear eventually dominates log-squared. -/
 axiom exists_log_sq_threshold (A : ℝ) :
     ∃ N : ℕ, 2 ≤ N ∧
