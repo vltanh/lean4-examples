@@ -241,7 +241,10 @@ theorem lemma3_1 {p m t : ℕ} (hp : p.Prime)
           have hfar := farSet_quarter S χ hχ0 hχD hx'
           have htail :=
             Section3External.block_sparse_tail S (farSet S m t χ x') x'
-              hx' (by intro x hx; exact (Finset.mem_filter.1 hx).1)
+              hx'
+              (by
+                simp [farSet,zmodNorm_nonneg])
+              (by intro x hx; exact (Finset.mem_filter.1 hx).1)
               hfar hm hm4
           exact htail
     _ = (S.card : ℝ) * Real.exp (-(S.card : ℝ) / (64 * m)) := by simp
@@ -438,6 +441,18 @@ theorem lemma3_3 {p m t : ℕ} (hp : p.Prime)
           have hxS := (Finset.mem_sdiff.1 hx).1
           have htail :=
             Section3External.block_dense_tail S G x hxS
+              (by
+                have hxJ := (Finset.mem_sdiff.1 hx).2
+                intro hxG
+                have hnear := (Finset.mem_filter.1 hxG).2
+                have hJ : x ∈ Jset S m t χ := by
+                  apply Finset.mem_filter.mpr
+                  have hsqrt : 0 ≤ Real.sqrt ((t : ℝ) / m) :=
+                    Real.sqrt_nonneg _
+                  constructor
+                  · simp
+                  · nlinarith
+                exact hxJ hJ)
               (by intro y hy; exact (Finset.mem_filter.1 hy).1)
               hGdensity hm hm4
           exact htail
