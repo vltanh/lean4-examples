@@ -300,6 +300,24 @@ axiom neg_rpow_antitone {α : ℝ} (hα : 0 < α)
     {x y : ℝ} (hx : 1 ≤ x) (hxy : x ≤ y) :
     y ^ (-α) ≤ x ^ (-α)
 
+/-- Two-sided reciprocal-square-root kernel sum used for a fixed interval endpoint. -/
+axiom two_sided_interval_kernel_sum_le
+    (n p : ℕ) (C : ℝ) :
+    (∑ r ∈ Finset.Icc 1 (n - 1),
+      ((1 / (p : ℝ) +
+        C * Real.sqrt (Real.log (n : ℝ)) /
+          ((n : ℝ) * Real.sqrt (r : ℝ))) +
+       (1 / (p : ℝ) +
+        C * Real.sqrt (Real.log (n : ℝ)) /
+          ((n : ℝ) * Real.sqrt ((n - r : ℕ) : ℝ))))) ≤
+      2 * (n : ℝ) / p +
+        4 * C * Real.sqrt (Real.log (n : ℝ)) /
+          Real.sqrt (n : ℝ)
+
+/-- Crude elementary growth used in Section 5 numerical union bounds. -/
+axiom nat_le_two_pow_40 (D : ℕ) :
+    (D : ℝ) ≤ (2 : ℝ) ^ (40 * D)
+
 /-- Linear eventually dominates log-squared. -/
 axiom exists_log_sq_threshold (A : ℝ) :
     ∃ N : ℕ, 2 ≤ N ∧
