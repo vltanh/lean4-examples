@@ -1,0 +1,116 @@
+import Mathlib
+
+open scoped BigOperators
+
+namespace GrahamRearrangement
+
+/-!
+# Finite uniform probability
+
+The paper only uses finite probability spaces.  We keep the core notions as
+cardinality ratios so that every random-subset, random-partition, and random-bijection
+statement has an explicit finite sample space.
+-/
+
+noncomputable section
+
+/-- Uniform probability of an event on a finite sample space. -/
+def uniformMass {Ω : Type*} [DecidableEq Ω] (space : Finset Ω)
+    (event : Ω → Prop) [DecidablePred event] : ℝ :=
+  ((space.filter event).card : ℝ) / (space.card : ℝ)
+
+/-- Uniform expectation of a real-valued function on a finite sample space. -/
+def uniformExpectation {Ω : Type*} [DecidableEq Ω] (space : Finset Ω)
+    (f : Ω → ℝ) : ℝ :=
+  (∑ ω ∈ space, f ω) / (space.card : ℝ)
+
+/-- Conditional uniform mass, obtained by restricting the finite sample space. -/
+def uniformConditionalMass {Ω : Type*} [DecidableEq Ω] (space : Finset Ω)
+    (given event : Ω → Prop) [DecidablePred given] [DecidablePred event] : ℝ :=
+  uniformMass (space.filter given) event
+
+theorem uniformMass_nonneg {Ω : Type*} [DecidableEq Ω]
+    (space : Finset Ω) (event : Ω → Prop) [DecidablePred event] :
+    0 ≤ uniformMass space event := by
+  unfold uniformMass
+  positivity
+
+theorem uniformMass_le_one {Ω : Type*} [DecidableEq Ω]
+    (space : Finset Ω) (event : Ω → Prop) [DecidablePred event] :
+    uniformMass space event ≤ 1 := by
+  unfold uniformMass
+  by_cases h : space.card = 0
+  · simp [h]
+  · have hpos : (0 : ℝ) < space.card := by
+      exact_mod_cast Nat.pos_of_ne_zero h
+    apply (div_le_one hpos).2
+    exact_mod_cast Finset.card_filter_le space event
+
+theorem uniformMass_empty {Ω : Type*} [DecidableEq Ω]
+    (space : Finset Ω) :
+    uniformMass space (fun _ => False) = 0 := by
+  simp [uniformMass]
+
+theorem uniformMass_univ {Ω : Type*} [DecidableEq Ω]
+    (space : Finset Ω) (h : space.Nonempty) :
+    uniformMass space (fun _ => True) = 1 := by
+  simp [uniformMass, h.card_ne_zero]
+
+/-- Monotonicity of finite uniform mass. -/
+theorem uniformMass_mono {Ω : Type*} [DecidableEq Ω]
+    (space : Finset Ω) (E F : Ω → Prop)
+    [DecidablePred E] [DecidablePred F]
+    (hEF : ∀ ω, E ω → F ω) :
+    uniformMass space E ≤ uniformMass space F := by
+  unfold uniformMass
+  gcongr
+  exact Finset.card_le_card fun ω hω => by
+    simp only [Finset.mem_filter] at hω ⊢
+    exact ⟨hω.1, hEF _ hω.2⟩
+
+/-- Finite union bound for two events. -/
+theorem uniformMass_or_le_add {Ω : Type*} [DecidableEq Ω]
+    (space : Finset Ω) (E F : Ω → Prop)
+    [DecidablePred E] [DecidablePred F] :
+    uniformMass space (fun ω => E ω ∨ F ω) ≤
+      uniformMass space E + uniformMass space F := by
+  unfold uniformMass
+  by_cases h : space.card = 0
+  · simp [h]
+  · have hpos : (0 : ℝ) < space.card := by
+      exact_mod_cast Nat.pos_of_ne_zero h
+    rw [div_add_div_same]
+    apply (div_le_div_iff_of_pos_right hpos).2
+    exact_mod_cast
+      (Finset.card_filter_or_le (s := space) (p := E) (q := F))
+
+/-- Uniform probability of a singleton in a nonempty finite space. -/
+theorem uniformMass_eq_singleton {Ω : Type*} [DecidableEq Ω]
+    (space : Finset Ω) (ω : Ω) (hω : ω ∈ space) :
+    uniformMass space (fun x => x = ω) = 1 / (space.card : ℝ) := by
+  rw [uniformMass]
+  have hcard : (space.filter fun x => x = ω).card = 1 := by
+    rw [Finset.card_eq_one]
+    exact ⟨ω, by ext x; simp [hω]⟩
+  rw [hcard]
+  norm_num
+
+/-- Average of a constant over a nonempty finite space. -/
+theorem uniformExpectation_const {Ω : Type*} [DecidableEq Ω]
+    (space : Finset Ω) (h : space.Nonempty) (c : ℝ) :
+    uniformExpectation space (fun _ => c) = c := by
+  simp [uniformExpectation, h.card_ne_zero]
+
+/-- The indicator expectation equals the corresponding uniform mass. -/
+theorem uniformExpectation_indicator {Ω : Type*} [DecidableEq Ω]
+    (space : Finset Ω) (E : Ω → Prop) [DecidablePred E] :
+    uniformExpectation space (fun ω => if E ω then 1 else 0) =
+      uniformMass space E := by
+  classical
+  unfold uniformExpectation uniformMass
+  congr 1
+  simpa [Finset.sum_boole]
+
+end
+
+end GrahamRearrangement
