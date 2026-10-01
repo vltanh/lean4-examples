@@ -338,14 +338,36 @@ axiom chainUpperBound_sum_le_lemma43
 
 /-- The right-tail size tuple associated with a strictly increasing tail tuple is
 a valid chain-size tuple in the remaining ground set. -/
-axiom tailSizes_valid
+theorem tailSizes_valid
     {n D s : ℕ}
     (b b' : Fin n)
+    (hb2 : 2 ≤ paperPos b)
     (hgap : paperPos b' - paperPos b = 5 * D)
     (x : Fin D → Fin n)
     (hx : x ∈ tailTuples b' D)
     (hs : s = n - (5 * D + 1)) :
-    IsChainSizeTuple s (tailSizes b' x)
+    IsChainSizeTuple s (tailSizes b' x) := by
+  rcases Finset.mem_filter.mp hx with ⟨_,hmono,habove⟩
+  constructor
+  · intro i j hij
+    unfold tailSizes
+    have hxi := hmono hij
+    simp only [Fin.mk_lt_mk] at hxi ⊢
+    omega
+  · intro i
+    have habove := habove i
+    have hgapv : b'.val - b.val = 5 * D := by
+      simpa [paperPos] using hgap
+    have hbval : 1 ≤ b.val := by
+      simpa [paperPos] using hb2
+    unfold tailSizes
+    constructor
+    · simp [paperPos] at habove
+      omega
+    · rw [hs]
+      simp [paperPos] at habove
+      have hxlt := (x i).isLt
+      omega
 
 /-- After exposing [b,b'], a fixed right-tail tuple has exactly the nested-chain
 law on the remaining values. The bound supplied as hchain is therefore inherited
