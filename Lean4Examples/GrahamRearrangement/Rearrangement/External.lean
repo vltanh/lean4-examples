@@ -121,6 +121,106 @@ axiom finite_parameter_union_bound
     uniformMass space (fun ω => ∃ θ ∈ params, E θ ω) ≤
       ∑ θ ∈ params, uniformMass space (E θ)
 
+/-- Union bound in witness form: if every occurrence of E supplies a parameter
+θ and the θ-event has mass at most q, then E has mass at most |params| q. -/
+axiom witness_union_bound
+    {Ω Θ : Type*} [DecidableEq Ω] [DecidableEq Θ]
+    (space : Finset Ω) (params : Finset Θ)
+    (E : Ω → Prop) (A : Θ → Ω → Prop)
+    [DecidablePred E] [∀ θ, DecidablePred (A θ)]
+    (q : ℝ)
+    (hcover : ∀ ω ∈ space, E ω → ∃ θ ∈ params, A θ ω)
+    (hbound : ∀ θ ∈ params, uniformMass space (A θ) ≤ q) :
+    uniformMass space E ≤ (params.card : ℝ) * q
+
+/-- Removing two exceptional events: if E outside A∪B has mass q, then E has
+mass at most mass(A)+mass(B)+q. -/
+axiom mass_le_two_exceptions
+    {Ω : Type*} [DecidableEq Ω] (space : Finset Ω)
+    (E A B : Ω → Prop)
+    [DecidablePred E] [DecidablePred A] [DecidablePred B]
+    (q : ℝ)
+    (hrest :
+      uniformMass space (fun ω => E ω ∧ ¬ A ω ∧ ¬ B ω) ≤ q) :
+    uniformMass space E ≤
+      uniformMass space A + uniformMass space B + q
+
+/-- Generic ordered-window extraction. More than D points in a symmetric 10D
+window yield a least point b₀ and D further distinct points in the following 20D
+window. -/
+axiom dense_window_extract {n D : ℕ}
+    (B : Finset (Fin n)) (hD : 0 < D)
+    (h : ∃ z : Fin n,
+      D < (B ∩ symmetricWindow z (10 * D)).card) :
+    ∃ b₀ ∈ B, ∃ b : Fin D → Fin n,
+      Function.Injective b ∧
+      (∀ i, b i ∈ B) ∧
+      (∀ i, paperPos b₀ < paperPos (b i) ∧
+        paperPos (b i) ≤ paperPos b₀ + 20 * D)
+
+/-- A finite tuple of distinct elements in a linear order can be relabelled in
+strictly increasing order without changing the underlying set of witnesses. -/
+axiom relabel_strictly_increasing
+    {α : Type*} [LinearOrder α] [Fintype α] [DecidableEq α]
+    {D : ℕ} (x : Fin D → α) (hinj : Function.Injective x) :
+    ∃ y : Fin D → α, StrictMono y ∧
+      Set.range y = Set.range x
+
+/-- Generic trimming principle for disjoint transpositions: swaps crossing none
+of a finite family of index sets can be deleted without changing the image of
+any of those sets. -/
+axiom trim_irrelevant_disjoint_swaps
+    {n k : ℕ} (P : Finset (Fin n × Fin n))
+    (hP : P.toSet.Pairwise swapPairsDisjoint)
+    (I : Fin k → Finset (Fin n)) :
+    ∃ P' ⊆ P,
+      P'.toSet.Pairwise swapPairsDisjoint ∧
+      (∀ q ∈ P', ∃ i, ((q.1 ∈ I i) ↔ q.2 ∉ I i)) ∧
+      ∀ i, (I i).image (collectionPerm P') =
+        (I i).image (collectionPerm P)
+
+/-- Counting lemma for interesting local swap collections. This is a generic
+partial-matching count with q≤7D² possible left endpoints and 5D possible
+partners, specialized only to the elementary numerical simplification. -/
+axiom interesting_collection_count_le
+    (D : ℕ) (hD : 7 ≤ D) (q : ℕ) (hq : q ≤ 7 * D ^ 2) :
+    (5 * D + 1) ^ q ≤ D ^ (14 * D ^ 2)
+
+/-- Reversal transports a family of left-tail interval constraints into the
+corresponding right-tail constraints, preserving admissibility and event mass. -/
+axiom reversal_transports_tail_constraints
+    {p : ℕ} [NeZero p] (S : Finset (ZMod p)) :
+    True
+
+/-- Abstract finite greedy repair principle. If bad positions are processed in
+strictly decreasing order, every step has at least one local candidate outside
+three forbidden sets and every nonblocked swap removes the current endpoint
+without creating a new earlier endpoint, then all bad positions can be removed. -/
+axiom finite_descending_greedy_repair
+    {n p D : ℕ} (hD : 0 < D)
+    (σ : Fin n → ZMod p)
+    (B : Finset (Fin n))
+    (hB : B = badRightEndpoints σ)
+    (hfar : ∀ b ∈ B, paperPos b + 5 * D ≤ n)
+    (hlocal : ∀ z : Fin n,
+      (B ∩ symmetricWindow z (10 * D)).card ≤ D)
+    (hblocked :
+      ∀ b ∈ B, ∀ π : Equiv.Perm (Fin n),
+        IsAdmissiblePermutation D π →
+        FixedBelow b π →
+        (blockedCandidates D σ b π).card < 2 * D)
+    (hpreserve :
+      ∀ b y π,
+        b ∈ B →
+        IsAdmissiblePermutation D π →
+        FixedThrough b π →
+        y ∈ forwardWindow b (5 * D) →
+        ¬ IsBlockedAt D σ b π y →
+        True) :
+    ∃ π : Equiv.Perm (Fin n),
+      IsAdmissiblePermutation D π ∧
+      HasNoZeroPaperSegments (applyPositionPerm σ π)
+
 /-- A generic upper bound for the number of partial matchings when each of q
 possible first endpoints has at most r possible partners. -/
 axiom partial_matching_count_le (q r : ℕ) :
