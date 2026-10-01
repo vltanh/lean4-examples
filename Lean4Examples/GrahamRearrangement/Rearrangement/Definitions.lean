@@ -13,6 +13,21 @@ translation is explicit: `paperPos i = i.val + 1`.
 
 noncomputable section
 
+/-- Reversal of the finite paper index set: position a is sent to n+1-a. -/
+def reverseIndex (n : ℕ) : Equiv.Perm (Fin n) where
+  toFun i := ⟨n - 1 - i.val, by omega⟩
+  invFun i := ⟨n - 1 - i.val, by omega⟩
+  left_inv i := by apply Fin.ext; omega
+  right_inv i := by apply Fin.ext; omega
+
+@[simp] theorem reverseIndex_apply_val {n : ℕ} (i : Fin n) :
+    (reverseIndex n i).val = n - 1 - i.val := rfl
+
+@[simp] theorem reverseIndex_involutive {n : ℕ} (i : Fin n) :
+    reverseIndex n (reverseIndex n i) = i := by
+  apply Fin.ext
+  omega
+
 def paperPos {n : ℕ} (i : Fin n) : ℕ := i.val + 1
 
 theorem paperPos_pos {n : ℕ} (i : Fin n) : 1 ≤ paperPos i := by
