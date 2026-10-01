@@ -283,6 +283,25 @@ axiom conditional_suffix_chain_union_bound
             indexSetSum σ (indexHalfOpen cut (x i)) = target i)) ≤
       lemma43LHS p (S \ indexImageSet τ F).card k C
 
+/-- If a remaining ground set has size between n/2 and n, the Lemma 4.3 base
+is bounded by twice the ambient n^{-α} bound used in Section 5. -/
+axiom half_ground_lemma43Base_le
+    {n s p : ℕ} {α C : ℝ}
+    (hn : 2 ≤ n) (hhalf : n / 2 ≤ s) (hsn : s ≤ n)
+    (hp : (n : ℝ) / p ≤ (n : ℝ) ^ (-α))
+    (hC :
+      4 * C * Real.sqrt (Real.log (n : ℝ)) /
+        Real.sqrt (n : ℝ) ≤ (n : ℝ) ^ (-α)) :
+    lemma43Base p s C ≤ 2 * (n : ℝ) ^ (-α)
+
+/-- The exponent comparison αD≥3 used in the D-fold chain bounds. -/
+axiom two_neg_alpha_pow_le_cube
+    {n D : ℕ} {α : ℝ}
+    (hn : 1 ≤ n) (hα0 : 0 < α)
+    (hαD : 3 ≤ α * D) :
+    (2 * (n : ℝ) ^ (-α)) ^ D ≤
+      (2 : ℝ) ^ D / (n : ℝ) ^ 3
+
 /-- Reversal transports a family of left-tail interval constraints into the
 corresponding right-tail constraints, preserving admissibility and event mass. -/
 axiom reversal_transports_tail_constraints
