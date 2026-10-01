@@ -112,8 +112,8 @@ input is the hypergeometric Chernoff estimate explicitly cited as [8, Theorem
 | equation (4.1) | `equation_4_1` |
 | Lemma 4.3 | `lemma4_3` |
 
-Generic finite-sampling/exposure statements are axiomatized in
-`Combinatorial/External.lean`.
+All finite-sampling/exposure statements in Section 4 are proved internally;
+`Combinatorial/External.lean` contains no axioms.
 
 ## Section 5 — Rearrangement conjecture
 
@@ -164,9 +164,9 @@ Generic finite-sampling/exposure statements are axiomatized in
 | E₁/E₂ side events | `RightRepairEvent`, `LeftRepairEvent` |
 | Lemma 5.3 | `Rearrangement/Lemma53.lemma5_3` |
 
-The generic finite-bijection, conditioning, matching, reversal, and finite-choice
-infrastructure used to implement these arguments is axiomatized in
-`Rearrangement/External.lean` and `Rearrangement/ReversalExternal.lean`.
+The finite-bijection, conditioning, matching, reversal, counting, and finite-choice
+infrastructure used in these arguments is proved internally.
+`Rearrangement/External.lean` and `Rearrangement/Reversal.lean` contain no axioms.
 
 ### Final repair and Theorem 1.2
 
@@ -180,13 +180,14 @@ infrastructure used to implement these arguments is axiomatized in
 
 ## External axiom boundary
 
-By user request, results not proved as part of the paper formalization are left
-as axioms.  They occur only in files whose names contain `External`:
+The strict boundary has exactly two axioms, both in `External.lean`:
 
-- `External.lean`
-- `BooleanSlice/External.lean`
-- `Combinatorial/External.lean`
-- `Rearrangement/External.lean`
-- `Rearrangement/ReversalExternal.lean`
+- `hypergeom_quarter_lower_tail`, used in Lemma 3.1;
+- `hypergeom_three_quarters_lower_tail`, used in Lemma 3.3.
 
-No paper-numbered Fact, Lemma, Corollary, or Theorem is declared as an axiom.
+Both are direct specializations of the hypergeometric Chernoff bound that the
+paper explicitly cites as [8, Theorem 2.10 and Eq. (2.6)]. Reference [8] is
+S. Janson, T. Łuczak, and A. Ruciński, *Random Graphs*, John Wiley & Sons, 2011.
+
+No paper-internal argument is axiomatized. All other External modules are
+axiom-free.
