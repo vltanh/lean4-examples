@@ -60,22 +60,6 @@ theorem withoutReplacementExpectation_mono
           (fun xs => hfg (x :: xs))
       · simp [uniformExpectation, Finset.not_nonempty_iff_eq_empty.mp hU]
 
-theorem withoutReplacementExpectation_nonneg
-    {α : Type*} [DecidableEq α]
-    (U : Finset α) (k : ℕ) (f : List α → ℝ)
-    (hf : ∀ xs, 0 ≤ f xs) :
-    0 ≤ withoutReplacementExpectation U k f := by
-  exact le_trans
-    (by
-      induction k generalizing U with
-      | zero => simp [withoutReplacementExpectation]
-      | succ k ih =>
-          rw [withoutReplacementExpectation_succ]
-          unfold uniformExpectation
-          positivity)
-    (withoutReplacementExpectation_mono U k (fun _ => 0) f
-      (fun xs => hf xs))
-
 theorem withoutReplacementExpectation_const
     {α : Type*} [DecidableEq α]
     (U : Finset α) {k : ℕ} (hk : k ≤ U.card) (c : ℝ) :
@@ -294,17 +278,6 @@ theorem headTail_fiber_card
     · rfl
   have hcard := Fintype.card_congr (Equiv.ofBijective f ⟨hinj,hsurj⟩)
   simpa [A,(Finset.mem_powersetCard.mp hT).2] using hcard
-
-theorem headTailSpace_card
-    {α : Type*} [DecidableEq α]
-    (U : Finset α) (k : ℕ) (hk : k + 1 ≤ U.card) :
-    (headTailSpace U k).card =
-      (k + 1) * (U.powersetCard (k + 1)).card := by
-  rw [card_eq_sum_card_fibers
-    (headTailSpace U k) (U.powersetCard (k+1)) headTailSet
-    (fun q hq => headTailSet_mem_powersetCard hq)]
-  simp_rw [headTail_fiber_card U k]
-  simp [mul_comm]
 
 theorem headTail_event_card
     {α : Type*} [DecidableEq α]
