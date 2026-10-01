@@ -108,17 +108,19 @@ noncomputable def sliceMass {p : ℕ} (S : Finset (ZMod p)) (m : ℕ) (z : ZMod 
 
 theorem sliceMass_nonneg {p : ℕ} (S : Finset (ZMod p)) (m : ℕ) (z : ZMod p) :
     0 ≤ sliceMass S m z := by
-  positivity
+  unfold sliceMass
+  exact div_nonneg (by positivity) (by positivity)
 
 theorem sliceMass_le_one {p : ℕ} (S : Finset (ZMod p)) (m : ℕ) (z : ZMod p) :
     sliceMass S m z ≤ 1 := by
   unfold sliceMass
   by_cases hzero : (S.powersetCard m).card = 0
   · simp [hzero]
-  · apply (div_le_one ?_).2
-    · exact_mod_cast Nat.pos_of_ne_zero hzero
-    · exact_mod_cast
-        (Finset.card_filter_le (S.powersetCard m) (fun R => subsetSum R = z))
+  · have hpos : (0 : ℝ) < (S.powersetCard m).card := by
+      exact_mod_cast Nat.pos_of_ne_zero hzero
+    exact (div_le_one hpos).2 (by
+      exact_mod_cast
+        (Finset.card_filter_le (S.powersetCard m) (fun R => subsetSum R = z)))
 
 end BooleanSlice
 
