@@ -34,6 +34,113 @@ The first `n % m` blocks have size `n / m + 1`; the rest have size `n / m`. -/
 def balancedBlockSize (n m : ℕ) (i : Fin m) : ℕ :=
   n / m + if i.val < n % m then 1 else 0
 
+def balancedPrefix (n m i : ℕ) : ℕ :=
+  i * (n / m) + min i (n % m)
+
+theorem balancedPrefix_zero (n m : ℕ) :
+    balancedPrefix n m 0 = 0 := by
+  simp [balancedPrefix]
+
+theorem balancedPrefix_succ {n m i : ℕ}
+    (hm : 0 < m) (hi : i < m) :
+    balancedPrefix n m (i + 1) - balancedPrefix n m i =
+      balancedBlockSize n m ⟨i,hi⟩ := by
+  unfold balancedPrefix balancedBlockSize
+  by_cases hir : i < n % m
+  · have hir' : i + 1 ≤ n % m := by omega
+    simp [hir, Nat.min_eq_left (by omega),
+      Nat.min_eq_left hir']
+    omega
+  · have hri : n % m ≤ i := Nat.le_of_not_gt hir
+    have hri' : n % m ≤ i + 1 := le_trans hri (Nat.le_succ _)
+    simp [hir, Nat.min_eq_right hri, Nat.min_eq_right hri']
+    omega
+
+theorem balancedPrefix_m {n m : ℕ} (hm : 0 < m) :
+    balancedPrefix n m m = n := by
+  unfold balancedPrefix
+  have hmod : n % m < m := Nat.mod_lt n hm
+  rw [Nat.min_eq_right (Nat.le_of_lt hmod)]
+  exact Nat.div_add_mod n m
+
+theorem balancedPrefix_mono {n m i j : ℕ}
+    (hij : i ≤ j) :
+    balancedPrefix n m i ≤ balancedPrefix n m j := by
+  unfold balancedPrefix
+  gcongr
+  exact min_le_min_right _ hij
+
+def canonicalBalancedPartition {p m : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (hm : 0 < m) (hmS : m ≤ S.card) :
+    Fin m → Finset (ZMod p) := by
+  classical
+  let e : Fin S.card ≃ {x // x ∈ S} :=
+    Fintype.equivOfCardEq (by simp)
+  exact fun i =>
+    (finSegment S.card
+      (balancedPrefix S.card m i.val)
+      (balancedPrefix S.card m (i.val + 1))
+      (by
+        exact le_trans
+          (balancedPrefix_mono (show i.val + 1 ≤ m by omega))
+          (by rw [balancedPrefix_m hm])))
+      ).image (fun j => (e j).1)
+
+theorem canonicalBalancedPartition_spec {p m : ℕ} [NeZero p]
+    (S : Finset (ZMod p)) (hm : 0 < m) (hmS : m ≤ S.card) :
+    IsBalancedPartition S (canonicalBalancedPartition S hm hmS) := by
+  classical
+  let e : Fin S.card ≃ {x // x ∈ S} :=
+    Fintype.equivOfCardEq (by simp)
+  constructor
+  · intro i x hx
+    rcases Finset.mem_image.mp hx with ⟨j,hj,rfl⟩
+    exact (e j).2
+  constructor
+  · intro i j hij
+    rw [Finset.disjoint_left]
+    intro x hxi hxj
+    rcases Finset.mem_image.mp hxi with ⟨a,ha,hax⟩
+    rcases Finset.mem_image.mp hxj with ⟨b,hb,hbx⟩
+    have hab : a = b := e.injective (Subtype.ext (hax.trans hbx.symm))
+    subst b
+    have hai := mem_finSegment.mp ha
+    have haj := mem_finSegment.mp hb
+    by_cases hijv : i.val < j.val
+    · have hp :=
+        balancedPrefix_mono (show i.val + 1 ≤ j.val by omega)
+      omega
+    · have hp :=
+        balancedPrefix_mono (show j.val + 1 ≤ i.val by omega)
+      omega
+  constructor
+  · intro x
+    constructor
+    · intro hx
+      obtain ⟨j,hj⟩ := e.surjective ⟨x,hx⟩
+      let i : ℕ := if j.val < (S.card % m) * (S.card / m + 1) then
+          j.val / (S.card / m + 1)
+        else
+          S.card % m +
+            (j.val - (S.card % m) * (S.card / m + 1)) /
+              (S.card / m)
+      have hi : i < m := by
+        exact balanced_block_index_lt S.card m hm hmS j.val j.isLt
+      refine ⟨⟨i,hi⟩, ?_⟩
+      apply Finset.mem_image.mpr
+      refine ⟨j, ?_, congrArg Subtype.val hj⟩
+      apply mem_finSegment.mpr
+      exact balanced_block_index_range S.card m hm hmS j.val j.isLt
+    · rintro ⟨i,hxi⟩
+      exact (show x ∈ S from by
+        rcases Finset.mem_image.mp hxi with ⟨j,hj,rfl⟩
+        exact (e j).2)
+  · intro i
+    unfold canonicalBalancedPartition
+    rw [Finset.card_image_of_injective _ e.injective]
+    rw [card_finSegment]
+    exact balancedPrefix_succ hm i.isLt
+
 /-- Ordered balanced partitions of `S` into `m` labelled blocks. -/
 def IsBalancedPartition {p m : ℕ} (S : Finset (ZMod p))
     (P : Fin m → Finset (ZMod p)) : Prop :=
