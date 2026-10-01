@@ -5,10 +5,10 @@ open scoped BigOperators Pointwise
 namespace GrahamRearrangement.Section5External
 
 /-!
-# External finite-permutation facts used in Section 5
+# Generic finite-permutation facts used in Section 5
 
-All axioms here are generic facts about uniformly random bijections, conditioning,
-finite fibers, and matchings.  None is a numbered result of Pham--Sauermann.
+The finite-bijection, conditioning, matching, counting, and permutation facts
+used by Section 5 are all proved in this module.  It contains no project axioms.
 -/
 
 noncomputable section
