@@ -132,13 +132,6 @@ axiom uniform_markov {Ω : Type*} [DecidableEq Ω]
     uniformMass space (fun ω => a ≤ X ω) ≤
       uniformExpectation space X / a
 
-/-- Union bound over a finite family of events. -/
-axiom finite_union_bound {Ω ι : Type*} [DecidableEq Ω] [DecidableEq ι]
-    (space : Finset Ω) (I : Finset ι) (E : ι → Ω → Prop)
-    [∀ i, DecidablePred (E i)] :
-    uniformMass space (fun ω => ∃ i ∈ I, E i ω) ≤
-      ∑ i ∈ I, uniformMass space (E i)
-
 /-- Translation of a uniformly random subset by a fixed group element is uniform. -/
 axiom uniform_subset_translate {G : Type*} [AddCommGroup G] [DecidableEq G]
     (S : Finset G) (k : ℕ) (a : G) :
