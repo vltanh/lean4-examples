@@ -185,10 +185,27 @@ def collectionPerm {n : ℕ}
     (P : Finset (Fin n × Fin n)) : Equiv.Perm (Fin n) :=
   swapsPermList P.toList
 
+def SwapCrosses {n : ℕ} (q : Fin n × Fin n)
+    (I : Finset (Fin n)) : Prop :=
+  (q.1 ∈ I ∧ q.2 ∉ I) ∨ (q.1 ∉ I ∧ q.2 ∈ I)
+
 def IsAdmissiblePermutation {n : ℕ} (D : ℕ)
     (π : Equiv.Perm (Fin n)) : Prop :=
   ∃ P : Finset (Fin n × Fin n),
     IsAdmissibleCollection D P ∧ collectionPerm P = π
+
+def IsInterestingPermutation {n k : ℕ} (D : ℕ)
+    (I : Fin k → Finset (Fin n))
+    (π : Equiv.Perm (Fin n)) : Prop :=
+  ∃ P : Finset (Fin n × Fin n),
+    IsAdmissibleCollection D P ∧
+    collectionPerm P = π ∧
+    ∀ q ∈ P, ∃ i, SwapCrosses q (I i)
+
+def interestingPermutations {n k : ℕ} (D : ℕ)
+    (I : Fin k → Finset (Fin n)) :
+    Finset (Equiv.Perm (Fin n)) :=
+  Finset.univ.filter (IsInterestingPermutation D I)
 
 def FixedBelow {n : ℕ} (b : Fin n)
     (π : Equiv.Perm (Fin n)) : Prop :=
