@@ -378,10 +378,11 @@ axiom fixed_tail_tuple_conditional_chainBound
     (hm : IsChainSizeTuple
       (S \ indexImageSet τ F).card (tailSizes b' x))
     (hchain :
-      chainMass (S \ indexImageSet τ F)
-          (tailSizes b' x) (fun _ => 0) ≤
-        chainUpperBound p (S \ indexImageSet τ F).card
-          C (tailSizes b' x)) :
+      ∀ z : Fin D → ZMod p,
+        chainMass (S \ indexImageSet τ F)
+            (tailSizes b' x) z ≤
+          chainUpperBound p (S \ indexImageSet τ F).card
+            C (tailSizes b' x)) :
     orderingConditionalMass S
       (fun σ => AgreesOn F σ τ)
       (fun σ =>
