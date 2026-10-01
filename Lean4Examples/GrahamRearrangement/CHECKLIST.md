@@ -20,7 +20,7 @@ Primary fidelity source: the v1 PDF/TeX, not the experimental HTML rendering.
 
 ## Completion rule
 
-A checkbox is checked only when the corresponding paper definition/claim has been represented faithfully in Lean and its paper-internal proof has a theorem body with no `sorry`. Under the strict final boundary, an axiom is permitted only for a result that the paper itself imports from another source. The only such axioms are the two hypergeometric Chernoff specializations cited as [8, Theorem 2.10 and Eq. (2.6)]. Merely stating a paper result is not completion.
+A checkbox is checked only when the corresponding paper definition/claim has been represented faithfully in Lean and its paper-internal proof has a theorem body with no `sorry`. Under the final Palomar-style boundary, the project contains no custom axioms. Results cited from external literature are formalized in the `External/` hierarchy using proved mathlib infrastructure. Merely stating a result is not completion.
 
 For each numbered result, preserve:
 - the exact quantifier order and domains;
@@ -46,9 +46,9 @@ If an equivalent Lean reformulation is used, prove an explicit equivalence to th
 - [x] Prove all claims that a conditional object is “uniformly random” rather than treating them as informal sampling facts.
 - [x] Prove all invariance claims under fixed permutations/bijections that the paper uses when replacing σ by σ ∘ π.
 - [x] Keep the exact real-valued constants until the final inequality; do not replace them by asymptotic O-notation.
-- [x] Isolate external inputs with precise imported statements and citations: Cauchy–Davenport, Cauchy–Schwarz, Taylor/Lagrange remainder, Markov, Fourier orthogonality, and the hypergeometric Chernoff estimate used from Janson–Łuczak–Ruciński.
+- [x] Preserve provenance for external inputs, but formalize the required results as theorem bodies. In particular, the Janson–Łuczak–Ruciński hypergeometric estimate is developed under `External/Hypergeometric/` rather than left axiomatic.
 - [x] Add a specialized formal hypergeometric tail lemma strong enough to yield the paper's e^{-k/32} and e^{-k/24} bounds if mathlib does not already provide it.
-- [x] Final audit: every Lean source file is free of `sorry`; axioms are confined to the documented `External*.lean` boundary.
+- [x] Final audit: every Lean source file is free of `sorry`, `admit`, and custom `axiom` declarations.
 
 ## 1. Introduction and main statements
 
@@ -532,6 +532,6 @@ If an equivalent Lean reformulation is used, prove an explicit equivalence to th
 
 ## Completion status
 
-Source-level formalization and strict proof-boundary audit complete under the requested no-compile policy. Every paper-numbered Fact, Lemma, Corollary, and Theorem has an internal theorem body, the source tree contains no `sorry` or `admit`, and the only axioms are the two hypergeometric Chernoff specializations explicitly cited by the paper from [8].
+Source-level formalization and self-contained proof-boundary audit complete under the requested no-compile policy. Every paper-numbered Fact, Lemma, Corollary, and Theorem has an internal theorem body; the source tree contains no `sorry`, `admit`, or custom `axiom` declarations. The [8]-cited hypergeometric concentration input is formalized in `External/Hypergeometric/`.
 
 See `SOURCE_MAP.md` for the paper-to-Lean declaration map and fidelity notes.
