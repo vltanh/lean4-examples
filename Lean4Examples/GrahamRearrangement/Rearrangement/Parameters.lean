@@ -152,6 +152,60 @@ theorem section5Parameters_alphaD {α : ℝ}
   rw [P.D_eq]
   exact alpha_mul_section5D_ge_three hα0
 
+def Section5Regime {α : ℝ} (P : Section5Parameters α)
+    (p : ℕ) (S : Finset (ZMod p)) : Prop :=
+  0 ∉ S ∧
+  P.Cα ≤ (S.card : ℝ) ∧
+  (S.card : ℝ) ≤ (p : ℝ) ^ (1 - α)
+
+theorem section5_card_ge_fiftyD {α : ℝ} {P : Section5Parameters α}
+    {p : ℕ} {S : Finset (ZMod p)}
+    (hreg : Section5Regime P p S) :
+    50 * P.D ≤ S.card := by
+  exact_mod_cast le_trans P.Cα_fiftyD hreg.2.1
+
+theorem section5_card_ge_two {α : ℝ} {P : Section5Parameters α}
+    (hα0 : 0 < α) (hαh : α < 1 / 2)
+    {p : ℕ} {S : Finset (ZMod p)}
+    (hreg : Section5Regime P p S) :
+    2 ≤ S.card := by
+  have hD : 7 ≤ P.D := by
+    rw [P.D_eq]
+    exact section5D_ge_seven hα0 hαh
+  have h50 := section5_card_ge_fiftyD hreg
+  omega
+
+theorem section5_card_over_p {α : ℝ} {P : Section5Parameters α}
+    (hα0 : 0 < α) (hαh : α < 1 / 2)
+    {p : ℕ} (hp : p.Prime) {S : Finset (ZMod p)}
+    (hreg : Section5Regime P p S) :
+    (S.card : ℝ) / p ≤ (S.card : ℝ) ^ (-α) := by
+  apply External.card_div_prime_le_neg_rpow hα0 (lt_trans hαh (by norm_num))
+  · exact le_trans (by norm_num) (section5_card_ge_two hα0 hαh hreg)
+  · exact hp.one_le
+  · exact hreg.2.2
+
+theorem section5_chainConstant_bound {α : ℝ}
+    {P : Section5Parameters α}
+    {p : ℕ} {S : Finset (ZMod p)}
+    (hreg : Section5Regime P p S) (k : ℕ)
+    (hk : k = 1 ∨ k = P.D) :
+    4 * chainConstant k * Real.sqrt (Real.log (S.card : ℝ)) /
+        Real.sqrt (S.card : ℝ) ≤
+      (S.card : ℝ) ^ (-α) := by
+  have hC : chainConstant k ≤
+      max (chainConstant P.D) (chainConstant 1) := by
+    rcases hk with rfl | rfl
+    · exact le_max_right _ _
+    · exact le_max_left _ _
+  have hbase :=
+    P.asymptotic S.card (le_trans hreg.2.1 (le_rfl))
+  have hfactor :
+      0 ≤ Real.sqrt (Real.log (S.card : ℝ)) /
+        Real.sqrt (S.card : ℝ) := by positivity
+  nlinarith [mul_le_mul_of_nonneg_right
+    (mul_le_mul_of_nonneg_left hC (by norm_num : (0 : ℝ) ≤ 4)) hfactor]
+
 /-- The first lower bound on Cα in the power form actually used by union bounds. -/
 theorem section5_Calpha_power {α : ℝ}
     (hα0 : 0 < α) (P : Section5Parameters α) :
